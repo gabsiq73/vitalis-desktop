@@ -443,123 +443,136 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-outline-variant">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-surface-container-low border-b border-outline-variant">
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold">Produto</th>
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-16 text-center">Qtd</th>
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-36">Val. Vasilhame</th>
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-36">Fornecedor</th>
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-28">Preço Unit.</th>
-                    <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-24 text-center">Recebido</th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant">
-                  {items.map((item, idx) => {
-                    const product = getProduct(item.productId);
-                    const isGas = product?.type === 'GAS';
-                    const unitPrice = getItemUnitPrice(item);
-                    const customPrice = item.productId ? getClientCustomPrice(item.productId) : null;
-                    return (
-                      <tr key={idx} className="hover:bg-surface-container-low/40">
-                        <td className="px-3 py-2">
-                          <select
-                            required
-                            value={item.productId}
-                            onChange={(e) => updateItem(idx, 'productId', e.target.value)}
-                            className={cellInputClass}
-                          >
-                            <option value="">Selecionar produto...</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            required
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
-                            className={cellInputClass + ' text-center'}
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="date"
-                            value={item.bottleExpiration}
-                            onChange={(e) => updateItem(idx, 'bottleExpiration', e.target.value)}
-                            className={cellInputClass}
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          {isGas ? (
-                            <select
-                              value={item.supplierId}
-                              onChange={(e) => updateItem(idx, 'supplierId', e.target.value)}
-                              className={cellInputClass}
-                            >
-                              <option value="">Padrão do produto</option>
-                              {suppliers.map((s) => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="text-sm text-on-surface-variant px-1">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {isGas ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              value={item.gasCostPrice}
-                              onChange={(e) => updateItem(idx, 'gasCostPrice', e.target.value)}
-                              placeholder="Custo"
-                              className={cellInputClass + ' text-right'}
-                            />
-                          ) : (
-                            <div className="px-1">
-                              <span className={`text-sm font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-tertiary' : 'text-on-surface'}`}>
-                                {item.productId ? formatBRL(unitPrice) : '—'}
-                              </span>
-                              {customPrice !== null && item.productId && (
-                                <p className="text-[10px] text-tertiary font-bold leading-none mt-0.5">★ preço especial</p>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {isGas ? (
-                            <input
-                              type="checkbox"
-                              checked={item.receivedByUs}
-                              onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
-                              className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/20 cursor-pointer"
-                            />
-                          ) : (
-                            <span className="text-on-surface-variant text-sm">—</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2">
-                          {items.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeItem(idx)}
-                              className="p-1 text-error hover:bg-error/10 rounded"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                            </button>
-                          )}
-                        </td>
+              {(() => {
+                const hasGasItem = items.some((item) => getProduct(item.productId)?.type === 'GAS');
+                return (
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-surface-container-low border-b border-outline-variant">
+                        <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold">Produto</th>
+                        <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-16 text-center">Qtd</th>
+                        <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-36">Val. Vasilhame</th>
+                        {hasGasItem && (
+                          <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-36">Fornecedor</th>
+                        )}
+                        <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-28">Preço Unit.</th>
+                        {hasGasItem && (
+                          <th className="px-3 py-2.5 text-label-sm text-on-surface-variant font-semibold w-24 text-center">Recebido</th>
+                        )}
+                        <th className="w-8" />
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant">
+                      {items.map((item, idx) => {
+                        const product = getProduct(item.productId);
+                        const isGas = product?.type === 'GAS';
+                        const unitPrice = getItemUnitPrice(item);
+                        const customPrice = item.productId ? getClientCustomPrice(item.productId) : null;
+                        return (
+                          <tr key={idx} className="hover:bg-surface-container-low/40">
+                            <td className="px-3 py-2">
+                              <select
+                                required
+                                value={item.productId}
+                                onChange={(e) => updateItem(idx, 'productId', e.target.value)}
+                                className={cellInputClass}
+                              >
+                                <option value="">Selecionar produto...</option>
+                                {products.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                required
+                                min={1}
+                                value={item.quantity}
+                                onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                                className={cellInputClass + ' text-center'}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="date"
+                                value={item.bottleExpiration}
+                                onChange={(e) => updateItem(idx, 'bottleExpiration', e.target.value)}
+                                className={cellInputClass}
+                              />
+                            </td>
+                            {hasGasItem && (
+                              <td className="px-3 py-2">
+                                {isGas ? (
+                                  <select
+                                    value={item.supplierId}
+                                    onChange={(e) => updateItem(idx, 'supplierId', e.target.value)}
+                                    className={cellInputClass}
+                                  >
+                                    <option value="">Padrão do produto</option>
+                                    {suppliers.map((s) => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="text-sm text-on-surface-variant px-1">—</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="px-3 py-2">
+                              {isGas ? (
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min={0}
+                                  value={item.gasCostPrice}
+                                  onChange={(e) => updateItem(idx, 'gasCostPrice', e.target.value)}
+                                  placeholder="Custo"
+                                  className={cellInputClass + ' text-right'}
+                                />
+                              ) : (
+                                <div className="px-1">
+                                  <span className={`text-sm font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-tertiary' : 'text-on-surface'}`}>
+                                    {item.productId ? formatBRL(unitPrice) : '—'}
+                                  </span>
+                                  {customPrice !== null && item.productId && (
+                                    <p className="text-[10px] text-tertiary font-bold leading-none mt-0.5">★ preço especial</p>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            {hasGasItem && (
+                              <td className="px-3 py-2 text-center">
+                                {isGas ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={item.receivedByUs}
+                                    onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
+                                    className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/20 cursor-pointer"
+                                  />
+                                ) : (
+                                  <span className="text-on-surface-variant text-sm">—</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="px-2 py-2">
+                              {items.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(idx)}
+                                  className="p-1 text-error hover:bg-error/10 rounded"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </div>
           </div>
 

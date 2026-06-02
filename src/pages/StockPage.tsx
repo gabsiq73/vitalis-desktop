@@ -155,8 +155,6 @@ export function StockPage() {
 
   const waterTotal = items.filter((i) => i.productName.toUpperCase().includes('WATER') || i.productName.toUpperCase().includes('GALÃO') || i.productName.toUpperCase().includes('ÁGUA')).reduce((sum, i) => sum + i.quantityInStock, 0);
 
-  const gasTotal = items.filter((i) => !i.productName.toUpperCase().includes('GALÃO') && !i.productName.toUpperCase().includes('ÁGUA')).reduce((sum, i) => sum + i.quantityInStock, 0);
-
   return (
     <>
       <TopBar />
@@ -215,8 +213,8 @@ export function StockPage() {
               </span>
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Gás GLP</p>
-            <p className="text-h2 text-on-surface">
-              {loading ? '—' : gasTotal.toLocaleString('pt-BR')}
+            <p className="text-h2 text-on-surface text-label-lg font-bold text-on-surface-variant">
+              Sem controle
             </p>
           </div>
         </section>
