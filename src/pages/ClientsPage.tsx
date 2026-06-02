@@ -9,8 +9,8 @@ import { formatBRL, getInitials } from '../utils/format';
 
 const PAGE_SIZE = 20;
 
-function getStatusBadge(balance: number): { label: string; className: string } {
-  return balance < 0
+function getStatusBadge(status: string): { label: string; className: string } {
+  return status === 'OVERDUE'
     ? { label: 'OVERDUE', className: 'bg-red-100 text-red-700' }
     : { label: 'PAID', className: 'bg-green-100 text-green-700' };
 }
@@ -183,7 +183,7 @@ export function ClientsPage() {
                   </tr>
                 ) : (
                   clients.map((client) => {
-                    const status = getStatusBadge(client.balance);
+                    const status = getStatusBadge(client.clientStatus);
                     const isRetail = client.clientType === 'RETAIL';
                     return (
                       <tr

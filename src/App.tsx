@@ -12,9 +12,9 @@ function ProtectedLayout() {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex bg-background min-h-screen">
       <Sidebar />
-      <div className="ml-64 min-h-screen">
+      <div className="flex-1 min-w-0">
         <Outlet />
       </div>
     </div>

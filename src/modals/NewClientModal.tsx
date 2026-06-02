@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { isAxiosError } from 'axios';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import type { ClientResponseDTO, ClientRequestBody, ClientType, ClientStatus } from '../types';
@@ -16,8 +17,24 @@ const EMPTY_FORM: ClientRequestBody = {
   address: '',
   notes: '',
   clientType: 'RETAIL',
-  clientStatus: 'ACTIVE',
+  clientStatus: 'PAID',
 };
+
+function parseApiError(err: unknown): string {
+  if (!isAxiosError(err)) return 'Erro de conexão. Verifique se o servidor está rodando.';
+  const status = err.response?.status;
+  const data = err.response?.data;
+  if (status === 400 && typeof data === 'object' && data !== null) {
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d.errors) && d.errors.length > 0) {
+      const first = d.errors[0] as Record<string, unknown>;
+      if (typeof first.message === 'string') return first.message;
+    }
+    if (typeof d.message === 'string') return d.message;
+    return 'Dados inválidos. Verifique os campos obrigatórios.';
+  }
+  return `Erro no servidor (${status ?? 'desconhecido'}). Tente novamente.`;
+}
 
 export function NewClientModal({ open, onClose, onSuccess, client }: NewClientModalProps) {
   const { http } = useAuth();
@@ -54,19 +71,26 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
     setSubmitting(true);
     setError(null);
     try {
-      const body = {
-        ...form,
-        phone: form.phone || undefined,
-        address: form.address || undefined,
-        notes: form.notes || undefined,
+      const body: Record<string, unknown> = {
+        name: form.name,
+        clientType: form.clientType,
+        clientStatus: form.clientStatus,
       };
-      const res = isEdit
-        ? await http.put<ClientResponseDTO>(`/clients/${client.id}`, body)
-        : await http.post<ClientResponseDTO>('/clients', body);
-      onSuccess(res.data);
+      if (form.phone.trim()) body.phone = form.phone.trim();
+      if (form.address.trim()) body.address = form.address.trim();
+      if (form.notes.trim().length >= 5) body.notes = form.notes.trim();
+
+      if (isEdit) {
+        await http.put(`/clients/${client.id}`, body);
+        const updated = await http.get<ClientResponseDTO>(`/clients/${client.id}`);
+        onSuccess(updated.data);
+      } else {
+        const res = await http.post<ClientResponseDTO>('/clients', body);
+        onSuccess(res.data);
+      }
       onClose();
-    } catch {
-      setError('Erro ao salvar cliente. Verifique os dados e tente novamente.');
+    } catch (err) {
+      setError(parseApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -86,8 +110,8 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
-            <span className="material-symbols-outlined text-error" style={{ fontSize: '18px' }}>
+          <div className="flex items-start gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
+            <span className="material-symbols-outlined text-error flex-shrink-0" style={{ fontSize: '18px' }}>
               error
             </span>
             <span className="text-label-sm">{error}</span>
@@ -155,14 +179,14 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
 
         {isEdit && (
           <div>
-            <label className={labelClass}>Status</label>
+            <label className={labelClass}>Status Financeiro</label>
             <select
               value={form.clientStatus}
               onChange={(e) => set('clientStatus', e.target.value as ClientStatus)}
               className={inputClass}
             >
-              <option value="ACTIVE">Ativo</option>
-              <option value="INACTIVE">Inativo</option>
+              <option value="PAID">Em dia (PAID)</option>
+              <option value="OVERDUE">Inadimplente (OVERDUE)</option>
             </select>
           </div>
         )}

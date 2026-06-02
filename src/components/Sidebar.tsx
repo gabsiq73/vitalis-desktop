@@ -31,9 +31,11 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed top-0 left-0 bottom-0 z-[60] flex flex-col w-64 bg-on-secondary-fixed shadow-sm overflow-y-auto">
+    <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-on-secondary-fixed shadow-lg overflow-y-auto z-10">
       <div className="px-6 py-8 flex-shrink-0">
-        <h1 className="text-h2 font-black text-surface-container-lowest tracking-tighter">Vitalis</h1>
+        <h1 className="text-h2 font-black text-surface-container-lowest tracking-tighter">
+          Vitalis
+        </h1>
         <p className="text-xs text-secondary-fixed-dim opacity-70 mt-0.5">Logistics System</p>
       </div>
 

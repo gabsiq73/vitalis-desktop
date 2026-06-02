@@ -179,9 +179,9 @@ export function ClientDetailPage() {
                 <span className="px-2 py-0.5 bg-primary-fixed text-on-primary-fixed text-label-sm rounded-full">
                   {client.clientType}
                 </span>
-                {client.clientStatus === 'INACTIVE' && (
+                {client.clientStatus === 'OVERDUE' && (
                   <span className="px-2 py-0.5 bg-error-container text-on-error-container text-label-sm rounded-full">
-                    INATIVO
+                    INADIMPLENTE
                   </span>
                 )}
               </div>

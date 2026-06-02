@@ -7,7 +7,7 @@ export interface SpringPage<T> {
 }
 
 export type ClientType = 'RETAIL' | 'RESELLER';
-export type ClientStatus = 'ACTIVE' | 'INACTIVE';
+export type ClientStatus = 'PAID' | 'OVERDUE';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID';
 export type ProductType = 'WATER' | 'GAS';

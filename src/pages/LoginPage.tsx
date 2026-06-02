@@ -2,11 +2,16 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+const REMEMBER_KEY = 'vitalis_remember_user';
+
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+
+  const [username, setUsername] = useState(() => localStorage.getItem(REMEMBER_KEY) ?? '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberUser, setRememberUser] = useState(() => !!localStorage.getItem(REMEMBER_KEY));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -14,6 +19,11 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(false);
+    if (rememberUser) {
+      localStorage.setItem(REMEMBER_KEY, username);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
     try {
       await login(username, password);
       navigate('/dashboard');
@@ -98,14 +108,39 @@ export function LoginPage() {
                   </div>
                   <input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-3 bg-white border border-outline-variant rounded-lg text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="block w-full pl-10 pr-12 py-3 bg-white border border-outline-variant rounded-lg text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-outline hover:text-on-surface transition-colors"
+                  >
+                    <span className="material-symbols-outlined">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="rememberUser"
+                  type="checkbox"
+                  checked={rememberUser}
+                  onChange={(e) => setRememberUser(e.target.checked)}
+                  className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/20 cursor-pointer"
+                />
+                <label
+                  htmlFor="rememberUser"
+                  className="text-body-md text-on-surface-variant cursor-pointer select-none"
+                >
+                  Salvar usuário
+                </label>
               </div>
 
               <button

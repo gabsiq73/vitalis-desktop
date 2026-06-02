@@ -37,7 +37,7 @@ export function DashboardPage() {
     <>
       <TopBar />
 
-      <main className="p-6">
+      <main className="p-6 max-w-7xl mx-auto">
         <div className="flex justify-between items-end mb-6">
           <div>
             <h1 className="text-h1 text-on-surface">Dashboard Visão Geral</h1>
