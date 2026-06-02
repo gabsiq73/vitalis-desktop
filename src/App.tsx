@@ -7,10 +7,29 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
+import { SuppliersPage } from './pages/SuppliersPage';
+import { StockPage } from './pages/StockPage';
+import { BottlesPage } from './pages/BottlesPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { UsersPage } from './pages/UsersPage';
 
 function ProtectedLayout() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, validating } = useAuth();
+
+  if (validating) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-on-surface-variant text-body-md">Verificando credenciais...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
   return (
     <div className="flex bg-background min-h-screen">
       <Sidebar />
@@ -33,6 +52,12 @@ function App() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:id" element={<ClientDetailPage />} />
+            <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/stock" element={<StockPage />} />
+            <Route path="/bottles" element={<BottlesPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>

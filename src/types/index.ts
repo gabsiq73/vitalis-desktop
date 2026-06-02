@@ -104,6 +104,75 @@ export interface GasSupplierResponseDTO {
   notes?: string;
 }
 
+export interface GasSupplierRequestDTO {
+  name: string;
+  notes?: string;
+}
+
+export interface LoanedBottleRequestDTO {
+  productId: string;
+  clientId: string;
+  quantity: number;
+  loanDate: string;
+}
+
+export type UserRole = 'ADMIN' | 'SELLER';
+
+export interface UserResponseDTO {
+  id: string;
+  firstName: string;
+  lastName?: string;
+  username: string;
+  email: string;
+  userRole: UserRole;
+}
+
+export interface UserRequestDTO {
+  firstName: string;
+  lastName?: string;
+  username: string;
+  email: string;
+  password: string;
+  userRole: UserRole;
+}
+
+export interface UserUpdateDTO {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+  password?: string;
+  userRole?: UserRole;
+}
+
+export interface ProductRequestDTO {
+  name: string;
+  basePrice: number;
+  lastCostPrice?: number;
+  type: ProductType;
+}
+
+export interface ProductUpdateDTO {
+  name?: string;
+  basePrice?: number;
+  type?: ProductType;
+}
+
+export interface OrderBalanceDTO {
+  orderId: string;
+  totalValue: number;
+  totalPaid: number;
+  remainingBalance: number;
+}
+
+export interface PaymentRequestDTO {
+  paymentDate: string;
+  amount: number;
+  orderId: string;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+}
+
 export interface OrderItemRequestBody {
   productId: string;
   quantity: number;

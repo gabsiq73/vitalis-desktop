@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
 import type { AxiosInstance } from 'axios';
 import { AuthContext, type AuthContextValue, type AuthState } from './auth';
 import { createHttpClient } from '../api/http';
@@ -17,6 +17,19 @@ function loadStoredAuth(): AuthState | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState | null>(loadStoredAuth);
+  const [validating, setValidating] = useState(() => loadStoredAuth() !== null);
+
+  useEffect(() => {
+    const stored = loadStoredAuth();
+    if (!stored) return;
+    createHttpClient(stored.username, stored.password)
+      .get('/clients', { params: { size: 1 } })
+      .catch(() => {
+        localStorage.removeItem(STORAGE_KEY);
+        setAuth(null);
+      })
+      .finally(() => setValidating(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const http = useMemo<AxiosInstance | null>(() => {
     if (!auth) return null;
@@ -37,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ auth, http, isAuthenticated: auth !== null, login, logout }),
-    [auth, http, login, logout],
+    () => ({ auth, http, isAuthenticated: auth !== null, validating, login, logout }),
+    [auth, http, validating, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

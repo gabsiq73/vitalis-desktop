@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vitalis Logistics - Gerenciamento de Usuários</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #E2E8F0;
+            border-radius: 10px;
+        }
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#9e3d00",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-tertiary-container": "#fffbff",
+                        "secondary-container": "#d0e1fb",
+                        "on-primary-container": "#fefcff",
+                        "inverse-on-surface": "#eff0fc",
+                        "primary-container": "#076df6",
+                        "on-secondary": "#ffffff",
+                        "primary": "#0056c6",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e1e2ed",
+                        "secondary": "#505f76",
+                        "inverse-surface": "#2d3039",
+                        "on-background": "#191b23",
+                        "surface-container-highest": "#e1e2ed",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d9e2ff",
+                        "outline-variant": "#c2c6d7",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "outline": "#727786",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-secondary-container": "#54647a",
+                        "surface-container": "#ecedf9",
+                        "surface-container-high": "#e6e7f3",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#d8d9e5",
+                        "inverse-primary": "#b0c6ff",
+                        "on-surface": "#191b23",
+                        "on-secondary-fixed": "#0b1c30",
+                        "background": "#faf8ff",
+                        "on-tertiary-fixed": "#351000",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "surface-bright": "#faf8ff",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-surface-variant": "#424655",
+                        "surface-container-low": "#f2f3ff",
+                        "surface": "#faf8ff",
+                        "surface-tint": "#0058cb",
+                        "on-primary-fixed-variant": "#00429b",
+                        "tertiary-container": "#c64f00",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "on-primary-fixed": "#001945"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h1": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "h1": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface">
+<!-- SIDE NAVIGATION BAR -->
+<aside class="flex flex-col h-screen fixed left-0 top-0 overflow-y-auto bg-on-secondary-fixed dark:bg-on-secondary-fixed shadow-sm w-64 z-50">
+<div class="px-lg py-xl">
+<h1 class="font-h2 text-h2 font-black text-surface-container-lowest leading-none">Vitalis</h1>
+<p class="text-secondary-fixed-dim font-body-md opacity-80 mt-xs">Logistics System</p>
+</div>
+<nav class="flex-1 px-sm space-y-xs">
+<!-- Nav Items mapped from JSON -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span>Orders</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Clients</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Stock</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="category">category</span>
+<span>Products</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="propane_tank">propane_tank</span>
+<span>Bottles (Emprestimos)</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
+<span>Suppliers</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span>Gas Settlements</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span>Reports</span>
+</a>
+<!-- Active State: Users -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary-fixed-dim font-bold border-l-4 border-primary-fixed-dim bg-on-secondary-fixed-variant/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="person_outline">person_outline</span>
+<span>Users</span>
+</a>
+</nav>
+<div class="p-lg mt-auto">
+<button class="w-full flex items-center justify-center gap-sm px-md py-sm border border-outline-variant text-secondary-fixed-dim rounded-lg hover:bg-on-secondary-fixed-variant hover:text-white transition-colors font-body-md">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+                Logout
+            </button>
+</div>
+</aside>
+<!-- MAIN CONTENT WRAPPER -->
+<main class="pl-64 min-h-screen">
+<!-- TOP NAV BAR -->
+<header class="flex justify-between items-center w-full px-lg py-sm bg-surface dark:bg-surface border-b border-outline-variant h-16 sticky top-0 z-40">
+<div class="flex items-center gap-lg w-1/2">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="search">search</span>
+<input class="w-full bg-surface-container-low border-none focus:ring-2 focus:ring-primary-container rounded-lg pl-10 pr-4 py-2 text-body-md transition-all" placeholder="Search users by name or email..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<div class="text-right hidden md:block">
+<p class="font-body-md font-bold text-on-surface leading-tight">Administrator</p>
+<p class="text-label-sm text-on-surface-variant">Role: Administrator</p>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold border-2 border-surface shadow-sm">
+                        AD
+                    </div>
+</div>
+</div>
+</header>
+<!-- DASHBOARD CANVAS -->
+<div class="p-lg space-y-lg">
+<!-- HEADER SECTION -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div>
+<h2 class="font-h1 text-h1 text-on-surface">Gerenciamento de Usuários</h2>
+<p class="text-on-surface-variant font-body-lg">Visualize e controle o acesso de todos os colaboradores do sistema Vitalis.</p>
+</div>
+<button class="bg-primary text-on-primary font-body-md font-bold px-lg py-sm rounded-lg shadow-sm hover:brightness-110 transition-all flex items-center gap-sm" onclick="toggleModal('newUserModal')">
+<span class="material-symbols-outlined" data-icon="person_add">person_add</span>
+                    Novo Usuário
+                </button>
+</div>
+<!-- STATS STRIP (Bento Grid Style) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex items-center gap-md shadow-sm">
+<div class="w-12 h-12 bg-primary-fixed text-on-primary-fixed rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant uppercase tracking-wider">Total Usuários</p>
+<p class="font-h2 text-h2 text-on-surface">42</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex items-center gap-md shadow-sm">
+<div class="w-12 h-12 bg-secondary-container text-on-secondary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="admin_panel_settings">admin_panel_settings</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant uppercase tracking-wider">Administradores</p>
+<p class="font-h2 text-h2 text-on-surface">05</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex items-center gap-md shadow-sm">
+<div class="w-12 h-12 bg-tertiary-fixed text-on-tertiary-fixed rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="sell">sell</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant uppercase tracking-wider">Vendedores</p>
+<p class="font-h2 text-h2 text-on-surface">37</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex items-center gap-md shadow-sm">
+<div class="w-12 h-12 bg-green-100 text-green-700 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="how_to_reg">how_to_reg</span>
+</div>
+<div>
+<p class="text-label-sm text-on-surface-variant uppercase tracking-wider">Ativos Agora</p>
+<p class="font-h2 text-h2 text-on-surface">12</p>
+</div>
+</div>
+</div>
+<!-- USERS TABLE CONTAINER -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high">
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase">Full Name</th>
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase">Username</th>
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase">Email</th>
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase">Profile</th>
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase">Created Date</th>
+<th class="px-lg py-md text-label-sm font-bold text-on-secondary-container uppercase text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<img alt="Avatar" class="w-8 h-8 rounded-full" data-alt="A professional headshot avatar of a man with short brown hair and glasses, set against a solid neutral grey background. The lighting is clean and even, following a corporate photography style for a modern logistics management dashboard. The overall mood is reliable and professional." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9l1h2VISQqna-6CzsswoqFYtPxEHQwIBFfs5XU1adsuXtZjILtT4wiI-ZtuOIAVTTlAAHau0RqTuRiPdPP1T6vwQ6qPZX0bVtM8YqRI5dLfdsnAeMr4wlmfXTH0wo0_1qBLOopWXnRpZgVKMQJ9Z7LKhxWOAIxKsndozg9VjbTaeB8Za9kSAJNVIcxPB8pW3Y7w7y-FEVYkyQiajVrsjqClNNv3Y3Cxkd8U4HVRIG82VOkLZoYSxwfHQrgXuW1CYSH0Zg3P3m0RY"/>
+<span class="font-body-md font-bold text-on-surface">Ricardo Oliveira</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">roliveira_admin</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">ricardo.admin@vitalis.com</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-primary-fixed text-on-primary-fixed text-label-sm uppercase font-bold">ADMIN</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">12/05/2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex items-center justify-end gap-xs">
+<button class="p-sm text-primary hover:bg-primary-container/10 rounded-lg transition-all" onclick="openProfile('Ricardo Oliveira')" title="Edit Profile">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="p-sm text-error hover:bg-error-container/20 rounded-lg transition-all" title="Delete User">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<img alt="Avatar" class="w-8 h-8 rounded-full" data-alt="A professional headshot avatar of a woman with long dark hair, wearing a navy blue blazer, set against a minimal soft white background. The visual style is high-definition corporate, suitable for an industrial premium logistics platform. The aesthetic is organized and authoritative." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_LIjHZDWyqjrSfa4_MKhWXEQYNjaeVcOMuqHSWZiIDRLfCy4cIy_SBEk-5JKYy3PWG303hSWgG3cKcdWtQ8kQgPZI6nGqqkbwxNy9fVtmlgvYzs_KW2ejnjPG5ivgiiThADFQURZ7T5Ln7rMkdhDlHRhJi5XsB77N1AmLxpzEZF71Jcvf8yKBML2sOMJKDYAVwRb0r_xpSyeGWDlbrBss_g7gwek8nn332LU0iUqhfwRHoUn2GqTiVIGfg6pG35om5QLMMCNfHZc"/>
+<span class="font-body-md font-bold text-on-surface">Sara Mendes</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">smendes_sales</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">sara.m@vitalis.com</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-secondary-container text-on-secondary-container text-label-sm uppercase font-bold">SELLER</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">15/07/2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex items-center justify-end gap-xs">
+<button class="p-sm text-primary hover:bg-primary-container/10 rounded-lg transition-all" onclick="openProfile('Sara Mendes')">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="p-sm text-error hover:bg-error-container/20 rounded-lg transition-all">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<img alt="Avatar" class="w-8 h-8 rounded-full" data-alt="A clear, minimalist corporate avatar of a man with short gray hair and a focused expression, wearing a white shirt. The background is a flat, cool light blue tone. The lighting is sharp and professional, reflecting a precision-driven industrial logistics identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-jIFrnd6K_NEFz4ZxYnQNsNA_zbFn--jz-NJ5pHtPXdTrvTJSo50W3KnVIPKGCySwYFJ1wEedg0EFy4qOvXsjU1xo2p62zG28KpPmVyqYK0YK2oWwAf3H5Pq8Qlj_8kPAf_i0iCjcX7faxByzsOHEDllaL_3CFQz_9lnYQB2eeJ1Njg5AhpYOpREGEht5mq7Rkzn3gNCOpsM5LoD9WIGJRp8Ebv04_wu6ggC_kxSj5_YWoCMePVHrpL_MfL3CmKCehIoUhPdCl9I"/>
+<span class="font-body-md font-bold text-on-surface">André Santos</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">asantos_admin</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">andre.santos@vitalis.com</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-primary-fixed text-on-primary-fixed text-label-sm uppercase font-bold">ADMIN</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">02/01/2024</td>
+<td class="px-lg py-md text-right">
+<div class="flex items-center justify-end gap-xs">
+<button class="p-sm text-primary hover:bg-primary-container/10 rounded-lg transition-all" onclick="openProfile('André Santos')">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="p-sm text-error hover:bg-error-container/20 rounded-lg transition-all">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-lg bg-surface-container-low flex items-center justify-between border-t border-outline-variant">
+<p class="text-body-md text-on-surface-variant">Exibindo 3 de 42 usuários</p>
+<div class="flex gap-xs">
+<button class="p-xs border border-outline-variant rounded hover:bg-surface-container-high transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="px-sm py-xs border border-primary bg-primary text-on-primary rounded text-label-sm">1</button>
+<button class="px-sm py-xs border border-outline-variant rounded text-label-sm hover:bg-surface-container-high transition-colors">2</button>
+<button class="px-sm py-xs border border-outline-variant rounded text-label-sm hover:bg-surface-container-high transition-colors">3</button>
+<button class="p-xs border border-outline-variant rounded hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- MODAL: NOVO USUÁRIO -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-md" id="newUserModal">
+<div class="modal-overlay absolute inset-0" onclick="toggleModal('newUserModal')"></div>
+<div class="bg-surface-container-lowest w-full max-w-lg rounded-xl shadow-xl z-10 overflow-hidden animate-in fade-in zoom-in duration-200">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-h3 text-h3 text-on-surface">Cadastrar Novo Usuário</h3>
+<button class="text-on-surface-variant hover:text-error transition-colors" onclick="toggleModal('newUserModal')">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<form class="p-lg space-y-md">
+<div class="grid grid-cols-1 gap-md">
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs font-bold uppercase">Nome Completo</label>
+<input class="w-full border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md py-sm px-md outline-none" placeholder="Ex: João da Silva" type="text"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs font-bold uppercase">Username</label>
+<input class="w-full border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md py-sm px-md outline-none" placeholder="Ex: joao_silva" type="text"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs font-bold uppercase">Email Corporativo</label>
+<input class="w-full border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md py-sm px-md outline-none" placeholder="email@vitalis.com" type="email"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs font-bold uppercase">Perfil de Acesso</label>
+<select class="w-full border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md py-sm px-md outline-none bg-white">
+<option value="seller">SELLER (Vendedor)</option>
+<option value="admin">ADMIN (Administrador)</option>
+</select>
+</div>
+</div>
+<div class="pt-lg flex items-center justify-end gap-md">
+<button class="px-lg py-sm font-body-md text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors" onclick="toggleModal('newUserModal')" type="button">Cancelar</button>
+<button class="px-lg py-sm font-body-md font-bold bg-primary text-on-primary rounded-lg shadow-sm hover:brightness-110 transition-all" type="submit">Criar Usuário</button>
+</div>
+</form>
+</div>
+</div>
+<!-- SIDE DRAWER: PROFILE VIEW (TELA 16 INTEGRATED) -->
+<div class="fixed inset-y-0 right-0 w-full md:w-[450px] bg-surface-container-lowest shadow-2xl z-[70] transform translate-x-full transition-transform duration-300 ease-in-out" id="profileDrawer">
+<div class="h-full flex flex-col">
+<div class="p-lg border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-md">
+<button class="p-xs hover:bg-surface-container-high rounded-full" onclick="closeProfile()">
+<span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<h3 class="font-h3 text-h3 text-on-surface">Detalhes do Usuário</h3>
+</div>
+<span class="inline-flex items-center px-sm py-xs rounded-full bg-primary-container text-on-primary-container text-label-sm font-bold">ATIVO</span>
+</div>
+<div class="flex-1 overflow-y-auto p-lg space-y-xl custom-scrollbar">
+<!-- Profile Header -->
+<div class="flex flex-col items-center text-center space-y-md">
+<div class="relative">
+<img class="w-24 h-24 rounded-full border-4 border-surface shadow-md" data-alt="A detailed digital portrait of a professional corporate employee, visualized as a modern avatar. The character has a neutral, confident expression with clear high-resolution details. The background is a sophisticated solid charcoal gray, ensuring high contrast and visibility in a premium logistics UI dashboard. Lighting is directional and soft." id="drawerAvatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSyARnyyDOmLuC9zMSbghRSmu87iYRyujf5qrnmd8MFYnExhanQ6ot6kI3r94I_9Z5ojq9DScZTfBgUicJgX-CgTudOybWSredDPAwkpdOtggkAPBuOu6jXE2d7VUFwuJ2Ummmzb-0uKtf98d8a1BdLsTPt10y2eympuKU3YFt4-EGYaWtD_Faika_MosRt5tvp8zeW1n9S7x6GiH0hIjJVDAvzMJrY1qjIV7YWuy6WvY9M-Ouf1nTML4wAmajDem8PQ17NJ2fKN4"/>
+<button class="absolute bottom-0 right-0 bg-primary text-on-primary p-xs rounded-full border-2 border-surface shadow-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="photo_camera">photo_camera</span>
+</button>
+</div>
+<div>
+<h4 class="font-h2 text-h2 text-on-surface" id="drawerName">Ricardo Oliveira</h4>
+<p class="text-body-md text-on-surface-variant">Último acesso: Hoje, 09:42</p>
+</div>
+</div>
+<!-- Profile Forms -->
+<div class="space-y-lg">
+<div class="p-md bg-surface-container-low rounded-xl border border-outline-variant">
+<p class="text-label-sm font-bold text-on-surface-variant uppercase mb-md">Informações Pessoais</p>
+<div class="space-y-md">
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs">Nome Completo</label>
+<input class="w-full bg-white border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md p-sm outline-none" type="text" value="Ricardo Oliveira"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs">Email Principal</label>
+<input class="w-full bg-white border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md p-sm outline-none" type="email" value="ricardo.admin@vitalis.com"/>
+</div>
+</div>
+</div>
+<div class="p-md bg-surface-container-low rounded-xl border border-outline-variant">
+<p class="text-label-sm font-bold text-on-surface-variant uppercase mb-md">Segurança &amp; Acesso</p>
+<div class="space-y-md">
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-xs">Nível de Permissão</label>
+<select class="w-full bg-white border-outline-variant focus:ring-2 focus:ring-primary-container rounded-lg text-body-md p-sm outline-none">
+<option selected="">Administrador Full</option>
+<option>Operador Comercial</option>
+<option>Gestor de Estoque</option>
+</select>
+</div>
+<button class="w-full border border-primary text-primary font-bold py-sm rounded-lg hover:bg-primary/5 transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined" data-icon="lock_reset">lock_reset</span>
+                                Resetar Senha
+                            </button>
+</div>
+</div>
+<div class="flex flex-col gap-sm">
+<div class="flex items-center justify-between p-md border-b border-outline-variant">
+<span class="font-body-md text-on-surface">Autenticação 2FA</span>
+<div class="w-10 h-6 bg-green-500 rounded-full relative cursor-pointer shadow-inner">
+<div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+</div>
+</div>
+<div class="flex items-center justify-between p-md border-b border-outline-variant">
+<span class="font-body-md text-on-surface">Acesso via Mobile</span>
+<div class="w-10 h-6 bg-outline-variant rounded-full relative cursor-pointer shadow-inner">
+<div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-lg border-t border-outline-variant bg-surface-container-low flex gap-md">
+<button class="flex-1 bg-primary text-on-primary font-bold py-sm rounded-lg hover:brightness-110 transition-all">Salvar Alterações</button>
+<button class="flex-1 border border-outline-variant text-on-surface-variant py-sm rounded-lg hover:bg-white transition-all" onclick="closeProfile()">Cancelar</button>
+</div>
+</div>
+</div>
+<!-- MICRO-INTERACTIONS & SCRIPTS -->
+<script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+        }
+
+        function openProfile(name) {
+            const drawer = document.getElementById('profileDrawer');
+            const drawerName = document.getElementById('drawerName');
+            const drawerAvatar = document.getElementById('drawerAvatar');
+            
+            drawerName.innerText = name;
+            // Simplified avatar seed update
+            drawerAvatar.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name.replace(' ', '')}`;
+            
+            drawer.classList.remove('translate-x-full');
+        }
+
+        function closeProfile() {
+            const drawer = document.getElementById('profileDrawer');
+            drawer.classList.add('translate-x-full');
+        }
+
+        // Interaction logic for buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.classList.add('opacity-80'));
+            btn.addEventListener('mouseup', () => btn.classList.remove('opacity-80'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('opacity-80'));
+        });
+    </script>
+</body></html>

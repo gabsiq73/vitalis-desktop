@@ -1,35 +1,67 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import { formatBRL, formatOrderId, formatTime, getOrderStatusBadge } from '../utils/format';
 
+const STATUS_OPTIONS = [
+  { value: 'PENDING',   label: 'Pendente',    icon: 'pending_actions', color: 'text-yellow-700 hover:bg-yellow-50' },
+  { value: 'SHIPPED',   label: 'Em Trânsito', icon: 'local_shipping',  color: 'text-blue-700 hover:bg-blue-50' },
+  { value: 'DELIVERED', label: 'Entregue',    icon: 'check_circle',    color: 'text-green-700 hover:bg-green-50' },
+  { value: 'CANCELLED', label: 'Cancelado',   icon: 'cancel',          color: 'text-error hover:bg-error/5' },
+];
+
 export function DashboardPage() {
   const { http, auth } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<OrderResponseDTO[]>([]);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
+  const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!statusMenu) return;
+    function handleClick() { setStatusMenu(null); }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [statusMenu]);
+
+  const fetchData = useCallback(async () => {
     if (!http) return;
-
-    const fetchData = async () => {
-      try {
-        const [ordersRes, activeRes] = await Promise.all([
-          http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 10, page: 0 } }),
-          http.get<OrderResponseDTO[]>('/orders/active'),
-        ]);
-        setRecentOrders(ordersRes.data.content);
-        setActiveOrdersCount(activeRes.data.length);
-      } catch {
-        setRecentOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    try {
+      const [ordersRes, activeRes] = await Promise.all([
+        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 10, page: 0 } }),
+        http.get<OrderResponseDTO[]>('/orders/active'),
+      ]);
+      setRecentOrders(ordersRes.data.content);
+      setActiveOrdersCount(activeRes.data.length);
+    } catch {
+      setRecentOrders([]);
+    } finally {
+      setLoading(false);
+    }
   }, [http]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function changeStatus(orderId: string, status: string) {
+    if (!http) return;
+    setActionLoading(orderId);
+    try {
+      if (status === 'DELIVERED') {
+        await http.patch(`/orders/${orderId}/confirm-delivery`);
+      } else if (status === 'CANCELLED') {
+        await http.delete(`/orders/${orderId}`);
+      } else {
+        await http.patch(`/orders/${orderId}/status`, null, { params: { status } });
+      }
+      fetchData();
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
@@ -47,16 +79,8 @@ export function DashboardPage() {
           </div>
           <div className="flex gap-2">
             <button className="flex items-center gap-1 px-4 py-2 bg-surface-container-highest border border-outline-variant rounded-lg text-label-sm hover:bg-surface-dim transition-all">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                calendar_today
-              </span>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>calendar_today</span>
               Hoje: {today}
-            </button>
-            <button className="flex items-center gap-1 px-4 py-2 bg-primary text-on-primary rounded-lg text-label-sm hover:brightness-110 shadow-sm transition-all">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                download
-              </span>
-              Exportar PDF
             </button>
           </div>
         </div>
@@ -111,7 +135,12 @@ export function DashboardPage() {
           <div className="lg:col-span-2 bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
             <div className="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
               <h3 className="text-h3 text-on-surface">Últimos Pedidos</h3>
-              <button className="text-primary text-label-sm hover:underline">Ver Todos</button>
+              <button
+                onClick={() => navigate('/orders')}
+                className="text-primary text-label-sm hover:underline"
+              >
+                Ver Todos
+              </button>
             </div>
             <div className="overflow-x-auto">
               {loading ? (
@@ -128,34 +157,52 @@ export function DashboardPage() {
                       <th className="px-4 py-3 text-label-sm text-on-surface-variant">CLIENTE</th>
                       <th className="px-4 py-3 text-label-sm text-on-surface-variant">TOTAL</th>
                       <th className="px-4 py-3 text-label-sm text-on-surface-variant">STATUS</th>
-                      <th className="px-4 py-3 text-label-sm text-on-surface-variant text-right">DATA</th>
+                      <th className="px-4 py-3 text-label-sm text-on-surface-variant text-right">HORA</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant">
                     {recentOrders.map((order) => {
                       const badge = getOrderStatusBadge(order.status);
+                      const isDelivered = order.status === 'DELIVERED';
+                      const isCancelled = order.status === 'CANCELLED';
+                      const isLoadingThis = actionLoading === order.id;
                       return (
                         <tr
                           key={order.id}
-                          className="hover:bg-surface-container transition-colors cursor-pointer"
+                          className="hover:bg-surface-container transition-colors"
                         >
-                          <td className="px-4 py-4 text-body-md font-semibold text-primary">
+                          <td
+                            className="px-4 py-3 text-body-md font-semibold text-primary cursor-pointer hover:underline"
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                          >
                             {formatOrderId(order.id)}
                           </td>
-                          <td className="px-4 py-4 text-body-md font-semibold text-on-surface">
+                          <td className="px-4 py-3 text-body-md font-semibold text-on-surface">
                             {order.clientName}
                           </td>
-                          <td className="px-4 py-4 text-body-md text-on-surface">
+                          <td className="px-4 py-3 text-body-md text-on-surface">
                             {formatBRL(order.totalValue)}
                           </td>
-                          <td className="px-4 py-4">
-                            <span
-                              className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-tight ${badge.className}`}
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={(e) => {
+                                if (isDelivered || isCancelled || isLoadingThis) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setStatusMenu(
+                                  statusMenu?.id === order.id
+                                    ? null
+                                    : { id: order.id, top: rect.bottom + 4, left: rect.left }
+                                );
+                              }}
+                              className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-tight transition-all ${badge.className} ${!isDelivered && !isCancelled && !isLoadingThis ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
                             >
-                              {badge.label}
-                            </span>
+                              {isLoadingThis ? '...' : badge.label}
+                              {!isDelivered && !isCancelled && !isLoadingThis && (
+                                <span className="ml-1 opacity-50">▾</span>
+                              )}
+                            </button>
                           </td>
-                          <td className="px-4 py-4 text-body-md text-on-surface-variant text-right">
+                          <td className="px-4 py-3 text-body-md text-on-surface-variant text-right">
                             {formatTime(order.createDate)}
                           </td>
                         </tr>
@@ -176,7 +223,10 @@ export function DashboardPage() {
               <p className="text-body-md text-on-tertiary-fixed mb-4">
                 Monitore os itens em estoque crítico para garantir a continuidade das operações.
               </p>
-              <button className="w-full bg-tertiary-container text-white py-2 rounded-lg font-bold text-[12px] uppercase hover:brightness-110 transition-all">
+              <button
+                onClick={() => navigate('/stock')}
+                className="w-full bg-tertiary-container text-white py-2 rounded-lg font-bold text-[12px] uppercase hover:brightness-110 transition-all"
+              >
                 Ver Estoque
               </button>
             </div>
@@ -196,6 +246,40 @@ export function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {statusMenu && (() => {
+        const currentOrder = recentOrders.find((o) => o.id === statusMenu.id);
+        return (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ position: 'fixed', top: statusMenu.top, left: statusMenu.left, zIndex: 9999 }}
+            className="bg-surface border border-outline-variant rounded-lg shadow-xl min-w-[190px] overflow-hidden"
+          >
+            <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant border-b border-outline-variant bg-surface-container-low">
+              Alterar status
+            </p>
+            {STATUS_OPTIONS.map((opt) => {
+              const isCurrent = currentOrder?.status === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  disabled={isCurrent}
+                  onClick={() => {
+                    const id = statusMenu.id;
+                    setStatusMenu(null);
+                    changeStatus(id, opt.value);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-default ${isCurrent ? 'bg-surface-container' : opt.color}`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{opt.icon}</span>
+                  {opt.label}
+                  {isCurrent && <span className="ml-auto text-[10px] font-bold opacity-60">atual</span>}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
     </>
   );
 }

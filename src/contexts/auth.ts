@@ -10,6 +10,7 @@ export interface AuthContextValue {
   auth: AuthState | null;
   http: AxiosInstance | null;
   isAuthenticated: boolean;
+  validating: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }

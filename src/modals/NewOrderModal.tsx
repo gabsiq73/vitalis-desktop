@@ -40,6 +40,7 @@ const emptyItem = (): ItemForm => ({
 export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOrderModalProps) {
   const { http } = useAuth();
 
+  const [isAvulso, setIsAvulso] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientResponseDTO | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [clientResults, setClientResults] = useState<ClientResponseDTO[]>([]);
@@ -51,7 +52,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
 
   const [isDelivery, setIsDelivery] = useState(true);
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  });
 
   const [showAddPoints, setShowAddPoints] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +67,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
       setError(null);
       setItems([emptyItem()]);
       setIsDelivery(true);
-      setDeliveryDate('');
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setDeliveryDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
+      setIsAvulso(false);
       if (defaultClient) {
         setSelectedClient(defaultClient);
         setClientSearch(defaultClient.name);
@@ -87,13 +95,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
   }, [http, open]);
 
   const searchClients = useCallback(
-    async (query: string) => {
-      if (!http || query.length < 2) { setClientResults([]); return; }
+    async (query: string, showAll = false) => {
+      if (!http) return;
+      if (!showAll && query.length < 2) { setClientResults([]); return; }
       setSearchLoading(true);
       try {
-        const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', {
-          params: { name: query, size: 6 },
-        });
+        const params: Record<string, string | number> = { size: 50, sort: 'name,asc' };
+        if (query.trim()) params.name = query.trim();
+        const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', { params });
         setClientResults(res.data.content);
       } catch {
         setClientResults([]);
@@ -146,7 +155,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!http || !selectedClient) return;
+    if (!http || (!selectedClient && !isAvulso)) return;
 
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
@@ -170,7 +179,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     });
 
     const body: OrderRequestBody = {
-      clientId: selectedClient.id,
+      clientId: selectedClient?.id ?? '',
       items: orderItems,
       isDelivery,
       deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : undefined,
@@ -210,22 +219,56 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
           {/* Cliente + Data de Entrega */}
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className={labelClass}>Seleção de Cliente *</label>
+              <label className={labelClass}>Seleção de Cliente</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style={{ fontSize: '18px' }}>
-                  search
-                </span>
+                {/* Ícone busca */}
+                <button
+                  type="button"
+                  disabled={isAvulso}
+                  onClick={() => { setShowDropdown(true); searchClients(clientSearch, true); }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors z-10 disabled:opacity-40 disabled:cursor-default"
+                  tabIndex={-1}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>search</span>
+                </button>
+
+                {/* Input */}
                 <input
                   type="text"
-                  value={clientSearch}
+                  value={isAvulso ? '' : clientSearch}
+                  disabled={isAvulso}
                   onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); setShowDropdown(true); }}
-                  onFocus={() => setShowDropdown(true)}
-                  placeholder="Pesquisar por nome, CPF ou CNPJ..."
-                  className={`${inputClass} pl-9`}
+                  onFocus={() => { setShowDropdown(true); if (!clientSearch) searchClients('', true); }}
+                  placeholder={isAvulso ? 'Pedido avulso — sem cliente' : 'Clique na lupa ou digite para buscar...'}
+                  className={`${inputClass} pl-9 pr-32 ${isAvulso ? 'bg-tertiary/5 border-tertiary/40 text-on-surface-variant cursor-default' : ''}`}
                   autoComplete="off"
                 />
-                {showDropdown && (clientResults.length > 0 || searchLoading) && (
-                  <div className="absolute top-full left-0 right-0 bg-surface border border-outline-variant rounded-lg shadow-lg z-10 mt-1 overflow-hidden">
+
+                {/* Botão avulso dentro do input */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAvulso((v) => !v);
+                    setSelectedClient(null);
+                    setClientSearch('');
+                    setClientResults([]);
+                    setShowDropdown(false);
+                  }}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all ${
+                    isAvulso
+                      ? 'bg-tertiary text-on-tertiary border-tertiary'
+                      : 'border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary bg-surface'
+                  }`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                    {isAvulso ? 'person_off' : 'person_add'}
+                  </span>
+                  {isAvulso ? 'Avulso ✓' : 'Avulso'}
+                </button>
+
+                {/* Dropdown resultados */}
+                {!isAvulso && showDropdown && (clientResults.length > 0 || searchLoading) && (
+                  <div className="absolute top-full left-0 right-0 bg-surface border border-outline-variant rounded-lg shadow-lg z-10 mt-1 overflow-hidden max-h-64 overflow-y-auto">
                     {searchLoading && (
                       <div className="px-4 py-3 text-body-md text-on-surface-variant">Buscando...</div>
                     )}
@@ -250,6 +293,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                   </div>
                 )}
               </div>
+
               {isOverdue && (
                 <div className="mt-1.5 flex items-center gap-2 p-2 bg-error-container text-on-error-container rounded-lg">
                   <span className="material-symbols-outlined text-error" style={{ fontSize: '16px' }}>warning</span>
@@ -519,7 +563,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </button>
             <button
               type="submit"
-              disabled={submitting || !selectedClient}
+              disabled={submitting || (!selectedClient && !isAvulso)}
               className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold hover:brightness-110 transition-all disabled:opacity-70 flex items-center gap-2"
             >
               {submitting ? (

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+
+<html lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vitalis Logistics - Produtos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#9e3d00",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-tertiary-container": "#fffbff",
+                        "secondary-container": "#d0e1fb",
+                        "on-primary-container": "#fefcff",
+                        "inverse-on-surface": "#eff0fc",
+                        "primary-container": "#076df6",
+                        "on-secondary": "#ffffff",
+                        "primary": "#0056c6",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e1e2ed",
+                        "secondary": "#505f76",
+                        "inverse-surface": "#2d3039",
+                        "on-background": "#191b23",
+                        "surface-container-highest": "#e1e2ed",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "primary-fixed": "#d9e2ff",
+                        "outline-variant": "#c2c6d7",
+                        "on-error": "#ffffff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "outline": "#727786",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-secondary-container": "#54647a",
+                        "surface-container": "#ecedf9",
+                        "surface-container-high": "#e6e7f3",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#d8d9e5",
+                        "inverse-primary": "#b0c6ff",
+                        "on-surface": "#191b23",
+                        "on-secondary-fixed": "#0b1c30",
+                        "background": "#faf8ff",
+                        "on-tertiary-fixed": "#351000",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "surface-bright": "#faf8ff",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-surface-variant": "#424655",
+                        "surface-container-low": "#f2f3ff",
+                        "surface": "#faf8ff",
+                        "surface-tint": "#0058cb",
+                        "on-primary-fixed-variant": "#00429b",
+                        "tertiary-container": "#c64f00",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b0c6ff",
+                        "on-primary-fixed": "#001945"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h1": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "h1": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #F8FAFC; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="font-body-md text-on-background selection:bg-primary-container selection:text-white">
+<!-- SideNavBar (Shared Component) -->
+<aside class="flex flex-col h-screen fixed left-0 top-0 overflow-y-auto bg-on-secondary-fixed dark:bg-on-secondary-fixed shadow-sm z-50 w-64 custom-scrollbar">
+<div class="p-lg flex flex-col gap-xs">
+<h2 class="font-h2 text-h2 font-black text-surface-container-lowest">Vitalis</h2>
+<p class="text-secondary-fixed-dim text-label-sm uppercase tracking-widest">Logistics System</p>
+</div>
+<nav class="flex-1 mt-md">
+<ul class="flex flex-col">
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span>Orders</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Clients</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Stock</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-primary-fixed-dim font-bold border-l-4 border-primary-fixed-dim bg-on-secondary-fixed-variant/20 gap-md" href="#">
+<span class="material-symbols-outlined">category</span>
+<span>Products</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">propane_tank</span>
+<span>Bottles (Emprestimos)</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">local_shipping</span>
+<span>Suppliers</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Gas Settlements</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<span>Reports</span>
+</a>
+</li>
+<li>
+<a class="flex items-center px-lg py-md text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors gap-md" href="#">
+<span class="material-symbols-outlined">person_outline</span>
+<span>Users</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="p-lg mt-auto">
+<button class="w-full py-md px-lg bg-error-container text-on-error-container rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">logout</span>
+                Logout
+            </button>
+</div>
+</aside>
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 right-0 left-0 bg-surface border-b border-outline-variant h-16 flex justify-between items-center px-lg py-sm pl-[280px] z-40">
+<div class="flex items-center gap-lg flex-1">
+<h1 class="font-h3 text-h3 font-bold text-on-surface whitespace-nowrap">Vitalis Logistics</h1>
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-xl pr-md py-xs focus:ring-2 focus:ring-primary-container outline-none transition-all font-body-md" placeholder="Search products, suppliers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-all relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-md">
+<div class="text-right hidden sm:block">
+<p class="font-bold text-on-surface leading-none">Admin User</p>
+<p class="text-label-sm text-on-surface-variant mt-1">Role: Administrator</p>
+</div>
+<img alt="User Profile" class="w-10 h-10 rounded-full object-cover border border-outline-variant" data-alt="A professional studio portrait of a corporate executive in a sharp navy blue suit, with soft three-point lighting that highlights a confident expression. The background is a clean, neutral grey that complements the modern industrial premium aesthetic of the logistics software. The image style is crisp, high-definition, and professional, maintaining a sophisticated light-mode tone." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz8hZNXCvEOomYdhpV1To2EQtjDgvYOzI3ZHX5WFgi5y1Ckkb0ZtupTaTZuLxLIh8r6mfi5WgjsT50fHvOG-y-d4e9XQRztRDIPTphSLtgw91cx-9tyeE7N0jvfmlrhth3Ke2bqvaSnTn3J-Jc-oBS1TWaqYyy4q5PM0yVKZ-YiYiYZEz7mGuEmxrxYXo8ION25pJaEdxrkjIwYSLp76HKCv80E5aCvpsOx3hCdHYcpwKSYDdb8_STnyeEjE1M7gPuB_3cOujWfHo"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-24 pl-[280px] pr-lg pb-lg min-h-screen">
+<!-- Header Section with KPI Cards (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-lg">
+<div class="md:col-span-2 flex flex-col justify-between">
+<div>
+<h2 class="font-h1 text-h1 text-on-surface tracking-tight">Produtos</h2>
+<p class="text-body-lg text-on-surface-variant mt-sm">Gerencie o catálogo completo de mercadorias e insumos logísticos.</p>
+</div>
+<div class="mt-lg flex gap-md">
+<button class="bg-primary text-on-primary px-lg py-md rounded-lg font-bold flex items-center gap-sm shadow-sm hover:brightness-110 transition-all">
+<span class="material-symbols-outlined">add</span>
+                        Novo Produto
+                    </button>
+<button class="bg-surface border border-outline-variant text-on-surface px-lg py-md rounded-lg font-bold flex items-center gap-sm hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">file_download</span>
+                        Exportar CSV
+                    </button>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-sm">
+<div class="flex justify-between items-start">
+<span class="text-label-sm text-on-surface-variant uppercase font-bold tracking-widest">Total de SKUs</span>
+<span class="material-symbols-outlined text-primary-container">inventory</span>
+</div>
+<div>
+<span class="text-h1 font-black text-on-surface">1,284</span>
+<div class="flex items-center gap-xs text-primary mt-xs">
+<span class="material-symbols-outlined text-[18px]">trending_up</span>
+<span class="text-label-sm">+12 este mês</span>
+</div>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl p-lg flex flex-col justify-between shadow-sm">
+<div class="flex justify-between items-start">
+<span class="text-label-sm text-on-surface-variant uppercase font-bold tracking-widest">Produtos Ativos</span>
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+</div>
+<div>
+<span class="text-h1 font-black text-on-surface">98%</span>
+<p class="text-label-sm text-on-surface-variant mt-xs">Status operacional ideal</p>
+</div>
+</div>
+</div>
+<!-- Table Filters & Search -->
+<div class="bg-white border border-outline-variant rounded-xl shadow-sm mb-lg">
+<div class="p-md border-b border-outline-variant flex flex-wrap gap-md items-center justify-between">
+<div class="flex gap-md items-center overflow-x-auto pb-2 md:pb-0">
+<button class="bg-secondary-container text-on-secondary-container px-md py-xs rounded-full text-label-sm whitespace-nowrap">Todos</button>
+<button class="hover:bg-surface-container text-on-surface-variant px-md py-xs rounded-full text-label-sm whitespace-nowrap transition-colors">Gás GLP</button>
+<button class="hover:bg-surface-container text-on-surface-variant px-md py-xs rounded-full text-label-sm whitespace-nowrap transition-colors">Acessórios</button>
+<button class="hover:bg-surface-container text-on-surface-variant px-md py-xs rounded-full text-label-sm whitespace-nowrap transition-colors">Vasilhames</button>
+<div class="h-6 w-[1px] bg-outline-variant"></div>
+<button class="flex items-center gap-xs text-on-surface-variant text-label-sm hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filtros Avançados
+                    </button>
+</div>
+<div class="text-on-surface-variant text-label-sm">
+                    Mostrando <span class="font-bold text-on-surface">1 - 10</span> de <span class="font-bold text-on-surface">1,284</span>
+</div>
+</div>
+<!-- Data Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high">
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Nome</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Tipo</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Preço Base</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Último Custo</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Fornecedor Padrão</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider">Status</th>
+<th class="px-lg py-md font-bold text-on-surface-variant text-label-sm uppercase tracking-wider text-right">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">propane_tank</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Botijão P13 - GLP</p>
+<p class="text-label-sm text-outline">SKU-GAS-001</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md text-on-surface-variant">Gás GLP</td>
+<td class="px-lg py-md font-bold text-on-surface">R$ 105,00</td>
+<td class="px-lg py-md text-on-surface-variant">R$ 88,40</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline text-[18px]">local_shipping</span>
+<span class="text-on-surface-variant">Nacional Gas S.A.</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-md py-xs bg-green-100 text-green-700 rounded-full text-label-sm font-bold inline-flex items-center gap-xs">
+<span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    Ativo
+                                </span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-primary" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-on-surface-variant" title="Desativar">
+<span class="material-symbols-outlined text-[20px]">block</span>
+</button>
+<button class="p-xs hover:bg-error-container hover:text-error rounded transition-colors text-on-surface-variant" title="Excluir">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">valve</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Válvula Reguladora de Pressão</p>
+<p class="text-label-sm text-outline">SKU-ACC-042</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md text-on-surface-variant">Acessórios</td>
+<td class="px-lg py-md font-bold text-on-surface">R$ 45,90</td>
+<td class="px-lg py-md text-on-surface-variant">R$ 32,15</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline text-[18px]">local_shipping</span>
+<span class="text-on-surface-variant">Inova Metais</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-md py-xs bg-green-100 text-green-700 rounded-full text-label-sm font-bold inline-flex items-center gap-xs">
+<span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    Ativo
+                                </span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-primary" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-on-surface-variant" title="Desativar">
+<span class="material-symbols-outlined text-[20px]">block</span>
+</button>
+<button class="p-xs hover:bg-error-container hover:text-error rounded transition-colors text-on-surface-variant" title="Excluir">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">propane_tank</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Cilindro P45 - GLP</p>
+<p class="text-label-sm text-outline">SKU-GAS-005</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md text-on-surface-variant">Gás GLP</td>
+<td class="px-lg py-md font-bold text-on-surface">R$ 380,00</td>
+<td class="px-lg py-md text-on-surface-variant">R$ 310,00</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline text-[18px]">local_shipping</span>
+<span class="text-on-surface-variant">Supergasbras</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-md py-xs bg-surface-container text-on-surface-variant rounded-full text-label-sm font-bold inline-flex items-center gap-xs">
+<span class="w-2 h-2 bg-outline rounded-full"></span>
+                                    Inativo
+                                </span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-primary" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-primary" title="Ativar">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+</button>
+<button class="p-xs hover:bg-error-container hover:text-error rounded transition-colors text-on-surface-variant" title="Excluir">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">settings_input_component</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Mangueira Alta Pressão (Metro)</p>
+<p class="text-label-sm text-outline">SKU-ACC-098</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md text-on-surface-variant">Acessórios</td>
+<td class="px-lg py-md font-bold text-on-surface">R$ 12,50</td>
+<td class="px-lg py-md text-on-surface-variant">R$ 8,20</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline text-[18px]">local_shipping</span>
+<span class="text-on-surface-variant">FlexTubos Indústria</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-md py-xs bg-green-100 text-green-700 rounded-full text-label-sm font-bold inline-flex items-center gap-xs">
+<span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    Ativo
+                                </span>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-primary" title="Editar">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-xs hover:bg-surface-container-highest rounded transition-colors text-on-surface-variant" title="Desativar">
+<span class="material-symbols-outlined text-[20px]">block</span>
+</button>
+<button class="p-xs hover:bg-error-container hover:text-error rounded transition-colors text-on-surface-variant" title="Excluir">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="p-md flex items-center justify-between border-t border-outline-variant">
+<div class="flex gap-xs">
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-primary text-on-primary flex items-center justify-center font-bold text-label-sm shadow-sm">1</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all text-label-sm">2</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all text-label-sm">3</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+<div class="flex items-center gap-sm">
+<span class="text-label-sm text-on-surface-variant">Linhas por página:</span>
+<select class="bg-surface border border-outline-variant rounded px-sm py-xs text-label-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer">
+<option>10</option>
+<option>25</option>
+<option>50</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Inventory Heatmap / Status Alert -->
+<div class="bg-primary-fixed text-on-primary-fixed p-lg rounded-xl flex items-center justify-between shadow-sm overflow-hidden relative">
+<!-- Decorative Background Element -->
+<div class="absolute right-0 top-0 bottom-0 w-32 bg-primary-container/10 -skew-x-12 translate-x-12"></div>
+<div class="flex items-center gap-lg relative z-10">
+<div class="w-12 h-12 bg-on-primary-fixed-variant rounded-full flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div>
+<h4 class="font-bold text-h3 leading-tight">Alerta de Estoque: P13 - GLP</h4>
+<p class="text-body-md opacity-90 mt-1">O fornecedor padrão "Nacional Gas" está com atraso médio de 3 dias para esta SKU.</p>
+</div>
+</div>
+<button class="bg-on-primary-fixed text-white px-lg py-md rounded-lg font-bold hover:bg-primary-container transition-all relative z-10 shadow-sm">
+                Ver Alternativas
+            </button>
+</div>
+</main>
+<script>
+        // Simple micro-interaction for rows
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Potential for detail panel toggle
+                console.log('Row clicked');
+            });
+        });
+        
+        // Search bar focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.02]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.02]');
+        });
+    </script>
+</body></html>
