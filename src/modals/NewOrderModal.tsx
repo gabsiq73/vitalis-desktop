@@ -6,11 +6,19 @@ import type {
   ClientResponseDTO,
   ProductResponseDTO,
   GasSupplierResponseDTO,
+  ClientPriceResponseDTO,
   SpringPage,
   OrderItemRequestBody,
   OrderRequestBody,
+  PaymentMethod,
 } from '../types';
 import { formatBRL } from '../utils/format';
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: 'PIX', label: 'PIX' },
+  { value: 'DINHEIRO', label: 'Dinheiro' },
+  { value: 'SALDO', label: 'Saldo' },
+];
 
 interface ItemForm {
   productId: string;
@@ -59,6 +67,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   });
 
+  const [clientPrices, setClientPrices] = useState<ClientPriceResponseDTO[]>([]);
+
+  const [registerPayment, setRegisterPayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+
   const [showAddPoints, setShowAddPoints] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +87,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
       setDeliveryDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
       setIsAvulso(false);
       setAvulsoName('');
+      setClientPrices([]);
+      setRegisterPayment(false);
+      setPaymentAmount('');
+      setPaymentMethod('PIX');
       if (defaultClient) {
         setSelectedClient(defaultClient);
         setClientSearch(defaultClient.name);
@@ -125,6 +143,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     setClientSearch(c.name);
     setShowDropdown(false);
     setClientResults([]);
+    if (http) {
+      http.get<ClientPriceResponseDTO[]>(`/clients/${c.id}/prices`)
+        .then((r) => setClientPrices(r.data))
+        .catch(() => setClientPrices([]));
+    }
   }
 
   function addItem() { setItems((p) => [...p, emptyItem()]); }
@@ -137,11 +160,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     return products.find((p) => p.id === id);
   }
 
+  function getClientCustomPrice(productId: string): number | null {
+    const cp = clientPrices.find((p) => p.productId === productId);
+    return cp ? cp.customPrice : null;
+  }
+
   function getItemUnitPrice(item: ItemForm): number {
     const p = getProduct(item.productId);
     if (!p) return 0;
+    const custom = getClientCustomPrice(item.productId);
+    if (custom !== null) return custom;
     if (p.type === 'GAS') return p.basePrice;
-    // Desconto de R$0,50 para retirada de clientes varejo sem preço especial
     if (!isDelivery && selectedClient?.clientType === 'RETAIL') {
       return Math.max(0, p.basePrice - 0.5);
     }
@@ -209,6 +238,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
     try {
       await http.post('/orders', body);
+      if (registerPayment && paymentAmount) {
+        const amount = parseFloat(paymentAmount);
+        if (!isNaN(amount) && amount > 0) {
+          await http.post(`/payments/bulk/${clientId}`, null, {
+            params: { amount, method: paymentMethod },
+          });
+        }
+      }
       onSuccess();
       onClose();
     } catch {
@@ -423,6 +460,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                     const product = getProduct(item.productId);
                     const isGas = product?.type === 'GAS';
                     const unitPrice = getItemUnitPrice(item);
+                    const customPrice = item.productId ? getClientCustomPrice(item.productId) : null;
                     return (
                       <tr key={idx} className="hover:bg-surface-container-low/40">
                         <td className="px-3 py-2">
@@ -484,9 +522,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                               className={cellInputClass + ' text-right'}
                             />
                           ) : (
-                            <span className={`text-sm px-1 font-bold ${!isDelivery && isRetail ? 'text-primary' : 'text-on-surface'}`}>
-                              {item.productId ? formatBRL(unitPrice) : '—'}
-                            </span>
+                            <div className="px-1">
+                              <span className={`text-sm font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-tertiary' : 'text-on-surface'}`}>
+                                {item.productId ? formatBRL(unitPrice) : '—'}
+                              </span>
+                              {customPrice !== null && item.productId && (
+                                <p className="text-[10px] text-tertiary font-bold leading-none mt-0.5">★ preço especial</p>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -590,6 +633,64 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Pagamento opcional */}
+          <div className="border border-outline-variant rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setRegisterPayment((v) => !v)}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold transition-colors ${
+                registerPayment
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
+                Registrar pagamento agora <span className="font-normal opacity-70">(opcional)</span>
+              </span>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                {registerPayment ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+            {registerPayment && (
+              <div className="p-4 space-y-3 bg-surface">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-label-sm text-on-surface-variant uppercase mb-1">Valor (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0,00"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-label-sm text-on-surface-variant uppercase mb-1">Forma</label>
+                    <div className="flex gap-1">
+                      {PAYMENT_METHODS.map((m) => (
+                        <button
+                          key={m.value}
+                          type="button"
+                          onClick={() => setPaymentMethod(m.value)}
+                          className={`flex-1 py-2 rounded-lg border text-xs font-bold transition-all ${
+                            paymentMethod === m.value
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'border-outline-variant text-on-surface-variant hover:border-primary/40'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 justify-end pt-2 border-t border-outline-variant">
