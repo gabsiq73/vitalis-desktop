@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { NewOrderModal } from '../modals/NewOrderModal';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
@@ -24,8 +26,8 @@ const ORDER_STATUSES = [
 const PAYMENT_STATUSES = [
   { value: '', label: 'Todos os Pagamentos' },
   { value: 'PAID', label: 'Pago' },
+  { value: 'PARTIAL', label: 'Parcial' },
   { value: 'PENDING', label: 'Aguardando' },
-  { value: 'OVERDUE', label: 'Em Atraso' },
 ];
 
 export function OrdersPage() {
@@ -38,9 +40,12 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
 
-  useEffect(() => {
-    if (!http) return;
+  const [showNewOrder, setShowNewOrder] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  function fetchOrders() {
+    if (!http) return;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (statusFilter) params.status = statusFilter;
@@ -55,7 +60,11 @@ export function OrdersPage() {
       })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, [http, currentPage, statusFilter, paymentFilter]);
+  }
+
+  useEffect(() => {
+    fetchOrders();
+  }, [http, currentPage, statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChange(value: string) {
     setStatusFilter(value);
@@ -65,6 +74,23 @@ export function OrdersPage() {
   function handlePaymentChange(value: string) {
     setPaymentFilter(value);
     setCurrentPage(0);
+  }
+
+  async function confirmDelivery(orderId: string) {
+    if (!http) return;
+    setActionLoading(orderId);
+    try {
+      await http.patch(`/orders/${orderId}/confirm-delivery`);
+      fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function cancelOrder() {
+    if (!http || !cancelTarget) return;
+    await http.delete(`/orders/${cancelTarget}`);
+    fetchOrders();
   }
 
   return (
@@ -79,7 +105,10 @@ export function OrdersPage() {
               Gerencie e monitore todos os pedidos do sistema em tempo real.
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-lg text-h3 hover:brightness-110 transition-all shadow-sm">
+          <button
+            onClick={() => setShowNewOrder(true)}
+            className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-lg font-bold text-h3 hover:brightness-110 transition-all shadow-sm"
+          >
             <span className="material-symbols-outlined">add</span>
             Novo Pedido
           </button>
@@ -87,7 +116,7 @@ export function OrdersPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-3 bg-surface p-6 rounded-xl border border-outline-variant flex flex-col justify-between shadow-sm">
-            <span className="text-label-sm text-on-surface-variant uppercase">Total Hoje</span>
+            <span className="text-label-sm text-on-surface-variant uppercase">Total</span>
             <div className="mt-2">
               <span className="text-h1 font-black text-on-surface">
                 {loading ? '—' : totalElements.toLocaleString('pt-BR')}
@@ -161,7 +190,9 @@ export function OrdersPage() {
                   orders.map((order) => {
                     const statusBadge = getOrderStatusBadge(order.status);
                     const paymentBadge = getPaymentStatusBadge(order.paymentStatus);
-                    const isDelivered = order.status.toUpperCase() === 'DELIVERED';
+                    const isDelivered = order.status === 'DELIVERED';
+                    const isCancelled = order.status === 'CANCELLED';
+                    const isLoadingThis = actionLoading === order.id;
                     return (
                       <tr
                         key={order.id}
@@ -208,22 +239,26 @@ export function OrdersPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1">
                             <button
+                              title="Ver detalhes"
                               className="p-1.5 text-on-surface-variant hover:text-primary transition-all"
-                              title="Ver"
                             >
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
                             <button
-                              disabled={isDelivered}
-                              className="p-1.5 text-on-surface-variant hover:text-green-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                               title="Confirmar entrega"
+                              disabled={isDelivered || isCancelled || isLoadingThis}
+                              onClick={() => confirmDelivery(order.id)}
+                              className="p-1.5 text-on-surface-variant hover:text-green-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              <span className="material-symbols-outlined">check_circle</span>
+                              <span className="material-symbols-outlined">
+                                {isLoadingThis ? 'hourglass_empty' : 'check_circle'}
+                              </span>
                             </button>
                             <button
-                              disabled={isDelivered}
+                              title="Cancelar pedido"
+                              disabled={isDelivered || isCancelled || isLoadingThis}
+                              onClick={() => setCancelTarget(order.id)}
                               className="p-1.5 text-on-surface-variant hover:text-error transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Cancelar"
                             >
                               <span className="material-symbols-outlined">cancel</span>
                             </button>
@@ -241,7 +276,7 @@ export function OrdersPage() {
             <span className="text-body-md text-on-surface-variant">
               Exibindo{' '}
               <span className="font-semibold text-on-surface">
-                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
+                {Math.min(currentPage * PAGE_SIZE + 1, Math.max(totalElements, 1))}–
                 {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
               </span>{' '}
               de <span className="font-semibold text-on-surface">{totalElements}</span> resultados
@@ -262,9 +297,7 @@ export function OrdersPage() {
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
                   className={`px-3 py-1 rounded-lg text-body-md transition-colors ${
-                    pageNum === currentPage
-                      ? 'bg-primary text-on-primary'
-                      : 'hover:bg-surface'
+                    pageNum === currentPage ? 'bg-primary text-on-primary' : 'hover:bg-surface'
                   }`}
                 >
                   {pageNum + 1}
@@ -281,6 +314,22 @@ export function OrdersPage() {
           </div>
         </div>
       </div>
+
+      <NewOrderModal
+        open={showNewOrder}
+        onClose={() => setShowNewOrder(false)}
+        onSuccess={() => { fetchOrders(); }}
+      />
+
+      <ConfirmModal
+        open={cancelTarget !== null}
+        title="Cancelar Pedido"
+        message="Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita."
+        confirmLabel="Cancelar Pedido"
+        danger
+        onConfirm={cancelOrder}
+        onClose={() => setCancelTarget(null)}
+      />
     </>
   );
 }

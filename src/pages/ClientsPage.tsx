@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { NewClientModal } from '../modals/NewClientModal';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials } from '../utils/format';
 
@@ -25,14 +27,17 @@ export function ClientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
+  function fetchClients() {
     if (!http) return;
-
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (debouncedSearch) params.name = debouncedSearch;
@@ -47,7 +52,11 @@ export function ClientsPage() {
       })
       .catch(() => setClients([]))
       .finally(() => setLoading(false));
-  }, [http, currentPage, debouncedSearch, typeFilter]);
+  }
+
+  useEffect(() => {
+    fetchClients();
+  }, [http, currentPage, debouncedSearch, typeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleTypeFilter(type: string) {
     setTypeFilter(type);
@@ -57,6 +66,22 @@ export function ClientsPage() {
   function handleSearchChange(value: string) {
     setSearchQuery(value);
     setCurrentPage(0);
+  }
+
+  function openEdit(client: ClientResponseDTO) {
+    setEditingClient(client);
+    setShowNewClient(true);
+  }
+
+  function closeClientModal() {
+    setShowNewClient(false);
+    setEditingClient(undefined);
+  }
+
+  async function deleteClient() {
+    if (!http || !deleteTarget) return;
+    await http.delete(`/clients/${deleteTarget}`);
+    fetchClients();
   }
 
   const overdueCount = clients.filter((c) => c.balance < 0).length;
@@ -71,10 +96,17 @@ export function ClientsPage() {
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-h1 text-on-surface">Lista de Clientes</h1>
-            <p className="text-body-lg text-on-surface-variant">Gerencie todos os clientes cadastrados no sistema.</p>
+            <p className="text-body-lg text-on-surface-variant">
+              Gerencie todos os clientes cadastrados no sistema.
+            </p>
           </div>
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all">
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
+          <button
+            onClick={() => { setEditingClient(undefined); setShowNewClient(true); }}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+              person_add
+            </span>
             Novo Cliente
           </button>
         </div>
@@ -87,7 +119,7 @@ export function ClientsPage() {
               </span>
               <input
                 className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                placeholder="Buscar por nome, telefone ou documento..."
+                placeholder="Buscar por nome..."
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
@@ -109,10 +141,6 @@ export function ClientsPage() {
               ))}
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-all">
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
-            Filtros Avançados
-          </button>
         </section>
 
         <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
@@ -120,12 +148,24 @@ export function ClientsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Nome do Cliente</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Telefone</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Tipo</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Saldo</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">Ações</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
+                    Nome do Cliente
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
+                    Telefone
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
+                    Tipo
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">
+                    Saldo
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant">
@@ -144,9 +184,13 @@ export function ClientsPage() {
                 ) : (
                   clients.map((client) => {
                     const status = getStatusBadge(client.balance);
-                    const isRetail = client.type === 'RETAIL';
+                    const isRetail = client.clientType === 'RETAIL';
                     return (
-                      <tr key={client.id} className="hover:bg-surface-container transition-colors group">
+                      <tr
+                        key={client.id}
+                        className="hover:bg-surface-container transition-colors group cursor-pointer"
+                        onClick={() => navigate(`/clients/${client.id}`)}
+                      >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div
@@ -160,7 +204,7 @@ export function ClientsPage() {
                             </div>
                             <div>
                               <p className="font-bold text-on-surface">{client.name}</p>
-                              <p className="text-xs text-on-surface-variant">{client.email ?? '—'}</p>
+                              <p className="text-xs text-on-surface-variant">{client.address ?? '—'}</p>
                             </div>
                           </div>
                         </td>
@@ -175,7 +219,7 @@ export function ClientsPage() {
                                 : 'bg-primary-fixed text-on-primary-fixed-variant'
                             }`}
                           >
-                            {client.type}
+                            {client.clientType}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -190,7 +234,10 @@ export function ClientsPage() {
                             {formatBRL(client.balance)}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td
+                          className="px-6 py-4"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => navigate(`/clients/${client.id}`)}
@@ -200,12 +247,14 @@ export function ClientsPage() {
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
                             <button
+                              onClick={() => openEdit(client)}
                               className="p-2 text-on-surface-variant hover:bg-surface-container rounded-lg"
                               title="Editar"
                             >
                               <span className="material-symbols-outlined">edit</span>
                             </button>
                             <button
+                              onClick={() => setDeleteTarget(client.id)}
                               className="p-2 text-error hover:bg-error/10 rounded-lg"
                               title="Excluir"
                             >
@@ -237,7 +286,9 @@ export function ClientsPage() {
                   onClick={() => setCurrentPage((p) => p - 1)}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_left</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                    chevron_left
+                  </span>
                   Anterior
                 </button>
                 <span className="text-sm text-on-surface-variant px-2">
@@ -249,7 +300,9 @@ export function ClientsPage() {
                   className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
                 >
                   Próxima
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                    chevron_right
+                  </span>
                 </button>
               </div>
             </div>
@@ -259,16 +312,24 @@ export function ClientsPage() {
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">group</span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Total</span>
+              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
+                group
+              </span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                Total
+              </span>
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Total Clientes</p>
-            <p className="text-h2 text-on-surface">{loading ? '—' : totalElements.toLocaleString('pt-BR')}</p>
+            <p className="text-h2 text-on-surface">
+              {loading ? '—' : totalElements.toLocaleString('pt-BR')}
+            </p>
           </div>
 
           <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">warning</span>
+              <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">
+                warning
+              </span>
               <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
                 {overdueCount} atrasos
               </span>
@@ -283,8 +344,12 @@ export function ClientsPage() {
 
           <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">payments</span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Saudável</span>
+              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
+                payments
+              </span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                Saudável
+              </span>
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Crédito Médio</p>
             <p className="text-h2 text-on-surface">
@@ -304,6 +369,23 @@ export function ClientsPage() {
           </div>
         </section>
       </div>
+
+      <NewClientModal
+        open={showNewClient}
+        onClose={closeClientModal}
+        onSuccess={() => { closeClientModal(); fetchClients(); }}
+        client={editingClient}
+      />
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Excluir Cliente"
+        message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        danger
+        onConfirm={deleteClient}
+        onClose={() => setDeleteTarget(null)}
+      />
     </>
   );
 }
