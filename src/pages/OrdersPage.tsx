@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
+import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
@@ -43,6 +44,7 @@ export function OrdersPage() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [addPointsTarget, setAddPointsTarget] = useState<{ clientId: string; clientName: string } | null>(null);
 
   function fetchOrders() {
     if (!http) return;
@@ -245,6 +247,18 @@ export function OrdersPage() {
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
                             <button
+                              title="Adicionar pontos de fidelidade"
+                              onClick={() =>
+                                setAddPointsTarget({
+                                  clientId: order.clientId,
+                                  clientName: order.clientName,
+                                })
+                              }
+                              className="p-1.5 text-on-surface-variant hover:text-tertiary transition-all"
+                            >
+                              <span className="material-symbols-outlined">workspace_premium</span>
+                            </button>
+                            <button
                               title="Confirmar entrega"
                               disabled={isDelivered || isCancelled || isLoadingThis}
                               onClick={() => confirmDelivery(order.id)}
@@ -330,6 +344,16 @@ export function OrdersPage() {
         onConfirm={cancelOrder}
         onClose={() => setCancelTarget(null)}
       />
+
+      {addPointsTarget && (
+        <AddFidelityPointsModal
+          open={addPointsTarget !== null}
+          onClose={() => setAddPointsTarget(null)}
+          onSuccess={() => setAddPointsTarget(null)}
+          clientId={addPointsTarget.clientId}
+          clientName={addPointsTarget.clientName}
+        />
+      )}
     </>
   );
 }

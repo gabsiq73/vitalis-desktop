@@ -98,11 +98,19 @@ export interface ClientRequestBody {
   clientStatus: ClientStatus;
 }
 
+export interface GasSupplierResponseDTO {
+  id: string;
+  name: string;
+  notes?: string;
+}
+
 export interface OrderItemRequestBody {
   productId: string;
   quantity: number;
   gasCostPrice?: number;
   receivedByUs?: boolean;
+  bottleExpiration?: string;
+  supplierId?: string;
 }
 
 export interface OrderRequestBody {

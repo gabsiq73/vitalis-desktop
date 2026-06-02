@@ -5,6 +5,7 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
+import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
 import type {
   ClientResponseDTO,
   OrderResponseDTO,
@@ -44,6 +45,8 @@ export function ClientDetailPage() {
   const [showEditClient, setShowEditClient] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
+
+  const [showAddPoints, setShowAddPoints] = useState(false);
 
   const [bulkAmount, setBulkAmount] = useState('');
   const [bulkMethod, setBulkMethod] = useState<PaymentMethod>('PIX');
@@ -489,7 +492,18 @@ export function ClientDetailPage() {
             {activeTab === 'fidelidade' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h3 className="text-h3 text-on-surface mb-4">Extrato de Pontos</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-h3 text-on-surface">Extrato de Pontos</h3>
+                    <button
+                      onClick={() => setShowAddPoints(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-tertiary text-on-tertiary rounded-lg font-bold text-label-sm hover:brightness-110 transition-all"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                        add_circle
+                      </span>
+                      Adicionar Pontos
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     <div className="flex justify-between py-3 border-b border-outline-variant">
                       <div>
@@ -626,6 +640,14 @@ export function ClientDetailPage() {
         confirmLabel="Confirmar Devolução"
         onConfirm={registerReturn}
         onClose={() => setReturnTarget(null)}
+      />
+
+      <AddFidelityPointsModal
+        open={showAddPoints}
+        onClose={() => setShowAddPoints(false)}
+        onSuccess={() => { setShowAddPoints(false); fetchClient(); }}
+        clientId={client.id}
+        clientName={client.name}
       />
     </>
   );
