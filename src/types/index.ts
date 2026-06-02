@@ -165,6 +165,12 @@ export interface OrderBalanceDTO {
   remainingBalance: number;
 }
 
+export interface SystemConfigDTO {
+  pointsPerWaterItem: number;
+  pointsPerFreeWater: number;
+  pickupDiscountCents: number;
+}
+
 export interface PaymentRequestDTO {
   paymentDate: string;
   amount: number;

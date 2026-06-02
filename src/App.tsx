@@ -13,6 +13,7 @@ import { StockPage } from './pages/StockPage';
 import { BottlesPage } from './pages/BottlesPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { UsersPage } from './pages/UsersPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 function ProtectedLayout() {
   const { isAuthenticated, validating } = useAuth();
@@ -57,6 +58,7 @@ function App() {
             <Route path="/bottles" element={<BottlesPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

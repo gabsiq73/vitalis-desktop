@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export function TopBar() {
   const { auth } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant sticky top-0 z-40">
@@ -23,7 +25,11 @@ export function TopBar() {
         <button className="p-2 text-on-surface-variant hover:text-primary transition-all">
           <span className="material-symbols-outlined">notifications</span>
         </button>
-        <button className="p-2 text-on-surface-variant hover:text-primary transition-all">
+        <button
+          onClick={() => navigate('/settings')}
+          className="p-2 text-on-surface-variant hover:text-primary transition-all"
+          title="Configurações"
+        >
           <span className="material-symbols-outlined">settings</span>
         </button>
         <div className="h-6 w-px bg-outline-variant" />

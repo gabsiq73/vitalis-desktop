@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'payments', label: 'Gas Settlements', path: '/gas-settlements' },
   { icon: 'assessment', label: 'Reports', path: '/reports' },
   { icon: 'person_outline', label: 'Users', path: '/users' },
+  { icon: 'settings', label: 'Configurações', path: '/settings' },
 ];
 
 export function Sidebar() {
