@@ -154,39 +154,68 @@ export function OrderDetailPage() {
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-surface-container text-on-surface-variant text-label-sm border-b border-outline-variant">
-                      <th className="px-6 py-3 font-semibold uppercase">Produto</th>
-                      <th className="px-6 py-3 font-semibold uppercase text-center">Qtd</th>
-                      <th className="px-6 py-3 font-semibold uppercase text-right">Preço Unit.</th>
-                      <th className="px-6 py-3 font-semibold uppercase text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
-                    {order.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-surface-container/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-surface-container rounded-lg flex items-center justify-center border border-outline-variant flex-shrink-0">
-                              <span className="material-symbols-outlined text-primary" style={{ fontSize: '20px' }}>
-                                propane_tank
-                              </span>
-                            </div>
-                            <p className="font-semibold text-on-surface">{item.productName}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center font-medium text-on-surface">{item.quantity}</td>
-                        <td className="px-6 py-4 text-right text-on-surface-variant">
-                          {formatBRL(item.unitPrice)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-primary">
-                          {formatBRL(item.subTotal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {(() => {
+                  const hasGasItems = order.items.some((i) => i.supplierId);
+                  return (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-surface-container text-on-surface-variant text-label-sm border-b border-outline-variant">
+                          <th className="px-6 py-3 font-semibold uppercase">Produto</th>
+                          <th className="px-6 py-3 font-semibold uppercase text-center">Qtd</th>
+                          {hasGasItems && (
+                            <th className="px-6 py-3 font-semibold uppercase">Distribuidor</th>
+                          )}
+                          <th className="px-6 py-3 font-semibold uppercase text-right">Preço Unit.</th>
+                          <th className="px-6 py-3 font-semibold uppercase text-right">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant">
+                        {order.items.map((item) => {
+                          const isGas = !!item.supplierId;
+                          return (
+                            <tr key={item.id} className="hover:bg-surface-container/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center border flex-shrink-0 ${
+                                    isGas
+                                      ? 'bg-tertiary/10 border-tertiary/20'
+                                      : 'bg-blue-50 border-blue-100'
+                                  }`}>
+                                    <span className={`material-symbols-outlined ${
+                                      isGas ? 'text-tertiary' : 'text-blue-500'
+                                    }`} style={{ fontSize: '20px' }}>
+                                      {isGas ? 'propane_tank' : 'water_drop'}
+                                    </span>
+                                  </div>
+                                  <p className="font-semibold text-on-surface">{item.productName}</p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center font-medium text-on-surface">{item.quantity}</td>
+                              {hasGasItems && (
+                                <td className="px-6 py-4">
+                                  {item.supplierId ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="material-symbols-outlined text-tertiary" style={{ fontSize: '16px' }}>local_shipping</span>
+                                      <span className="text-body-md font-semibold text-on-surface">{item.supplierName}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-on-surface-variant text-sm">—</span>
+                                  )}
+                                </td>
+                              )}
+                              <td className="px-6 py-4 text-right text-on-surface-variant">
+                                {formatBRL(item.unitPrice)}
+                              </td>
+                              <td className="px-6 py-4 text-right font-bold text-primary">
+                                {formatBRL(item.subTotal)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
               </div>
             </section>
 

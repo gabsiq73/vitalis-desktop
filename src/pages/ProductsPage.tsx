@@ -9,6 +9,7 @@ import type {
   ProductUpdateDTO,
   ProductType,
   SpringPage,
+  GasSupplierResponseDTO,
 } from '../types';
 import { formatBRL } from '../utils/format';
 
@@ -26,25 +27,59 @@ interface ProductFormProps {
 }
 
 function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
+  const { http } = useAuth();
   const [name, setName] = useState(initial?.name ?? '');
   const [basePrice, setBasePrice] = useState(initial?.basePrice?.toString() ?? '');
   const [lastCostPrice, setLastCostPrice] = useState(initial?.lastCostPrice?.toString() ?? '');
   const [type, setType] = useState<ProductType>(initial?.type ?? 'GAS');
+  const [defaultSupplierId, setDefaultSupplierId] = useState(initial?.defaultSupplierId ?? '');
+  const [suppliers, setSuppliers] = useState<GasSupplierResponseDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (http) {
+      http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 100 } })
+        .then((res) => {
+          setSuppliers(res.data.content);
+        })
+        .catch(() => {
+          setSuppliers([]);
+        });
+    }
+  }, [http]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setError('Nome é obrigatório.'); return; }
     const price = parseFloat(basePrice);
-    if (isNaN(price) || price <= 0) { setError('Preço base deve ser maior que zero.'); return; }
+    if (isNaN(price) || price <= 0) { setError('Preço de venda deve ser maior que zero.'); return; }
+    
+    const cost = lastCostPrice ? parseFloat(lastCostPrice) : undefined;
+    if (type === 'GAS') {
+      if (cost === undefined || isNaN(cost) || cost <= 0) {
+        setError('Preço de custo é obrigatório e deve ser maior que zero para produtos do tipo GÁS.');
+        return;
+      }
+      if (!defaultSupplierId) {
+        setError('Distribuidor padrão é obrigatório para produtos do tipo GÁS.');
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
     try {
-      const cost = lastCostPrice ? parseFloat(lastCostPrice) : undefined;
-      await onSubmit({ name: name.trim(), basePrice: price, lastCostPrice: cost, type });
-    } catch {
-      setError('Erro ao salvar produto. Verifique os dados.');
+      await onSubmit({
+        name: name.trim(),
+        basePrice: price,
+        lastCostPrice: cost,
+        type,
+        defaultSupplierId: type === 'GAS' ? defaultSupplierId : undefined,
+      });
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || 'Erro ao salvar produto. Verifique os dados.';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -53,7 +88,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="p-6 space-y-5">
       <div>
-        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Nome *</label>
+        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">Nome *</label>
         <input
           className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
           placeholder="Ex: Botijão P13 - GLP"
@@ -64,13 +99,18 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
       </div>
 
       <div>
-        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Tipo *</label>
+        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">Tipo *</label>
         <div className="flex gap-3">
           {(['GAS', 'WATER'] as ProductType[]).map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => setType(t)}
+              onClick={() => {
+                setType(t);
+                if (t === 'WATER') {
+                  setDefaultSupplierId('');
+                }
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-bold text-sm transition-all ${
                 type === t
                   ? 'bg-primary text-on-primary border-primary'
@@ -88,7 +128,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
+          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
             Preço de Venda (R$) *
           </label>
           <input
@@ -102,8 +142,8 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
           />
         </div>
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
-            Último Custo (R$)
+          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
+            Último Custo (R$) {type === 'GAS' && '*'}
           </label>
           <input
             type="number"
@@ -116,6 +156,26 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
           />
         </div>
       </div>
+
+      {type === 'GAS' && (
+        <div>
+          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
+            Distribuidor Padrão *
+          </label>
+          <select
+            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+            value={defaultSupplierId}
+            onChange={(e) => setDefaultSupplierId(e.target.value)}
+          >
+            <option value="">Selecione um distribuidor...</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && <p className="text-sm text-error">{error}</p>}
 
@@ -288,6 +348,7 @@ export function ProductsPage() {
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Tipo</th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Preço Base</th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Último Custo</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Distribuidor Padrão</th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
                 </tr>
@@ -295,13 +356,13 @@ export function ProductsPage() {
               <tbody className="divide-y divide-outline-variant">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                       Carregando...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                       Nenhum produto encontrado.
                     </td>
                   </tr>
@@ -331,6 +392,9 @@ export function ProductsPage() {
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant">
                         {p.lastCostPrice ? formatBRL(p.lastCostPrice) : '—'}
+                      </td>
+                      <td className="px-6 py-4 text-on-surface-variant text-body-md font-semibold">
+                        {p.type === 'GAS' ? (p.defaultSupplierName || 'Não definido') : '—'}
                       </td>
                       <td className="px-6 py-4">
                         <span

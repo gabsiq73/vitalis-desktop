@@ -32,6 +32,8 @@ export interface ProductResponseDTO {
   lastCostPrice?: number;
   type: ProductType;
   isActive: boolean;
+  defaultSupplierId?: string;
+  defaultSupplierName?: string;
 }
 
 export interface OrderItemResponseDTO {
@@ -150,12 +152,15 @@ export interface ProductRequestDTO {
   basePrice: number;
   lastCostPrice?: number;
   type: ProductType;
+  defaultSupplierId?: string;
 }
 
 export interface ProductUpdateDTO {
   name?: string;
   basePrice?: number;
   type?: ProductType;
+  lastCostPrice?: number;
+  defaultSupplierId?: string;
 }
 
 export interface OrderBalanceDTO {
