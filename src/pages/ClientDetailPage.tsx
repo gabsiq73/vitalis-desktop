@@ -10,6 +10,9 @@ import type {
   ClientResponseDTO,
   OrderResponseDTO,
   LoanedBottleResponseDTO,
+  ProductResponseDTO,
+  ClientPriceResponseDTO,
+  ClientPriceRequestDTO,
   SpringPage,
   PaymentMethod,
 } from '../types';
@@ -54,6 +57,12 @@ export function ClientDetailPage() {
   const [bulkSuccess, setBulkSuccess] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
+  const [prices, setPrices] = useState<ClientPriceResponseDTO[]>([]);
+  const [products, setProducts] = useState<ProductResponseDTO[]>([]);
+  const [priceForm, setPriceForm] = useState<{ productId: string; customPrice: string }>({ productId: '', customPrice: '' });
+  const [priceSubmitting, setPriceSubmitting] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
+
   function fetchClient() {
     if (!http || !id) return;
     http
@@ -78,6 +87,14 @@ export function ClientDetailPage() {
       .catch(() => setBottles([]));
   }
 
+  function fetchPrices() {
+    if (!http || !id) return;
+    http
+      .get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`)
+      .then((r) => setPrices(r.data))
+      .catch(() => setPrices([]));
+  }
+
   useEffect(() => {
     if (!http || !id) return;
     setLoading(true);
@@ -85,11 +102,15 @@ export function ClientDetailPage() {
       http.get<ClientResponseDTO>(`/clients/${id}`),
       http.get<SpringPage<OrderResponseDTO>>(`/orders/client/${id}`, { params: { size: 50 } }),
       http.get<SpringPage<LoanedBottleResponseDTO>>(`/bottles/client/${id}`, { params: { size: 50 } }),
+      http.get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`),
+      http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200 } }),
     ])
-      .then(([cRes, oRes, bRes]) => {
+      .then(([cRes, oRes, bRes, pricRes, prodRes]) => {
         setClient(cRes.data);
         setOrders(oRes.data.content);
         setBottles(bRes.data.content);
+        setPrices(pricRes.data);
+        setProducts(prodRes.data.content.filter((p) => p.isActive));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -467,24 +488,108 @@ export function ClientDetailPage() {
             )}
 
             {activeTab === 'precos' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-h3 text-on-surface">Lista de Preços Acordados</h3>
-                  <button className="text-primary font-bold flex items-center gap-1 text-body-md">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                      edit
-                    </span>
-                    Ajustar Tabelas
-                  </button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Tabela de preços */}
+                <div>
+                  <h3 className="text-h3 text-on-surface mb-4">Preços Acordados</h3>
+                  {prices.length === 0 ? (
+                    <div className="text-center py-10 text-on-surface-variant border border-outline-variant rounded-xl">
+                      <span className="material-symbols-outlined block mb-2 text-outline" style={{ fontSize: '40px' }}>price_change</span>
+                      <p className="text-body-md">Nenhum preço customizado cadastrado.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-outline-variant">
+                      <table className="w-full text-left">
+                        <thead className="bg-surface-container-low border-b border-outline-variant">
+                          <tr>
+                            <th className="px-4 py-3 text-label-sm text-on-surface-variant">PRODUTO</th>
+                            <th className="px-4 py-3 text-label-sm text-on-surface-variant text-right">PREÇO ESPECIAL</th>
+                            <th className="px-4 py-3 w-12" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant">
+                          {prices.map((price) => (
+                            <tr key={price.id} className="hover:bg-surface-container transition-colors group">
+                              <td className="px-4 py-3 font-semibold text-on-surface">{price.productName}</td>
+                              <td className="px-4 py-3 text-right font-black text-primary">{formatBRL(price.customPrice)}</td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  onClick={async () => {
+                                    await http!.delete(`/clients/${id}/prices/${price.id}`);
+                                    fetchPrices();
+                                  }}
+                                  className="p-1.5 text-error hover:bg-error/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Remover"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-                <div className="text-center py-10 text-on-surface-variant">
-                  <span
-                    className="material-symbols-outlined block mb-2 text-outline"
-                    style={{ fontSize: '48px' }}
-                  >
-                    price_change
-                  </span>
-                  <p className="text-body-md">Nenhum preço customizado cadastrado.</p>
+
+                {/* Formulário de novo preço */}
+                <div>
+                  <h3 className="text-h3 text-on-surface mb-4">Adicionar / Atualizar Preço</h3>
+                  <div className="bg-surface-container rounded-xl p-6 space-y-4">
+                    <div>
+                      <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Produto *</label>
+                      <select
+                        value={priceForm.productId}
+                        onChange={(e) => setPriceForm((f) => ({ ...f, productId: e.target.value }))}
+                        className={inputClass}
+                      >
+                        <option value="">Selecione um produto...</option>
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — {formatBRL(p.basePrice)} (base)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Preço Especial (R$) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={priceForm.customPrice}
+                        onChange={(e) => setPriceForm((f) => ({ ...f, customPrice: e.target.value }))}
+                        placeholder="0,00"
+                        className={inputClass}
+                      />
+                    </div>
+                    {priceError && <p className="text-sm text-error">{priceError}</p>}
+                    <button
+                      disabled={priceSubmitting || !priceForm.productId || !priceForm.customPrice}
+                      onClick={async () => {
+                        const price = parseFloat(priceForm.customPrice);
+                        if (!priceForm.productId || isNaN(price) || price <= 0) {
+                          setPriceError('Preencha produto e preço válido.');
+                          return;
+                        }
+                        setPriceSubmitting(true);
+                        setPriceError(null);
+                        try {
+                          const payload: ClientPriceRequestDTO = { productId: priceForm.productId, customPrice: price };
+                          await http!.post(`/clients/${id}/prices`, payload);
+                          setPriceForm({ productId: '', customPrice: '' });
+                          fetchPrices();
+                        } catch {
+                          setPriceError('Erro ao salvar preço. Verifique se o valor é menor que o preço base.');
+                        } finally {
+                          setPriceSubmitting(false);
+                        }
+                      }}
+                      className="w-full bg-primary text-on-primary py-3 rounded-lg font-bold hover:brightness-110 transition-all disabled:opacity-60"
+                    >
+                      {priceSubmitting ? 'Salvando...' : 'Salvar Preço Especial'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

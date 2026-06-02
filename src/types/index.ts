@@ -173,6 +173,18 @@ export interface PaymentRequestDTO {
   notes?: string;
 }
 
+export interface ClientPriceResponseDTO {
+  id: string;
+  productId: string;
+  productName: string;
+  customPrice: number;
+}
+
+export interface ClientPriceRequestDTO {
+  productId: string;
+  customPrice: number;
+}
+
 export interface OrderItemRequestBody {
   productId: string;
   quantity: number;
