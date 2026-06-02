@@ -5,6 +5,7 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
+import { AddPaymentModal } from '../modals/AddPaymentModal';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
@@ -47,6 +48,7 @@ export function OrdersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [addPointsTarget, setAddPointsTarget] = useState<{ clientId: string; clientName: string } | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!statusMenu) return;
@@ -283,6 +285,15 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
+                            {order.paymentStatus !== 'PAID' && !isCancelled && (
+                              <button
+                                title="Registrar pagamento"
+                                onClick={() => setPaymentTarget(order.id)}
+                                className="p-1.5 text-on-surface-variant hover:text-green-600 transition-all"
+                              >
+                                <span className="material-symbols-outlined">payments</span>
+                              </button>
+                            )}
                             <button
                               title="Adicionar pontos de fidelidade"
                               onClick={() =>
@@ -369,7 +380,7 @@ export function OrdersPage() {
       <NewOrderModal
         open={showNewOrder}
         onClose={() => setShowNewOrder(false)}
-        onSuccess={() => { fetchOrders(); }}
+        onSuccess={() => { fetchOrders(); fetchCounts(); }}
       />
 
       <ConfirmModal
@@ -389,6 +400,15 @@ export function OrdersPage() {
           onSuccess={() => setAddPointsTarget(null)}
           clientId={addPointsTarget.clientId}
           clientName={addPointsTarget.clientName}
+        />
+      )}
+
+      {paymentTarget && (
+        <AddPaymentModal
+          open={paymentTarget !== null}
+          orderId={paymentTarget}
+          onClose={() => setPaymentTarget(null)}
+          onSuccess={() => { setPaymentTarget(null); fetchOrders(); fetchCounts(); }}
         />
       )}
 
