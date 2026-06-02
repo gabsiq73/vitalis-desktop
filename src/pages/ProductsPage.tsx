@@ -54,7 +54,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
     if (!name.trim()) { setError('Nome é obrigatório.'); return; }
     const price = parseFloat(basePrice);
     if (isNaN(price) || price <= 0) { setError('Preço de venda deve ser maior que zero.'); return; }
-    
+
     const cost = lastCostPrice ? parseFloat(lastCostPrice) : undefined;
     if (type === 'GAS') {
       if (cost === undefined || isNaN(cost) || cost <= 0) {
@@ -77,8 +77,9 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
         type,
         defaultSupplierId: type === 'GAS' ? defaultSupplierId : undefined,
       });
-    } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Erro ao salvar produto. Verifique os dados.';
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      const errMsg = axiosError.response?.data?.message || 'Erro ao salvar produto. Verifique os dados.';
       setError(errMsg);
     } finally {
       setLoading(false);
@@ -111,11 +112,10 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
                   setDefaultSupplierId('');
                 }
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-bold text-sm transition-all ${
-                type === t
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-bold text-sm transition-all ${type === t
                   ? 'bg-primary text-on-primary border-primary'
                   : 'border-outline-variant text-on-surface-variant hover:border-primary/40'
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                 {PRODUCT_ICONS[t]}
@@ -304,8 +304,8 @@ export function ProductsPage() {
               {loading
                 ? '—'
                 : products.length === 0
-                ? '—'
-                : `${Math.round((activeCount / products.length) * 100)}%`}
+                  ? '—'
+                  : `${Math.round((activeCount / products.length) * 100)}%`}
             </p>
           </div>
         </div>
@@ -321,11 +321,10 @@ export function ProductsPage() {
                 <button
                   key={opt.value}
                   onClick={() => setTypeFilter(opt.value)}
-                  className={`px-4 py-1.5 rounded-full text-label-sm font-bold transition-colors ${
-                    typeFilter === opt.value
+                  className={`px-4 py-1.5 rounded-full text-label-sm font-bold transition-colors ${typeFilter === opt.value
                       ? 'bg-secondary-container text-on-secondary-container'
                       : 'text-on-surface-variant hover:bg-surface-container'
-                  }`}
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -398,11 +397,10 @@ export function ProductsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`px-3 py-1 rounded-full text-label-sm font-bold inline-flex items-center gap-1.5 ${
-                            p.isActive
+                          className={`px-3 py-1 rounded-full text-label-sm font-bold inline-flex items-center gap-1.5 ${p.isActive
                               ? 'bg-green-100 text-green-700'
                               : 'bg-surface-container text-on-surface-variant'
-                          }`}
+                            }`}
                         >
                           <span
                             className={`w-2 h-2 rounded-full ${p.isActive ? 'bg-green-500' : 'bg-outline'}`}

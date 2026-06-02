@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuth(null);
       })
       .finally(() => setValidating(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const http = useMemo<AxiosInstance | null>(() => {
     if (!auth) return null;
