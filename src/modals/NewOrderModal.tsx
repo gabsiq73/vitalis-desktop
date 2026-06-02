@@ -155,7 +155,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!http || (!selectedClient && !isAvulso)) return;
+    if (!http) return;
+
+    if (!selectedClient) {
+      setError('Selecione um cliente para continuar. Em pedidos avulsos, escolha um cliente da lista.');
+      return;
+    }
 
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
@@ -179,7 +184,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     });
 
     const body: OrderRequestBody = {
-      clientId: selectedClient?.id ?? '',
+      clientId: selectedClient.id,
       items: orderItems,
       isDelivery,
       deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : undefined,
@@ -248,11 +253,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                 <button
                   type="button"
                   onClick={() => {
-                    setIsAvulso((v) => !v);
+                    const next = !isAvulso;
+                    setIsAvulso(next);
                     setSelectedClient(null);
                     setClientSearch('');
-                    setClientResults([]);
-                    setShowDropdown(false);
+                    if (next) {
+                      searchClients('', true);
+                      setShowDropdown(true);
+                    } else {
+                      setClientResults([]);
+                      setShowDropdown(false);
+                    }
                   }}
                   className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all ${
                     isAvulso
@@ -563,7 +574,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </button>
             <button
               type="submit"
-              disabled={submitting || (!selectedClient && !isAvulso)}
+              disabled={submitting || !selectedClient}
               className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold hover:brightness-110 transition-all disabled:opacity-70 flex items-center gap-2"
             >
               {submitting ? (
