@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { TopBar } from '../components/TopBar';
 import type { ClientResponseDTO, SpringPage } from '../types';
+import { formatBRL, getInitials } from '../utils/format';
 
 const PAGE_SIZE = 20;
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0] ?? '')
-    .join('')
-    .toUpperCase();
-}
 
 function getStatusBadge(balance: number): { label: string; className: string } {
   return balance < 0
@@ -19,12 +13,9 @@ function getStatusBadge(balance: number): { label: string; className: string } {
     : { label: 'PAID', className: 'bg-green-100 text-green-700' };
 }
 
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
-
 export function ClientsPage() {
-  const { http, auth } = useAuth();
+  const { http } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientResponseDTO[]>([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -74,39 +65,21 @@ export function ClientsPage() {
 
   return (
     <>
-      <header className="h-16 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-outline-variant/30">
-        <div className="flex items-center gap-3">
-          <span className="text-h2 text-on-surface">Lista de Clientes</span>
-          <span className="bg-primary-fixed text-on-primary-fixed-variant text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
-            Enterprise
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
-          <div className="h-px w-4" />
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-on-surface leading-none">
-                {auth?.username ?? 'Admin'}
-              </p>
-              <p className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">
-                Supervisor
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container font-bold border-2 border-primary-fixed">
-              {auth?.username?.charAt(0).toUpperCase() ?? 'A'}
-            </div>
-          </div>
-        </div>
-      </header>
+      <TopBar />
 
-      <div className="p-8 max-w-7xl mx-auto space-y-6">
-        <section className="bg-white border border-outline-variant/30 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-h1 text-on-surface">Lista de Clientes</h1>
+            <p className="text-body-lg text-on-surface-variant">Gerencie todos os clientes cadastrados no sistema.</p>
+          </div>
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
+            Novo Cliente
+          </button>
+        </div>
+
+        <section className="bg-surface border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-3">
             <div className="relative flex-1 max-w-md">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
@@ -136,48 +109,26 @@ export function ClientsPage() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-all">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                filter_list
-              </span>
-              Filtros Avançados
-            </button>
-            <button className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                person_add
-              </span>
-              Novo Cliente
-            </button>
-          </div>
+          <button className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container-low transition-all">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
+            Filtros Avançados
+          </button>
         </section>
 
-        <section className="bg-white border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+        <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-surface-container-low/50 border-b border-outline-variant/30">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Nome do Cliente
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Telefone
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">
-                    Saldo de Crédito
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
-                    Ações
-                  </th>
+                <tr className="bg-surface-container-low border-b border-outline-variant">
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Nome do Cliente</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Telefone</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Tipo</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Saldo</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/20">
+              <tbody className="divide-y divide-outline-variant">
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
@@ -195,19 +146,7 @@ export function ClientsPage() {
                     const status = getStatusBadge(client.balance);
                     const isRetail = client.type === 'RETAIL';
                     return (
-                      <tr
-                        key={client.id}
-                        className="hover:bg-surface-container-lowest transition-all duration-150 group"
-                        style={{ transition: 'transform 150ms ease' }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLTableRowElement).style.transform =
-                            'translateY(-1px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLTableRowElement).style.transform =
-                            'translateY(0)';
-                        }}
-                      >
+                      <tr key={client.id} className="hover:bg-surface-container transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div
@@ -221,9 +160,7 @@ export function ClientsPage() {
                             </div>
                             <div>
                               <p className="font-bold text-on-surface">{client.name}</p>
-                              <p className="text-xs text-on-surface-variant">
-                                {client.email ?? '—'}
-                              </p>
+                              <p className="text-xs text-on-surface-variant">{client.email ?? '—'}</p>
                             </div>
                           </div>
                         </td>
@@ -256,6 +193,7 @@ export function ClientsPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
+                              onClick={() => navigate(`/clients/${client.id}`)}
                               className="p-2 text-primary hover:bg-primary/10 rounded-lg"
                               title="Ver"
                             >
@@ -284,7 +222,7 @@ export function ClientsPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-outline-variant/30 bg-surface-container-low/30 flex items-center justify-between">
+            <div className="px-6 py-4 border-t border-outline-variant bg-surface-container-low flex items-center justify-between">
               <p className="text-sm text-on-surface-variant">
                 Mostrando{' '}
                 <span className="font-bold text-on-surface">
@@ -299,9 +237,7 @@ export function ClientsPage() {
                   onClick={() => setCurrentPage((p) => p - 1)}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    chevron_left
-                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_left</span>
                   Anterior
                 </button>
                 <span className="text-sm text-on-surface-variant px-2">
@@ -313,9 +249,7 @@ export function ClientsPage() {
                   className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
                 >
                   Próxima
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    chevron_right
-                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
                 </button>
               </div>
             </div>
@@ -323,26 +257,18 @@ export function ClientsPage() {
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
-                group
-              </span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                Total
-              </span>
+              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">group</span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Total</span>
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Total Clientes</p>
-            <p className="text-h2 text-on-surface">
-              {loading ? '—' : totalElements.toLocaleString('pt-BR')}
-            </p>
+            <p className="text-h2 text-on-surface">{loading ? '—' : totalElements.toLocaleString('pt-BR')}</p>
           </div>
 
-          <div className="bg-white border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">
-                warning
-              </span>
+              <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">warning</span>
               <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
                 {overdueCount} atrasos
               </span>
@@ -355,14 +281,10 @@ export function ClientsPage() {
             </p>
           </div>
 
-          <div className="bg-white border border-outline-variant/30 rounded-xl p-5 shadow-sm">
+          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
-                payments
-              </span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                Saudável
-              </span>
+              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">payments</span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Saudável</span>
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Crédito Médio</p>
             <p className="text-h2 text-on-surface">

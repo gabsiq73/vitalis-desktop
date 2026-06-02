@@ -9,63 +9,68 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: 'dashboard', label: 'Dashboard', path: '/dashboard' },
-  { icon: 'receipt_long', label: 'Orders', path: '/orders' },
+  { icon: 'shopping_cart', label: 'Orders', path: '/orders' },
+  { icon: 'group', label: 'Clients', path: '/clients' },
+  { icon: 'inventory_2', label: 'Stock', path: '/stock' },
+  { icon: 'category', label: 'Products', path: '/products' },
   { icon: 'propane_tank', label: 'Bottles', path: '/bottles' },
-  { icon: 'group', label: 'CRM', path: '/clients' },
-  { icon: 'inventory_2', label: 'Inventory', path: '/inventory' },
-  { icon: 'payments', label: 'Financial', path: '/financial' },
-  { icon: 'inventory', label: 'Products', path: '/products' },
+  { icon: 'local_shipping', label: 'Suppliers', path: '/suppliers' },
+  { icon: 'payments', label: 'Gas Settlements', path: '/gas-settlements' },
+  { icon: 'assessment', label: 'Reports', path: '/reports' },
+  { icon: 'person_outline', label: 'Users', path: '/users' },
 ];
 
 export function Sidebar() {
   const { pathname } = useLocation();
   const { logout } = useAuth();
 
+  function isActive(path: string): boolean {
+    if (pathname === path) return true;
+    if (path !== '/dashboard' && pathname.startsWith(path + '/')) return true;
+    return false;
+  }
+
   return (
-    <aside className="fixed top-0 left-0 bottom-0 z-[60] flex flex-col p-4 bg-[#14161C] w-64 border-r border-white/10 shadow-2xl shadow-black/60">
-      <div className="flex items-center gap-3 px-4 py-6 mb-4">
-        <div className="h-10 w-10 bg-[#1F75FE] rounded-lg flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
-          V
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-white leading-none">Vitalis</h1>
-          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-1">
-            Logistics ERP
-          </p>
-        </div>
+    <aside className="fixed top-0 left-0 bottom-0 z-[60] flex flex-col w-64 bg-on-secondary-fixed shadow-sm overflow-y-auto">
+      <div className="px-6 py-8 flex-shrink-0">
+        <h1 className="text-h2 font-black text-surface-container-lowest tracking-tighter">Vitalis</h1>
+        <p className="text-xs text-secondary-fixed-dim opacity-70 mt-0.5">Logistics System</p>
       </div>
 
-      <nav className="flex-1 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all duration-200 active:scale-95 ${
-                isActive
-                  ? 'bg-[#1F75FE] text-white shadow-[0_0_12px_rgba(31,117,254,0.3)]'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-              }`}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-2">
+        <ul className="space-y-0.5">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`flex items-center gap-4 px-4 py-2 rounded text-body-md transition-colors ${
+                    active
+                      ? 'text-primary-fixed-dim font-bold border-l-4 border-primary-fixed-dim bg-on-secondary-fixed-variant/20'
+                      : 'text-secondary-fixed-dim hover:bg-on-secondary-fixed-variant hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                    {item.icon}
+                  </span>
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
 
-      <div className="mt-auto pt-4 space-y-2 border-t border-white/5">
-        <button className="w-full bg-[#1F75FE]/10 text-[#1F75FE] border border-[#1F75FE]/30 rounded-lg py-3 font-bold uppercase tracking-widest text-[10px] hover:bg-[#1F75FE] hover:text-white transition-all">
-          New Order
-        </button>
+      <div className="p-4 flex-shrink-0 border-t border-on-secondary-fixed-variant/20">
         <button
           onClick={logout}
-          className="w-full text-slate-500 hover:text-red-400 text-[10px] font-semibold uppercase tracking-wider py-2 transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-error-container text-on-error-container py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity"
         >
-          Sair
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+            logout
+          </span>
+          Logout
         </button>
       </div>
     </aside>

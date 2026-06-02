@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vitalis Logistics - Pedidos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#9e3d00",
+                    "secondary-fixed": "#d3e4fe",
+                    "on-tertiary-container": "#fffbff",
+                    "secondary-container": "#d0e1fb",
+                    "on-primary-container": "#fefcff",
+                    "inverse-on-surface": "#eff0fc",
+                    "primary-container": "#076df6",
+                    "on-secondary": "#ffffff",
+                    "primary": "#0056c6",
+                    "on-primary": "#ffffff",
+                    "surface-variant": "#e1e2ed",
+                    "secondary": "#505f76",
+                    "inverse-surface": "#2d3039",
+                    "on-background": "#191b23",
+                    "surface-container-highest": "#e1e2ed",
+                    "error": "#ba1a1a",
+                    "error-container": "#ffdad6",
+                    "primary-fixed": "#d9e2ff",
+                    "outline-variant": "#c2c6d7",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "outline": "#727786",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "on-secondary-container": "#54647a",
+                    "surface-container": "#ecedf9",
+                    "surface-container-high": "#e6e7f3",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-dim": "#d8d9e5",
+                    "inverse-primary": "#b0c6ff",
+                    "on-surface": "#191b23",
+                    "on-secondary-fixed": "#0b1c30",
+                    "background": "#faf8ff",
+                    "on-tertiary-fixed": "#351000",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "surface-bright": "#faf8ff",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-surface-variant": "#424655",
+                    "surface-container-low": "#f2f3ff",
+                    "surface": "#faf8ff",
+                    "surface-tint": "#0058cb",
+                    "on-primary-fixed-variant": "#00429b",
+                    "tertiary-container": "#c64f00",
+                    "on-tertiary": "#ffffff",
+                    "primary-fixed-dim": "#b0c6ff",
+                    "on-primary-fixed": "#001945"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin": "24px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "unit": "4px",
+                    "gutter": "16px",
+                    "lg": "24px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "h3": ["Inter"],
+                    "h2": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h1": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "h1": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F8FAFC;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .table-row-hover:hover {
+            background-color: rgba(0, 86, 198, 0.02);
+        }
+    </style>
+</head>
+<body class="antialiased text-on-surface">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-screen fixed left-0 top-0 overflow-y-auto bg-on-secondary-fixed shadow-sm z-50 w-64">
+<div class="px-lg py-xl">
+<h1 class="font-h2 text-h2 font-black text-surface-container-lowest">Vitalis</h1>
+<p class="font-body-md text-body-md text-secondary-fixed-dim">Logistics System</p>
+</div>
+<nav class="flex-1 px-sm">
+<ul class="space-y-unit">
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary-fixed-dim font-bold border-l-4 border-primary-fixed-dim bg-on-secondary-fixed-variant/20 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span>Orders</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Clients</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Stock</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="category">category</span>
+<span>Products</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="propane_tank">propane_tank</span>
+<span>Bottles (Emprestimos)</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
+<span>Suppliers</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span>Gas Settlements</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span>Reports</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary-fixed-dim font-body-md hover:bg-on-secondary-fixed-variant hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="person_outline">person_outline</span>
+<span>Users</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="p-lg border-t border-on-secondary-fixed-variant/20">
+<button class="flex items-center gap-md w-full px-md py-sm text-secondary-fixed-dim font-body-md hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Logout</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<main class="ml-64 min-h-screen">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-lg py-sm h-16 bg-surface border-b border-outline-variant sticky top-0 z-40">
+<div class="flex items-center gap-lg">
+<h2 class="font-h3 text-h3 font-bold text-on-surface">Vitalis Logistics</h2>
+<div class="relative w-64 group">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" data-icon="search">search</span>
+<input class="w-full pl-xl pr-sm py-xs bg-surface-container-low border border-outline-variant rounded-lg font-body-md focus:outline-none focus:ring-2 focus:ring-primary-container transition-all" placeholder="Search orders..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Role: Administrator</span>
+<div class="flex items-center gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD30G22CEtxrb34bQnO2pQJB0rKD6sjHsjdkt-zYnZxTA5toLCjfl1fw93DYiRjRCN4t9QtlXfX0-r0WFLlHc9_88Jcvx8uuYBS1jknT9IjeDJ_buo82ahunLqAbcNCiYrlmXFL6Rl3vwCxeq0fXRvZrYye3g6hCOrU0fABiG-sudyAvsEa8W2AugWziRN3zlfJ2KytYlqH2T_VgFd9BydsFb-sUXo9lIFeTZLh8NMp-FQEkmIU4msOavQ3Prvm2HDHFEA1Srfthz0"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-lg space-y-lg">
+<!-- Page Header & CTA -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="font-h1 text-h1 text-on-surface">Lista de Pedidos</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Gerencie e monitore todos os pedidos do sistema em tempo real.</p>
+</div>
+<button class="flex items-center gap-sm bg-primary text-on-primary px-lg py-sm rounded-lg font-h3 hover:brightness-110 transition-all shadow-sm">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                    Novo Pedido
+                </button>
+</div>
+<!-- Filters & Stats Bento Section -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- KPI Card -->
+<div class="md:col-span-3 bg-white p-lg rounded-xl border border-outline-variant flex flex-col justify-between">
+<span class="font-label-sm text-on-surface-variant uppercase">Total Hoje</span>
+<div class="mt-sm">
+<span class="text-[32px] font-black text-on-surface">142</span>
+<span class="text-primary font-bold ml-xs">+12%</span>
+</div>
+</div>
+<!-- Main Filter Bar -->
+<div class="md:col-span-9 bg-white p-lg rounded-xl border border-outline-variant flex items-center gap-lg">
+<div class="flex-1 space-y-xs">
+<label class="font-label-sm text-on-surface-variant">Order Status</label>
+<select class="w-full bg-surface border-outline-variant rounded-lg text-body-md py-xs">
+<option>Todos os Status</option>
+<option>Pendente</option>
+<option>Em Trânsito</option>
+<option>Entregue</option>
+<option>Cancelado</option>
+</select>
+</div>
+<div class="flex-1 space-y-xs">
+<label class="font-label-sm text-on-surface-variant">Payment Status</label>
+<select class="w-full bg-surface border-outline-variant rounded-lg text-body-md py-xs">
+<option>Todos os Pagamentos</option>
+<option>Pago</option>
+<option>Aguardando</option>
+<option>Estornado</option>
+</select>
+</div>
+<div class="flex-none pt-lg">
+<button class="p-sm text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Orders Table Container -->
+<div class="bg-white rounded-xl border border-outline-variant overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-lg py-md font-h3 text-on-surface text-sm">ID</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm">Cliente</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm">Total</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm">Status</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm">Pagamento</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm">Criação</th>
+<th class="px-lg py-md font-h3 text-on-surface text-sm text-right">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="table-row-hover transition-colors">
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">#ORD-9402</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">RS</div>
+<span class="font-body-md text-on-surface">Ricardo Silva</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface font-bold">R$ 1.250,00</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-blue-100 text-blue-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Em Trânsito</span>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-green-100 text-green-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Pago</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Hoje, 14:20</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all" title="Ver"><span class="material-symbols-outlined" data-icon="visibility">visibility</span></button>
+<button class="p-xs text-on-surface-variant hover:text-green-600 transition-all" title="Confirmar"><span class="material-symbols-outlined" data-icon="check_circle">check_circle</span></button>
+<button class="p-xs text-on-surface-variant hover:text-error transition-all" title="Cancelar"><span class="material-symbols-outlined" data-icon="cancel">cancel</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="table-row-hover transition-colors">
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">#ORD-9401</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface font-bold text-xs">MA</div>
+<span class="font-body-md text-on-surface">Maria Almeida</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface font-bold">R$ 840,50</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-yellow-100 text-yellow-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Pendente</span>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-orange-100 text-orange-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Aguardando</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Hoje, 12:05</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all"><span class="material-symbols-outlined" data-icon="visibility">visibility</span></button>
+<button class="p-xs text-on-surface-variant hover:text-green-600 transition-all"><span class="material-symbols-outlined" data-icon="check_circle">check_circle</span></button>
+<button class="p-xs text-on-surface-variant hover:text-error transition-all"><span class="material-symbols-outlined" data-icon="cancel">cancel</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="table-row-hover transition-colors">
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">#ORD-9399</td>
+<td class="px-lg py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">CP</div>
+<span class="font-body-md text-on-surface">Carlos Pereira</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface font-bold">R$ 3.200,00</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-green-100 text-green-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Entregue</span>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-xs rounded-full bg-green-100 text-green-700 font-label-sm text-[10px] uppercase font-bold tracking-tight">Pago</span>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Ontem, 18:45</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-all"><span class="material-symbols-outlined" data-icon="visibility">visibility</span></button>
+<button class="p-xs text-outline-variant opacity-50 cursor-not-allowed" disabled=""><span class="material-symbols-outlined" data-icon="check_circle">check_circle</span></button>
+<button class="p-xs text-outline-variant opacity-50 cursor-not-allowed" disabled=""><span class="material-symbols-outlined" data-icon="cancel">cancel</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="px-lg py-md bg-surface-container-low border-t border-outline-variant flex justify-between items-center">
+<span class="font-body-md text-on-surface-variant">Exibindo 1-10 de 1,240 resultados</span>
+<div class="flex gap-xs">
+<button class="p-xs border border-outline-variant rounded-lg hover:bg-white transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="px-sm py-xs bg-primary text-on-primary rounded-lg font-body-md">1</button>
+<button class="px-sm py-xs hover:bg-white rounded-lg font-body-md transition-colors">2</button>
+<button class="px-sm py-xs hover:bg-white rounded-lg font-body-md transition-colors">3</button>
+<button class="px-sm py-xs hover:bg-white rounded-lg font-body-md transition-colors">...</button>
+<button class="p-xs border border-outline-variant rounded-lg hover:bg-white transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Dashboard Visual Tip (Atmospheric) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="relative h-48 rounded-xl overflow-hidden group">
+<img alt="Logistics Center" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 transition-all duration-700" data-alt="A vast, brightly lit logistics warehouse featuring high-tech automated machinery and neatly organized shelving units under cool white industrial lighting. The atmosphere is efficient and clinical, with a clean light-mode aesthetic dominated by whites and soft grays, punctuated by subtle blue accents in the equipment. The perspective is a wide cinematic shot, emphasizing precision and modern industrial scale." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgfedQOO0ij5yHr7eeSzUZ1Hxj7sGxtXlEkgndJHOz1CZZwoUjsSCOJinMGDFq7IxkqlnpC1m2EfkLxQd9fgkOYCvzP-Lf3DID1OYmnjaeGSUu513um4yNjMgBcvbb1ERdvBo2KmDPmwFLKos3b2KztHGE5GAuFQshV4IsUINxvRLg2nvN-c57mFk8nGSJnS3YZK1Oqz34S67dokqApNKHVwNpWBGs6_wCv7CdH_CSFNiXLwKSO1X47LXd6RMZSL_mfm1R5_cbrG8"/>
+<div class="absolute inset-0 bg-gradient-to-t from-on-secondary-fixed/80 to-transparent flex flex-col justify-end p-lg">
+<span class="text-white font-h3">Fleet Monitoring</span>
+<p class="text-secondary-fixed-dim text-body-md">Real-time GPS tracking enabled for all active orders.</p>
+</div>
+</div>
+<div class="relative h-48 rounded-xl overflow-hidden group">
+<img alt="Data Analytics" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 transition-all duration-700" data-alt="A close-up photograph of a sleek computer monitor displaying complex logistics data visualizations and heat maps. The lighting is crisp and modern, reflecting a premium corporate office environment. The color scheme is consistent with the Vitalis brand, utilizing deep blues and clean white backgrounds. The depth of field is shallow, focusing on the sharp data points while the modern office background is softly blurred." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAI8jz3T8E-27Iyl4gTah6i3UqoepSgacwLu04BMlqJrfAZi6x-MOksuiuEFwEu8o3Phftiwhs9xAcTWDWDzUxcYRJ1vKX--TWAzegAgd7pqi4kqfyxfB593LQYuj20MNN2h_jHAtMxmofZQLysqPcR03Zfd4fuFgZraWQriuVwcJPmDiVwAnGWAM-S7iN4s2o5urw4nQoLORurqfP88yZN_4tybqTK2hy4xhBG_mHmWlG6gv7j4BhBs14w7sEOTwd3vp2HPmLRVYc"/>
+<div class="absolute inset-0 bg-gradient-to-t from-on-secondary-fixed/80 to-transparent flex flex-col justify-end p-lg">
+<span class="text-white font-h3">Supply Intelligence</span>
+<p class="text-secondary-fixed-dim text-body-md">Predictive analytics suggest increasing stock for Category A.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transform = 'translateX(4px)';
+                row.style.transition = 'transform 0.2s ease-out';
+            });
+            row.addEventListener('mouseleave', () => {
+                row.style.transform = 'translateX(0)';
+            });
+        });
+
+        // Search highlight effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.02]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.02]');
+        });
+    </script>
+</body></html>

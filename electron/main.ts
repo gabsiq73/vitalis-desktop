@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -62,5 +62,7 @@ app.on('activate', () => {
     createWindow()
   }
 })
+
+Menu.setApplicationMenu(null)
 
 app.whenReady().then(createWindow)

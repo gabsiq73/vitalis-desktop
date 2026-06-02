@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vitalis Logistics ERP - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- CSS for Material Symbols Integrity -->
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #faf8ff;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#9e3d00",
+                      "secondary-fixed": "#d3e4fe",
+                      "on-tertiary-container": "#fffbff",
+                      "secondary-container": "#d0e1fb",
+                      "on-primary-container": "#fefcff",
+                      "inverse-on-surface": "#eff0fc",
+                      "primary-container": "#076df6",
+                      "on-secondary": "#ffffff",
+                      "primary": "#0056c6",
+                      "on-primary": "#ffffff",
+                      "surface-variant": "#e1e2ed",
+                      "secondary": "#505f76",
+                      "inverse-surface": "#2d3039",
+                      "on-background": "#191b23",
+                      "surface-container-highest": "#e1e2ed",
+                      "error": "#ba1a1a",
+                      "error-container": "#ffdad6",
+                      "primary-fixed": "#d9e2ff",
+                      "outline-variant": "#c2c6d7",
+                      "on-error": "#ffffff",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "outline": "#727786",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "on-secondary-container": "#54647a",
+                      "surface-container": "#ecedf9",
+                      "surface-container-high": "#e6e7f3",
+                      "on-error-container": "#93000a",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-dim": "#d8d9e5",
+                      "inverse-primary": "#b0c6ff",
+                      "on-surface": "#191b23",
+                      "on-secondary-fixed": "#0b1c30",
+                      "background": "#faf8ff",
+                      "on-tertiary-fixed": "#351000",
+                      "on-tertiary-fixed-variant": "#7c2e00",
+                      "surface-bright": "#faf8ff",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-surface-variant": "#424655",
+                      "surface-container-low": "#f2f3ff",
+                      "surface": "#faf8ff",
+                      "surface-tint": "#0058cb",
+                      "on-primary-fixed-variant": "#00429b",
+                      "tertiary-container": "#c64f00",
+                      "on-tertiary": "#ffffff",
+                      "primary-fixed-dim": "#b0c6ff",
+                      "on-primary-fixed": "#001945"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin": "24px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "md": "16px",
+                      "unit": "4px",
+                      "gutter": "16px",
+                      "lg": "24px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "h3": ["Inter"],
+                      "h2": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "h1": ["Inter"],
+                      "label-sm": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                      "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "h1": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- TopNavBar Implementation -->
+<header class="fixed top-0 right-0 left-0 z-50 flex h-16 items-center justify-between px-6 bg-[#0B0C10]/80 backdrop-blur-md shadow-xl shadow-black/50 border-b border-white/10 font-inter text-sm antialiased">
+<div class="flex items-center gap-8">
+<span class="text-xl font-black tracking-tighter text-[#1F75FE]">Vitalis</span>
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-1.5 text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1F75FE] transition-all w-64" placeholder="Search logistics..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-slate-400 hover:bg-white/5 hover:text-white p-2 rounded-lg transition-all duration-200 ease-in-out">notifications</button>
+<button class="material-symbols-outlined text-slate-400 hover:bg-white/5 hover:text-white p-2 rounded-lg transition-all duration-200 ease-in-out">settings</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-white/20 ml-2">
+<img alt="User profile" data-alt="A professional headshot of a logistics administrator in a clean-cut corporate style. The man has a focused, reliable expression, wearing a minimalist dark navy sweater. The lighting is bright and even, against a neutral, high-key office background that aligns with the modern white theme of the application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI-g-Q_Uz89u5PxCNYG5z8TVnuj-3NTjEhhzoQRR6l1LI0hnNO7mG34V1cglTKJ5_DLzYT0nOXEqE7gCcSuBLWuh4ydsBrESBA-quin0GRhryO9MRTpQ3H_OYVnU9nr7Mp_PnIkkVBU4BHNXyEkUgMqn063eih3xy9FiHDK4h_gcx-U5ySCLQjo00zPB68vAOwdD-P9QXmYgtNPnAnAJdYsNk7SwKYhrlfqAkIpNCOT0Y-s1u7RygVudgwLzKxITcMZ5grJjs6Rh8"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar Implementation -->
+<aside class="fixed top-0 left-0 bottom-0 z-[60] flex flex-col p-4 bg-[#14161C]/90 backdrop-blur-xl w-64 border-r border-white/10 shadow-2xl shadow-black/60 hidden md:flex">
+<div class="flex items-center gap-3 px-4 py-6 mb-4">
+<div class="h-10 w-10 bg-[#1F75FE] rounded-lg flex items-center justify-center text-white font-bold text-xl">V</div>
+<div>
+<h1 class="text-lg font-bold text-white leading-none">Vitalis</h1>
+<p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-1">Logistics ERP</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 bg-[#1F75FE] text-white rounded-lg px-4 py-2.5 shadow-[0_0_12px_rgba(31,117,254,0.3)] transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Orders</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">propane_tank</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Bottles</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">CRM</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Inventory</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Financial</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 px-4 py-2.5 hover:bg-white/5 hover:text-slate-200 transition-all duration-300 ease-in-out transform active:scale-95" href="#">
+<span class="material-symbols-outlined">inventory</span>
+<span class="font-inter text-xs font-semibold uppercase tracking-wider">Products</span>
+</a>
+</nav>
+<button class="mt-auto bg-[#1F75FE]/10 text-[#1F75FE] border border-[#1F75FE]/30 rounded-lg py-3 font-bold uppercase tracking-widest text-[10px] hover:bg-[#1F75FE] hover:text-white transition-all">
+            New Order
+        </button>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:pl-64 pt-16 min-h-screen">
+<div class="p-lg">
+<!-- Header Section -->
+<div class="flex justify-between items-end mb-lg">
+<div>
+<h2 class="font-h2 text-h2 text-on-surface">Dashboard Visão Geral</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Bem-vindo de volta, Admin. Aqui está o resumo da operação hoje.</p>
+</div>
+<div class="flex gap-sm">
+<button class="flex items-center gap-xs px-md py-sm bg-surface-container-highest border border-outline-variant rounded-lg font-label-sm text-label-sm hover:bg-surface-dim transition-all">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                        Hoje: 24 Out
+                    </button>
+<button class="flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg font-label-sm text-label-sm hover:brightness-110 shadow-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                        Exportar PDF
+                    </button>
+</div>
+</div>
+<!-- KPI Summary Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-lg">
+<!-- Pedidos Ativos (SHIPPED) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div class="p-2 bg-primary-container rounded-lg">
+<span class="material-symbols-outlined text-on-primary-container">local_shipping</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary">+12% vs ontem</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Pedidos Ativos (SHIPPED)</p>
+<p class="font-h1 text-h1 text-on-surface mt-xs">142</p>
+</div>
+<!-- Vasilhames Pendentes -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div class="p-2 bg-secondary-container rounded-lg">
+<span class="material-symbols-outlined text-on-secondary-container">propane_tank</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary">Atenção</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Vasilhames Pendentes</p>
+<p class="font-h1 text-h1 text-on-surface mt-xs">856</p>
+</div>
+<!-- Clientes em Atraso (OVERDUE) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div class="p-2 bg-error-container rounded-lg">
+<span class="material-symbols-outlined text-on-error-container">warning</span>
+</div>
+<span class="font-label-sm text-label-sm text-error">Crítico</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Clientes em Atraso</p>
+<p class="font-h1 text-h1 text-error mt-xs">24</p>
+</div>
+<!-- Estoque Crítico -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-sm">
+<div class="p-2 bg-tertiary-fixed rounded-lg">
+<span class="material-symbols-outlined text-on-tertiary-fixed-variant">inventory</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary">3 Itens</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Estoque Crítico</p>
+<p class="font-h1 text-h1 text-on-surface mt-xs">08%</p>
+</div>
+</div>
+<!-- Main Content Area: Tables & Insights -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Recent Orders Table -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h3 class="font-h3 text-h3 text-on-surface">Últimos Pedidos</h3>
+<button class="text-primary font-label-sm text-label-sm hover:underline">Ver Todos</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-high border-b border-outline-variant">
+<tr>
+<th class="px-md py-sm font-label-sm text-label-sm text-on-surface-variant">ID</th>
+<th class="px-md py-sm font-label-sm text-label-sm text-on-surface-variant">CLIENTE</th>
+<th class="px-md py-sm font-label-sm text-label-sm text-on-surface-variant">TOTAL</th>
+<th class="px-md py-sm font-label-sm text-label-sm text-on-surface-variant">STATUS</th>
+<th class="px-md py-sm font-label-sm text-label-sm text-on-surface-variant text-right">DATA</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container transition-colors cursor-pointer">
+<td class="px-md py-md font-body-md text-body-md font-semibold text-primary">#98421</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Posto Central Ltda</span>
+<span class="text-[12px] text-on-surface-variant">São Paulo, SP</span>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface">R$ 4.250,00</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[11px] font-bold rounded-full uppercase tracking-tight">Shipped</span>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface-variant text-right">14:32</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors cursor-pointer">
+<td class="px-md py-md font-body-md text-body-md font-semibold text-primary">#98419</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Indústria Alvorada</span>
+<span class="text-[12px] text-on-surface-variant">Curitiba, PR</span>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface">R$ 12.800,00</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-error-container text-on-error-container text-[11px] font-bold rounded-full uppercase tracking-tight">Overdue</span>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface-variant text-right">12:15</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors cursor-pointer">
+<td class="px-md py-md font-body-md text-body-md font-semibold text-primary">#98415</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Supermercado Silva</span>
+<span class="text-[12px] text-on-surface-variant">Rio de Janeiro, RJ</span>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface">R$ 1.120,00</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-primary-container text-on-primary-container text-[11px] font-bold rounded-full uppercase tracking-tight">Delivered</span>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface-variant text-right">09:45</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors cursor-pointer">
+<td class="px-md py-md font-body-md text-body-md font-semibold text-primary">#98412</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Transportadora Flash</span>
+<span class="text-[12px] text-on-surface-variant">Belo Horizonte, MG</span>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface">R$ 7.900,00</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-secondary-container text-on-secondary-container text-[11px] font-bold rounded-full uppercase tracking-tight">Shipped</span>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface-variant text-right">Ontem</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors cursor-pointer">
+<td class="px-md py-md font-body-md text-body-md font-semibold text-primary">#98410</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-semibold text-on-surface">Auto Peças Norte</span>
+<span class="text-[12px] text-on-surface-variant">Manaus, AM</span>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface">R$ 3.450,00</td>
+<td class="px-md py-md">
+<span class="px-3 py-1 bg-primary-container text-on-primary-container text-[11px] font-bold rounded-full uppercase tracking-tight">Delivered</span>
+</td>
+<td class="px-md py-md font-body-md text-body-md text-on-surface-variant text-right">Ontem</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Secondary Column: Logistics Pulse -->
+<div class="space-y-lg">
+<!-- Shipment Timeline -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm">
+<h3 class="font-h3 text-h3 text-on-surface mb-md">Próximas Entregas</h3>
+<div class="space-y-6 relative before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-outline-variant">
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-white">local_shipping</span>
+</div>
+<p class="font-body-md text-body-md font-bold text-on-surface">Entrega #98421</p>
+<p class="font-label-sm text-[12px] text-on-surface-variant">Saída prevista: 16:00 • Rota Sul</p>
+</div>
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 bg-surface-container-highest border border-outline-variant rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-outline">schedule</span>
+</div>
+<p class="font-body-md text-body-md font-bold text-on-surface">Entrega #98425</p>
+<p class="font-label-sm text-[12px] text-on-surface-variant">Saída prevista: 17:30 • Rota Centro</p>
+</div>
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 bg-surface-container-highest border border-outline-variant rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-outline">schedule</span>
+</div>
+<p class="font-body-md text-body-md font-bold text-on-surface">Entrega #98430</p>
+<p class="font-label-sm text-[12px] text-on-surface-variant">Saída prevista: 18:00 • Rota Leste</p>
+</div>
+</div>
+</div>
+<!-- Inventory Alert Card -->
+<div class="bg-tertiary-fixed border border-tertiary/20 rounded-xl p-md shadow-sm">
+<div class="flex items-center gap-sm mb-sm text-on-tertiary-fixed-variant">
+<span class="material-symbols-outlined">inventory_2</span>
+<h3 class="font-label-sm text-label-sm uppercase">Alerta de Estoque</h3>
+</div>
+<p class="font-body-md text-body-md text-on-tertiary-fixed mb-md">O item <strong>"Cilindro P45 - Vazio"</strong> atingiu o limite crítico em 3 unidades.</p>
+<button class="w-full bg-tertiary-container text-white py-2 rounded-lg font-bold text-[12px] uppercase hover:brightness-110 transition-all">Repor Agora</button>
+</div>
+<!-- Map/Operational View -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm aspect-square relative">
+<img alt="Operations Map" class="w-full h-full object-cover opacity-80" data-alt="A clean, minimalist digital map of a city showing logistics fleet tracking. Small, subtle blue glowing markers indicate truck positions. The map uses a light-gray and white color scheme with soft industrial blue highlights, maintaining a professional control-tower aesthetic with low-contrast and high clarity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUVGbRqFSQALMf3XBsnbZhgOuHAxMmTOx_uyfgcGg3NrAB_FQaC7obk--5KrfiLNW-JHUVdQSDUsRIsrm4DDaTVc706Bmb25uhgT9clzJkuOhTrzLJaCSsLAQ5_u6m8R_Z_3C_gbxaAuw8jjtDT70Tb6Jx8iwWPky54otZvfamWmGlA3XFIDStXBdYgVQLjmw-VyAFH-xFeRtpGecfgB2cHZy_zJhQORMExkYV10ZrS285V-d5c1-905IQqI7F2DsqyrYVH-NOaQY"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-md">
+<div>
+<p class="text-white font-bold text-body-lg">Frota em Operação</p>
+<p class="text-white/80 text-[12px]">12 veículos ativos no perímetro urbano</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Interactive Layer: FAB (Only on Mobile normally, but shown for UI completeness) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden">
+<span class="material-symbols-outlined">add</span>
+</button>
+<script>
+        // Micro-interactions for table rows
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mousedown', () => {
+                row.classList.add('scale-[0.99]');
+            });
+            row.addEventListener('mouseup', () => {
+                row.classList.remove('scale-[0.99]');
+            });
+        });
+
+        // Atmospheric touch: Dynamic time update for dashboard header
+        const updateTime = () => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            const btn = document.querySelector('button:has(.material-symbols-outlined:contains("calendar_today"))');
+            if (btn) {
+               // Logic to update text content while keeping icon
+            }
+        };
+        setInterval(updateTime, 60000);
+    </script>
+</body></html>
