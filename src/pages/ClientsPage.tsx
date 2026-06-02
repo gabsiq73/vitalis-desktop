@@ -164,6 +164,9 @@ export function ClientsPage() {
                     Saldo
                   </th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
+                    Fidelidade
+                  </th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
                     Ações
                   </th>
                 </tr>
@@ -171,13 +174,13 @@ export function ClientsPage() {
               <tbody className="divide-y divide-outline-variant">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
+                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
                       Carregando...
                     </td>
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
+                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
                       Nenhum cliente encontrado.
                     </td>
                   </tr>
@@ -233,6 +236,22 @@ export function ClientsPage() {
                           <span className={client.balance < 0 ? 'text-error' : 'text-on-surface'}>
                             {formatBRL(client.balance)}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {client.fidelityPoints > 0 || client.pendingBonusWater > 0 ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-sm font-bold text-tertiary">
+                                {client.fidelityPoints.toLocaleString('pt-BR')} pts
+                              </span>
+                              {client.pendingBonusWater > 0 && (
+                                <span className="text-[10px] font-bold text-tertiary bg-tertiary-fixed px-1.5 py-0.5 rounded-full">
+                                  +{client.pendingBonusWater} galão
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-on-surface-variant text-sm">—</span>
+                          )}
                         </td>
                         <td
                           className="px-6 py-4"
