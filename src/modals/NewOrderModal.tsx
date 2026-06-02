@@ -41,6 +41,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
   const { http } = useAuth();
 
   const [isAvulso, setIsAvulso] = useState(false);
+  const [avulsoName, setAvulsoName] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientResponseDTO | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [clientResults, setClientResults] = useState<ClientResponseDTO[]>([]);
@@ -71,6 +72,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
       const pad = (n: number) => String(n).padStart(2, '0');
       setDeliveryDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
       setIsAvulso(false);
+      setAvulsoName('');
       if (defaultClient) {
         setSelectedClient(defaultClient);
         setClientSearch(defaultClient.name);
@@ -157,11 +159,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     e.preventDefault();
     if (!http) return;
 
-    if (!selectedClient) {
-      setError('Selecione um cliente para continuar. Em pedidos avulsos, escolha um cliente da lista.');
-      return;
-    }
-
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
       setError('Adicione pelo menos um item ao pedido.');
@@ -170,6 +167,26 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
     setSubmitting(true);
     setError(null);
+
+    let clientId: string;
+
+    if (isAvulso) {
+      try {
+        const params = avulsoName.trim() ? { name: avulsoName.trim() } : undefined;
+        const res = await http.post<ClientResponseDTO>('/clients/avulso', null, { params });
+        clientId = res.data.id;
+      } catch {
+        setError('Erro ao criar cliente avulso. Tente novamente.');
+        setSubmitting(false);
+        return;
+      }
+    } else if (selectedClient) {
+      clientId = selectedClient.id;
+    } else {
+      setError('Selecione um cliente para continuar.');
+      setSubmitting(false);
+      return;
+    }
 
     const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
@@ -184,7 +201,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     });
 
     const body: OrderRequestBody = {
-      clientId: selectedClient.id,
+      clientId,
       items: orderItems,
       isDelivery,
       deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : undefined,
@@ -240,12 +257,24 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                 {/* Input */}
                 <input
                   type="text"
-                  value={isAvulso ? '' : clientSearch}
-                  disabled={isAvulso}
-                  onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); setShowDropdown(true); }}
-                  onFocus={() => { setShowDropdown(true); if (!clientSearch) searchClients('', true); }}
-                  placeholder={isAvulso ? 'Pedido avulso — sem cliente' : 'Clique na lupa ou digite para buscar...'}
-                  className={`${inputClass} pl-9 pr-32 ${isAvulso ? 'bg-tertiary/5 border-tertiary/40 text-on-surface-variant cursor-default' : ''}`}
+                  value={isAvulso ? avulsoName : clientSearch}
+                  onChange={(e) => {
+                    if (isAvulso) {
+                      setAvulsoName(e.target.value);
+                    } else {
+                      setClientSearch(e.target.value);
+                      setSelectedClient(null);
+                      setShowDropdown(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!isAvulso) {
+                      setShowDropdown(true);
+                      if (!clientSearch) searchClients('', true);
+                    }
+                  }}
+                  placeholder={isAvulso ? 'Nome do cliente (opcional)' : 'Clique na lupa ou digite para buscar...'}
+                  className={`${inputClass} pl-9 pr-32 ${isAvulso ? 'bg-tertiary/5 border-tertiary/40' : ''}`}
                   autoComplete="off"
                 />
 
@@ -574,7 +603,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </button>
             <button
               type="submit"
-              disabled={submitting || !selectedClient}
+              disabled={submitting || (!selectedClient && !isAvulso)}
               className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold hover:brightness-110 transition-all disabled:opacity-70 flex items-center gap-2"
             >
               {submitting ? (
