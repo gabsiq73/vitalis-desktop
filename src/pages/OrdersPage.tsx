@@ -10,7 +10,7 @@ import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
   formatOrderId,
-  formatDateTime,
+  formatShortDateTime,
   getInitials,
   getOrderStatusBadge,
   getPaymentStatusBadge,
@@ -202,6 +202,7 @@ export function OrdersPage() {
                 <tr className="bg-surface-container-low border-b border-outline-variant">
                   <th className="px-6 py-4 text-sm font-semibold text-on-surface">ID</th>
                   <th className="px-6 py-4 text-sm font-semibold text-on-surface">Cliente</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Itens</th>
                   <th className="px-6 py-4 text-sm font-semibold text-on-surface">Total</th>
                   <th className="px-6 py-4 text-sm font-semibold text-on-surface">Status</th>
                   <th className="px-6 py-4 text-sm font-semibold text-on-surface">Pagamento</th>
@@ -212,13 +213,13 @@ export function OrdersPage() {
               <tbody className="divide-y divide-outline-variant">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
+                    <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
                       Carregando...
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
+                    <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
                       Nenhum pedido encontrado.
                     </td>
                   </tr>
@@ -243,6 +244,18 @@ export function OrdersPage() {
                               {getInitials(order.clientName)}
                             </div>
                             <span className="text-body-md text-on-surface">{order.clientName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex flex-col gap-0.5">
+                            {order.items.slice(0, 3).map((item) => (
+                              <span key={item.id} className="text-[11px] text-on-surface-variant leading-tight">
+                                {item.productName} <span className="font-bold text-on-surface">×{item.quantity}</span>
+                              </span>
+                            ))}
+                            {order.items.length > 3 && (
+                              <span className="text-[10px] text-outline">+{order.items.length - 3} mais</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-body-md text-on-surface font-bold">
@@ -274,7 +287,7 @@ export function OrdersPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-body-md text-on-surface-variant">
-                          {formatDateTime(order.createDate)}
+                          {formatShortDateTime(order.createDate)}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1">
