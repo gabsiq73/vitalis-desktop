@@ -105,7 +105,7 @@ export function Sidebar() {
   const initial = username.charAt(0).toUpperCase();
 
   return (
-    <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white shadow-nav z-10">
+    <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white border-r border-slate-200 z-10">
 
       {/* Logo */}
       <div className="px-5 pt-6 pb-5 flex items-center gap-3 flex-shrink-0 border-b border-slate-100">
@@ -114,7 +114,7 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="text-[16px] font-black text-slate-800 tracking-tight leading-none">Vitalis</h1>
-          <p className="text-[11px] text-slate-400 mt-0.5">Logistics System</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Logistics System</p>
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="px-3 mb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+            <p className="px-3 mb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -226,7 +226,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-slate-700 truncate leading-none">{username}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Administrador</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Administrador</p>
           </div>
           <button
             onClick={logout}

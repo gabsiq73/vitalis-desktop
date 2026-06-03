@@ -62,7 +62,7 @@ function KpiCard({ icon, label, value, iconBg, iconColor, dark, badge, badgeColo
         )}
       </div>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1">{label}</p>
         <p className="text-[32px] font-black text-slate-800 leading-none">{value}</p>
       </div>
     </div>
@@ -199,7 +199,7 @@ export function DashboardPage() {
             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
               <div>
                 <h3 className="text-[15px] font-bold text-slate-800">Últimos Pedidos</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">10 pedidos mais recentes</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">10 pedidos mais recentes</p>
               </div>
               <button
                 onClick={() => navigate('/orders')}
@@ -225,11 +225,11 @@ export function DashboardPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">ID</th>
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Cliente</th>
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total</th>
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-right">Hora</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">

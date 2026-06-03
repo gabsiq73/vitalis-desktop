@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -38,6 +38,7 @@ const TABS: { id: TabId; label: string }[] = [
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { http } = useAuth();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientResponseDTO | null>(null);
@@ -317,23 +318,21 @@ export function ClientDetailPage() {
             {activeTab === 'pedidos' && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead className="bg-surface-container border-b border-outline-variant">
+                  <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="py-3 px-4 text-label-sm text-on-surface-variant">ID PEDIDO</th>
-                      <th className="py-3 px-4 text-label-sm text-on-surface-variant">DATA</th>
-                      <th className="py-3 px-4 text-label-sm text-on-surface-variant">TOTAL</th>
-                      <th className="py-3 px-4 text-label-sm text-on-surface-variant">ENTREGA</th>
-                      <th className="py-3 px-4 text-label-sm text-on-surface-variant">PAGAMENTO</th>
-                      <th className="py-3 px-4" />
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Data</th>
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Itens</th>
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entrega</th>
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
+                      <th className="py-3 px-4 w-10" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-outline-variant">
+                  <tbody className="divide-y divide-slate-100">
                     {orders.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-4 py-10 text-center text-on-surface-variant text-body-md"
-                        >
+                        <td colSpan={7} className="px-4 py-10 text-center text-slate-400 text-body-md">
                           Nenhum pedido encontrado para este cliente.
                         </td>
                       </tr>
@@ -341,38 +340,40 @@ export function ClientDetailPage() {
                       orders.map((order) => {
                         const statusBadge = getOrderStatusBadge(order.status);
                         const payBadge = getPaymentStatusBadge(order.paymentStatus);
+                        const itemsSummary = order.items
+                          .slice(0, 3)
+                          .map((i) => `${i.productName} ×${i.quantity}`)
+                          .join(', ') + (order.items.length > 3 ? ` +${order.items.length - 3}` : '');
                         return (
                           <tr
                             key={order.id}
-                            className="hover:bg-surface-container-lowest transition-colors h-14"
+                            onClick={() => navigate(`/orders/${order.id}`)}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
                           >
-                            <td className="px-4 font-bold text-body-md">
+                            <td className="px-4 py-3 font-mono font-semibold text-[13px] text-primary">
                               {formatOrderId(order.id)}
                             </td>
-                            <td className="px-4 text-body-md text-on-surface-variant">
+                            <td className="px-4 py-3 text-[13px] text-slate-500 whitespace-nowrap">
                               {formatDateTime(order.createDate)}
                             </td>
-                            <td className="px-4 text-body-md font-bold">
+                            <td className="px-4 py-3 text-[12px] text-slate-600 max-w-[200px]">
+                              <span className="line-clamp-2 leading-relaxed">{itemsSummary || '—'}</span>
+                            </td>
+                            <td className="px-4 py-3 text-[13px] font-bold text-slate-800 whitespace-nowrap">
                               {formatBRL(order.totalValue)}
                             </td>
-                            <td className="px-4">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-label-sm font-bold ${statusBadge.className}`}
-                              >
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge.className}`}>
                                 {statusBadge.label}
                               </span>
                             </td>
-                            <td className="px-4">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-label-sm font-bold ${payBadge.className}`}
-                              >
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${payBadge.className}`}>
                                 {payBadge.label}
                               </span>
                             </td>
-                            <td className="px-4 text-right">
-                              <button className="text-primary hover:underline font-bold text-label-sm">
-                                Ver Detalhes
-                              </button>
+                            <td className="px-4 py-3 text-right">
+                              <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '18px' }}>chevron_right</span>
                             </td>
                           </tr>
                         );

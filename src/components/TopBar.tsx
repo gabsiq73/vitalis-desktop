@@ -13,7 +13,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
   const initial = username.charAt(0).toUpperCase();
 
   return (
-    <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-slate-100 sticky top-0 z-40">
+    <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-slate-200 sticky top-0 z-40">
 
       {/* Left */}
       <div className="flex items-center gap-4">
@@ -31,7 +31,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
               search
             </span>
             <input
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               placeholder="Pesquisar pedidos, clientes..."
               type="text"
             />
@@ -60,7 +60,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
         <div className="flex items-center gap-2.5 pl-1">
           <div className="hidden sm:block text-right">
             <p className="text-[13px] font-semibold text-slate-700 leading-none">{username}</p>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Administrador</p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">Administrador</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm shadow-sm shadow-primary/20">
             {initial}
