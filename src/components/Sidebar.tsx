@@ -33,21 +33,15 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Produtos',
     items: [
-      {
-        icon: 'category',
-        label: 'Produtos',
-        path: '/products',
-        children: [
-          { icon: 'inventory_2', label: 'Estoque', path: '/stock' },
-          { icon: 'propane_tank', label: 'Vasilhames', path: '/bottles' },
-        ],
-      },
+      { icon: 'category', label: 'Produtos', path: '/products' },
+      { icon: 'inventory_2', label: 'Estoque', path: '/stock' },
       { icon: 'local_shipping', label: 'Fornecedores', path: '/suppliers' },
     ],
   },
   {
     label: 'Operações',
     items: [
+      { icon: 'propane_tank', label: 'Vasilhames', path: '/bottles' },
       { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements', badge: 'Em Breve' },
       { icon: 'assessment', label: 'Relatórios', path: '/reports', badge: 'Em Breve' },
     ],
