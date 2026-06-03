@@ -5,6 +5,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* teal accent — inspired by industrial gas / compressed cylinder imagery */
+        'teal': '#0d9488',
+        'teal-light': '#ccfbf1',
+        'teal-dim': '#0f766e',
         tertiary: '#9e3d00',
         'secondary-fixed': '#d3e4fe',
         'on-tertiary-container': '#fffbff',
