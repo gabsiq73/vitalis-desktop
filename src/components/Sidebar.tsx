@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import logoVitalis from '../assets/logo vitalis.png';
 
 interface NavChild {
   icon: string;
@@ -102,14 +103,8 @@ export function Sidebar() {
     <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white border-r border-slate-200 z-10">
 
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5 flex items-center gap-3 flex-shrink-0 border-b border-slate-100">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 flex-shrink-0">
-          <span className="material-symbols-outlined text-white" style={{ fontSize: '20px' }}>propane</span>
-        </div>
-        <div>
-          <h1 className="text-[16px] font-black text-slate-800 tracking-tight leading-none">Vitalis</h1>
-          <p className="text-[11px] text-slate-500 mt-0.5">Logistics System</p>
-        </div>
+      <div className="px-4 pt-5 pb-4 flex-shrink-0 border-b border-slate-200">
+        <img src={logoVitalis} alt="Vitalis" className="h-9 w-auto object-contain" />
       </div>
 
       {/* Nav groups */}
