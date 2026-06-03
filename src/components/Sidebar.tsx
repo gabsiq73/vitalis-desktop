@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import logoVitalis from '../assets/logo vitalis.png';
+import logoVitalis from '../assets/logo-vitalis.png';
 
 interface NavChild {
   icon: string;
