@@ -43,8 +43,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Operações',
     items: [
       { icon: 'propane_tank', label: 'Vasilhames', path: '/bottles' },
-      { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements', badge: 'Em Breve' },
-      { icon: 'assessment', label: 'Relatórios', path: '/reports', badge: 'Em Breve' },
+      { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements' },
+      { icon: 'assessment', label: 'Relatórios', path: '/reports' },
     ],
   },
   {

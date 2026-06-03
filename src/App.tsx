@@ -14,6 +14,8 @@ import { BottlesPage } from './pages/BottlesPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { GasSettlementsPage } from './pages/GasSettlementsPage';
+import { ReportsPage } from './pages/ReportsPage';
 
 function ProtectedLayout() {
   const { isAuthenticated, validating } = useAuth();
@@ -59,6 +61,8 @@ function App() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/gas-settlements" element={<GasSettlementsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>

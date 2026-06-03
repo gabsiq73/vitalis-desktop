@@ -48,7 +48,7 @@ function isWithinPeriod(dateStr: string, period: Period): boolean {
 }
 
 export function DashboardPage() {
-  const { http, auth } = useAuth();
+  const { http } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
