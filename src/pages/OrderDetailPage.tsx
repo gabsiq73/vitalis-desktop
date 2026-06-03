@@ -105,7 +105,7 @@ export function OrderDetailPage() {
     <>
       <TopBar />
 
-      <div className="p-6 max-w-6xl mx-auto space-y-5">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-[13px] text-slate-500">
