@@ -2,79 +2,62 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
-import type { OrderResponseDTO, SpringPage } from '../types';
-import { formatBRL, formatOrderId, formatTime, getOrderStatusBadge } from '../utils/format';
+import type { OrderResponseDTO, SpringPage, StockResponseDTO } from '../types';
+import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge } from '../utils/format';
 
 const STATUS_OPTIONS = [
   { value: 'PENDING',   label: 'Pendente',    icon: 'pending_actions', color: 'text-yellow-700 hover:bg-yellow-50' },
   { value: 'SHIPPED',   label: 'Em Trânsito', icon: 'local_shipping',  color: 'text-blue-700 hover:bg-blue-50' },
   { value: 'DELIVERED', label: 'Entregue',    icon: 'check_circle',    color: 'text-green-700 hover:bg-green-50' },
-  { value: 'CANCELLED', label: 'Cancelado',   icon: 'cancel',          color: 'text-error hover:bg-error/5' },
+  { value: 'CANCELLED', label: 'Cancelado',   icon: 'cancel',          color: 'text-red-600 hover:bg-red-50' },
 ];
 
-interface KpiCardProps {
-  icon: string;
-  label: string;
-  value: string | number;
-  badge?: string;
-  badgeColor?: string;
-  iconBg?: string;
-  iconColor?: string;
-  dark?: boolean;
+type Period = 'today' | 'week' | 'all';
+
+function formatDeliveryTime(dateStr: string): { label: string; isUrgent: boolean } {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+
+  const hhmm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (d >= todayStart && d < tomorrowStart) {
+    const diffMin = Math.round((d.getTime() - now.getTime()) / 60000);
+    const isUrgent = diffMin <= 60;
+    const label = diffMin < 60 ? `em ${diffMin}min` : `às ${hhmm}`;
+    return { label, isUrgent };
+  }
+  if (d >= tomorrowStart && d < new Date(tomorrowStart.getTime() + 86400000)) {
+    return { label: `amanhã ${hhmm}`, isUrgent: false };
+  }
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return { label: `${dd}/${mm} ${hhmm}`, isUrgent: false };
 }
 
-function KpiCard({ icon, label, value, iconBg, iconColor, dark, badge, badgeColor }: KpiCardProps) {
-  if (dark) {
-    return (
-      <div className="bg-on-secondary-fixed rounded-xl p-5 shadow-card flex flex-col justify-between min-h-[110px]">
-        <div className="flex items-start justify-between">
-          <div className={`p-2 rounded-lg ${iconBg ?? 'bg-white/10'}`}>
-            <span className={`material-symbols-outlined ${iconColor ?? 'text-teal'}`} style={{ fontSize: '22px' }}>
-              {icon}
-            </span>
-          </div>
-          {badge && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${badgeColor ?? 'bg-teal/20 text-teal'}`}>
-              {badge}
-            </span>
-          )}
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400/60 mb-1">{label}</p>
-          <p className="text-[32px] font-black text-white leading-none">{value}</p>
-        </div>
-      </div>
-    );
+function isWithinPeriod(dateStr: string, period: Period): boolean {
+  if (period === 'all') return true;
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (period === 'today') {
+    return d.toDateString() === now.toDateString();
   }
-
-  return (
-    <div className="bg-white rounded-xl p-5 shadow-card hover:shadow-card-hover transition-shadow flex flex-col justify-between min-h-[110px] border border-outline-variant/60">
-      <div className="flex items-start justify-between">
-        <div className={`p-2 rounded-lg ${iconBg ?? 'bg-primary/10'}`}>
-          <span className={`material-symbols-outlined ${iconColor ?? 'text-primary'}`} style={{ fontSize: '22px' }}>
-            {icon}
-          </span>
-        </div>
-        {badge && (
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${badgeColor ?? 'bg-primary/10 text-primary'}`}>
-            {badge}
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1">{label}</p>
-        <p className="text-[32px] font-black text-slate-800 leading-none">{value}</p>
-      </div>
-    </div>
-  );
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  return d >= weekAgo;
 }
 
 export function DashboardPage() {
   const { http, auth } = useAuth();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<OrderResponseDTO[]>([]);
-  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
+  const [activeOrders, setActiveOrders] = useState<OrderResponseDTO[]>([]);
+  const [shippedCount, setShippedCount] = useState(0);
+  const [criticalStock, setCriticalStock] = useState(0);
+  const [period, setPeriod] = useState<Period>('all');
+
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -88,14 +71,22 @@ export function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!http) return;
     try {
-      const [ordersRes, activeRes] = await Promise.all([
-        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 10, page: 0 } }),
+      const [ordersRes, activeRes, shippedRes, stockRes] = await Promise.allSettled([
+        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 20, page: 0 } }),
         http.get<OrderResponseDTO[]>('/orders/active'),
+        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'SHIPPED', size: 1 } }),
+        http.get<SpringPage<StockResponseDTO>>('/stock', { params: { size: 200 } }),
       ]);
-      setRecentOrders(ordersRes.data.content);
-      setActiveOrdersCount(activeRes.data.length);
-    } catch {
-      setRecentOrders([]);
+
+      if (ordersRes.status === 'fulfilled') setRecentOrders(ordersRes.value.data.content);
+      if (activeRes.status === 'fulfilled') setActiveOrders(activeRes.value.data);
+      if (shippedRes.status === 'fulfilled') setShippedCount(shippedRes.value.data.totalElements);
+      if (stockRes.status === 'fulfilled') {
+        const critical = stockRes.value.data.content.filter(
+          (s) => s.status.toUpperCase() !== 'NORMAL'
+        ).length;
+        setCriticalStock(critical);
+      }
     } finally {
       setLoading(false);
     }
@@ -120,94 +111,145 @@ export function DashboardPage() {
     }
   }
 
-  const today = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+  const now = new Date();
+
+  const upcomingDeliveries = activeOrders
+    .filter((o) => o.deliveryDate && new Date(o.deliveryDate) > now)
+    .sort((a, b) => new Date(a.deliveryDate!).getTime() - new Date(b.deliveryDate!).getTime())
+    .slice(0, 6);
+
+  const filteredOrders = recentOrders.filter((o) => isWithinPeriod(o.createDate, period));
+
+  const kpis: {
+    icon: string; label: string; value: string | number; sub: string;
+    iconColor: string; iconBg: string; topColor: string;
+    badge?: string; badgeColor?: string;
+  }[] = [
+    {
+      icon: 'local_shipping',
+      label: 'Pedidos Ativos',
+      value: loading ? '—' : activeOrders.length,
+      sub: 'pendentes e em trânsito',
+      iconColor: 'text-teal',
+      iconBg: 'bg-teal/10',
+      topColor: '#0d9488',
+      badge: activeOrders.length > 0 ? 'Ativo' : undefined,
+      badgeColor: 'bg-teal/10 text-teal',
+    },
+    {
+      icon: 'directions_car',
+      label: 'Em Trânsito',
+      value: loading ? '—' : shippedCount,
+      sub: 'saídas em andamento',
+      iconColor: 'text-blue-500',
+      iconBg: 'bg-blue-50',
+      topColor: '#3b82f6',
+      badge: shippedCount > 0 ? 'Saindo' : undefined,
+      badgeColor: 'bg-blue-100 text-blue-600',
+    },
+    {
+      icon: 'inventory_2',
+      label: 'Estoque Crítico',
+      value: loading ? '—' : criticalStock,
+      sub: 'itens abaixo do mínimo',
+      iconColor: criticalStock > 0 ? 'text-orange-500' : 'text-slate-400',
+      iconBg: criticalStock > 0 ? 'bg-orange-50' : 'bg-slate-100',
+      topColor: criticalStock > 0 ? '#f97316' : '#e2e8f0',
+      badge: criticalStock > 0 ? 'Atenção' : undefined,
+      badgeColor: 'bg-orange-100 text-orange-600',
+    },
+    {
+      icon: 'schedule_send',
+      label: 'Entregas Agendadas',
+      value: loading ? '—' : upcomingDeliveries.length,
+      sub: 'a partir de agora',
+      iconColor: 'text-primary',
+      iconBg: 'bg-primary/10',
+      topColor: '#0056c6',
+      badge: upcomingDeliveries.length > 0 ? 'Agendado' : undefined,
+      badgeColor: 'bg-primary/10 text-primary',
+    },
+  ];
+
+  const today = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
     <>
       <TopBar />
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-h1 text-slate-800">Dashboard</h1>
-            <p className="text-body-lg text-slate-500">
-              Bem-vindo, <span className="font-semibold text-slate-700">{auth?.username ?? 'Admin'}</span>. Resumo da operação de hoje.
-            </p>
+            <p className="text-body-lg text-slate-500 capitalize">{today}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-500 hover:bg-slate-50 transition-all shadow-sm">
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>calendar_today</span>
-              {today}
-            </button>
-            <button
-              onClick={() => navigate('/orders')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-bold shadow-md shadow-primary/25 hover:brightness-110 active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
-              Novo Pedido
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/orders')}
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-lg text-[13px] font-bold shadow-md shadow-primary/25 hover:brightness-110 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+            Novo Pedido
+          </button>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            icon="local_shipping"
-            label="Pedidos Ativos"
-            value={loading ? '—' : activeOrdersCount}
-            badge="Ativo"
-            badgeColor="bg-teal/10 text-teal"
-            iconBg="bg-teal/10"
-            iconColor="text-teal"
-          />
-          <KpiCard
-            icon="propane_tank"
-            label="Vasilhames no Campo"
-            value="—"
-            badge="Atenção"
-            badgeColor="bg-yellow-100 text-yellow-700"
-            iconBg="bg-yellow-100"
-            iconColor="text-yellow-600"
-          />
-          <KpiCard
-            icon="warning"
-            label="Clientes em Atraso"
-            value="—"
-            badge="Crítico"
-            badgeColor="bg-red-100 text-red-600"
-            iconBg="bg-red-100"
-            iconColor="text-red-500"
-          />
-          <KpiCard
-            icon="inventory"
-            label="Estoque Crítico"
-            value="—"
-            dark
-            badge="Estoque"
-            iconBg="bg-white/10"
-            iconColor="text-teal"
-          />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map((kpi) => (
+            <div
+              key={kpi.label}
+              className="bg-white border border-slate-200 rounded-xl p-5 shadow-card hover:shadow-card-hover transition-shadow overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: kpi.topColor }} />
+              <div className="flex items-start justify-between mb-3 mt-1">
+                <div className={`p-2 rounded-lg ${kpi.iconBg}`}>
+                  <span className={`material-symbols-outlined ${kpi.iconColor}`} style={{ fontSize: '22px' }}>{kpi.icon}</span>
+                </div>
+                {kpi.badge && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${kpi.badgeColor}`}>{kpi.badge}</span>
+                )}
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1">{kpi.label}</p>
+              <p className="text-[32px] font-black text-slate-800 leading-none">{kpi.value}</p>
+              <p className="text-[11px] text-slate-400 mt-1">{kpi.sub}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-          {/* Recent Orders */}
-          <div className="lg:col-span-2 bg-white border border-outline-variant/60 rounded-xl overflow-hidden shadow-card">
+          {/* Recent orders */}
+          <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
             <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="text-[15px] font-bold text-slate-800">Últimos Pedidos</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">10 pedidos mais recentes</p>
+                <h2 className="text-[15px] font-bold text-slate-800">Pedidos Recentes</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {filteredOrders.length} {filteredOrders.length === 1 ? 'pedido' : 'pedidos'} encontrados
+                </p>
               </div>
-              <button
-                onClick={() => navigate('/orders')}
-                className="flex items-center gap-1 text-primary text-[12px] font-semibold hover:underline"
-              >
-                Ver Todos
-                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                {(['today', 'week', 'all'] as Period[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                      period === p ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {p === 'today' ? 'Hoje' : p === 'week' ? '7 dias' : 'Todos'}
+                  </button>
+                ))}
+                <div className="w-px h-4 bg-slate-200 mx-1" />
+                <button
+                  onClick={() => navigate('/orders')}
+                  className="text-[12px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+                >
+                  Ver todos
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -216,10 +258,10 @@ export function DashboardPage() {
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <span className="text-[13px] text-slate-400">Carregando...</span>
                 </div>
-              ) : recentOrders.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <div className="p-10 text-center">
-                  <span className="material-symbols-outlined block mb-2 text-slate-300" style={{ fontSize: '36px' }}>inbox</span>
-                  <p className="text-[13px] text-slate-400">Nenhum pedido encontrado.</p>
+                  <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>inbox</span>
+                  <p className="text-[13px] text-slate-400">Nenhum pedido neste período.</p>
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -228,13 +270,15 @@ export function DashboardPage() {
                       <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
                       <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
                       <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
-                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entrega</th>
+                      <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
                       <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {recentOrders.map((order) => {
+                    {filteredOrders.map((order) => {
                       const badge = getOrderStatusBadge(order.status);
+                      const payBadge = getPaymentStatusBadge(order.paymentStatus);
                       const isDelivered = order.status === 'DELIVERED';
                       const isCancelled = order.status === 'CANCELLED';
                       const isLoadingThis = actionLoading === order.id;
@@ -246,33 +290,28 @@ export function DashboardPage() {
                           >
                             {formatOrderId(order.id)}
                           </td>
-                          <td className="px-5 py-3 text-[13px] font-medium text-slate-700">
-                            {order.clientName}
-                          </td>
-                          <td className="px-5 py-3 text-[13px] font-bold text-slate-800">
-                            {formatBRL(order.totalValue)}
-                          </td>
+                          <td className="px-5 py-3 text-[13px] font-medium text-slate-700">{order.clientName}</td>
+                          <td className="px-5 py-3 text-[13px] font-bold text-slate-800">{formatBRL(order.totalValue)}</td>
                           <td className="px-5 py-3">
                             <button
                               onClick={(e) => {
                                 if (isDelivered || isCancelled || isLoadingThis) return;
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                setStatusMenu(
-                                  statusMenu?.id === order.id
-                                    ? null
-                                    : { id: order.id, top: rect.bottom + 4, left: rect.left }
-                                );
+                                setStatusMenu(statusMenu?.id === order.id ? null : { id: order.id, top: rect.bottom + 4, left: rect.left });
                               }}
-                              className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-tight transition-all ${badge.className} ${!isDelivered && !isCancelled && !isLoadingThis ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${badge.className} ${!isDelivered && !isCancelled && !isLoadingThis ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
                             >
                               {isLoadingThis ? '...' : badge.label}
-                              {!isDelivered && !isCancelled && !isLoadingThis && (
-                                <span className="ml-1 opacity-50">▾</span>
-                              )}
+                              {!isDelivered && !isCancelled && !isLoadingThis && <span className="opacity-50">▾</span>}
                             </button>
                           </td>
+                          <td className="px-5 py-3">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${payBadge.className}`}>
+                              {payBadge.label}
+                            </span>
+                          </td>
                           <td className="px-5 py-3 text-[12px] text-slate-400 text-right tabular-nums">
-                            {formatTime(order.createDate)}
+                            {formatShortDateTime(order.createDate)}
                           </td>
                         </tr>
                       );
@@ -283,58 +322,114 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Side widgets */}
+          {/* Right column */}
           <div className="space-y-4">
 
-            {/* Stock alert */}
-            <div className="bg-on-secondary-fixed rounded-xl p-5 shadow-card">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-teal" style={{ fontSize: '18px' }}>inventory_2</span>
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-slate-400/60">Alerta de Estoque</h3>
+            {/* Próximas Entregas */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>schedule_send</span>
+                  <h2 className="text-[15px] font-bold text-slate-800">Próximas Entregas</h2>
+                </div>
+                {upcomingDeliveries.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                    {upcomingDeliveries.length}
+                  </span>
+                )}
               </div>
-              <p className="text-[13px] text-slate-300/80 mb-4 leading-relaxed">
-                Monitore itens críticos para garantir a continuidade das entregas.
+
+              {loading ? (
+                <div className="p-6 text-center">
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : upcomingDeliveries.length === 0 ? (
+                <div className="p-8 text-center">
+                  <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '32px' }}>event_available</span>
+                  <p className="text-[13px] text-slate-400">Nenhuma entrega agendada.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {upcomingDeliveries.map((order) => {
+                    const { label: timeLabel, isUrgent } = formatDeliveryTime(order.deliveryDate!);
+                    const itemsSummary = order.items.slice(0, 2).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
+                      + (order.items.length > 2 ? ` +${order.items.length - 2}` : '');
+                    return (
+                      <div
+                        key={order.id}
+                        onClick={() => navigate(`/orders/${order.id}`)}
+                        className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                      >
+                        <div className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${
+                          isUrgent
+                            ? 'bg-red-50 text-red-600 border border-red-200'
+                            : 'bg-primary/8 text-primary border border-primary/20'
+                        }`}>
+                          {timeLabel}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-700 truncate">{order.clientName}</p>
+                          <p className="text-[11px] text-slate-400 truncate">{itemsSummary}</p>
+                        </div>
+                        <span className="material-symbols-outlined text-slate-300 flex-shrink-0" style={{ fontSize: '16px' }}>chevron_right</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Stock alert */}
+            <div className={`rounded-xl p-5 shadow-card border ${
+              criticalStock > 0
+                ? 'bg-orange-50 border-orange-100'
+                : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`material-symbols-outlined ${criticalStock > 0 ? 'text-orange-500' : 'text-slate-400'}`} style={{ fontSize: '18px' }}>inventory_2</span>
+                <h3 className="text-[13px] font-bold text-slate-700">Alerta de Estoque</h3>
+                {criticalStock > 0 && (
+                  <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                    {criticalStock} crítico{criticalStock !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] text-slate-500 mb-3">
+                {criticalStock > 0
+                  ? `${criticalStock} item${criticalStock !== 1 ? 's' : ''} abaixo do estoque mínimo.`
+                  : 'Todos os itens dentro do estoque normal.'}
               </p>
               <button
                 onClick={() => navigate('/stock')}
-                className="w-full bg-teal text-white py-2 rounded-lg font-bold text-[12px] uppercase tracking-wide hover:bg-teal-dim transition-colors"
+                className={`w-full py-2 rounded-lg font-bold text-[12px] uppercase tracking-wide transition-colors ${
+                  criticalStock > 0
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
                 Ver Estoque
               </button>
             </div>
 
-            {/* Upcoming deliveries */}
-            <div className="bg-white border border-outline-variant/60 rounded-xl p-5 shadow-card">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[15px] font-bold text-slate-800">Próximas Entregas</h3>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">Hoje</span>
-              </div>
-              <div className="py-5 text-center">
-                <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>local_shipping</span>
-                <p className="text-[13px] text-slate-400">Nenhuma entrega agendada.</p>
-              </div>
-            </div>
-
             {/* Quick links */}
             <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => navigate('/clients')}
-                className="flex flex-col items-center gap-1.5 py-4 bg-white border border-outline-variant/60 rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-all group shadow-sm"
-              >
-                <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors" style={{ fontSize: '22px' }}>group</span>
-                <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary transition-colors">Clientes</span>
-              </button>
-              <button
-                onClick={() => navigate('/bottles')}
-                className="flex flex-col items-center gap-1.5 py-4 bg-white border border-outline-variant/60 rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-all group shadow-sm"
-              >
-                <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors" style={{ fontSize: '22px' }}>propane_tank</span>
-                <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary transition-colors">Vasilhames</span>
-              </button>
+              {[
+                { label: 'Clientes', icon: 'group', path: '/clients' },
+                { label: 'Vasilhames', icon: 'propane_tank', path: '/bottles' },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-all group shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors" style={{ fontSize: '22px' }}>{item.icon}</span>
+                  <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary transition-colors">{item.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Status dropdown */}
       {statusMenu && (() => {
@@ -343,7 +438,7 @@ export function DashboardPage() {
           <div
             onMouseDown={(e) => e.stopPropagation()}
             style={{ position: 'fixed', top: statusMenu.top, left: statusMenu.left, zIndex: 9999 }}
-            className="bg-white border border-slate-100 rounded-xl shadow-card-hover min-w-[190px] overflow-hidden"
+            className="bg-white border border-slate-200 rounded-xl shadow-card-hover min-w-[190px] overflow-hidden"
           >
             <p className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50">
               Alterar status
@@ -354,16 +449,12 @@ export function DashboardPage() {
                 <button
                   key={opt.value}
                   disabled={isCurrent}
-                  onClick={() => {
-                    const id = statusMenu.id;
-                    setStatusMenu(null);
-                    changeStatus(id, opt.value);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-[13px] font-semibold flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-default ${isCurrent ? 'bg-slate-50' : opt.color}`}
+                  onClick={() => { const id = statusMenu.id; setStatusMenu(null); changeStatus(id, opt.value); }}
+                  className={`w-full text-left px-4 py-2.5 text-[13px] font-semibold flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-default ${isCurrent ? 'bg-slate-50 text-slate-400' : opt.color}`}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{opt.icon}</span>
                   {opt.label}
-                  {isCurrent && <span className="ml-auto text-[10px] font-bold opacity-50">atual</span>}
+                  {isCurrent && <span className="ml-auto text-[10px] opacity-50">atual</span>}
                 </button>
               );
             })}
