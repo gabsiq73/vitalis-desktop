@@ -23,7 +23,7 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: 'GERAL',
+    label: 'Geral',
     items: [
       { icon: 'dashboard', label: 'Dashboard', path: '/dashboard' },
       { icon: 'shopping_cart', label: 'Pedidos', path: '/orders' },
@@ -31,7 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'PRODUTOS',
+    label: 'Produtos',
     items: [
       {
         icon: 'category',
@@ -46,14 +46,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'OPERAÇÕES',
+    label: 'Operações',
     items: [
-      { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements', badge: 'EM BREVE' },
-      { icon: 'assessment', label: 'Relatórios', path: '/reports', badge: 'EM BREVE' },
+      { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements', badge: 'Em Breve' },
+      { icon: 'assessment', label: 'Relatórios', path: '/reports', badge: 'Em Breve' },
     ],
   },
   {
-    label: 'SISTEMA',
+    label: 'Sistema',
     items: [
       { icon: 'manage_accounts', label: 'Usuários', path: '/users' },
       { icon: 'settings', label: 'Configurações', path: '/settings' },
@@ -79,7 +79,7 @@ export function Sidebar() {
     const initial: Record<string, boolean> = {};
     for (const group of NAV_GROUPS) {
       for (const item of group.items) {
-        if (item.children && item.children.some((c) => pathname === c.path || pathname.startsWith(c.path + '/'))) {
+        if (item.children?.some((c) => pathname === c.path || pathname.startsWith(c.path + '/'))) {
           initial[item.path] = true;
         }
       }
@@ -95,7 +95,7 @@ export function Sidebar() {
         }
       }
     }
-  }, [pathname]);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleExpand(path: string) {
     setExpanded((prev) => ({ ...prev, [path]: !prev[path] }));
@@ -105,24 +105,24 @@ export function Sidebar() {
   const initial = username.charAt(0).toUpperCase();
 
   return (
-    <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-on-secondary-fixed shadow-lg overflow-y-auto z-10">
+    <aside className="w-64 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white shadow-nav z-10">
 
       {/* Logo */}
-      <div className="px-5 pt-7 pb-6 flex items-center gap-3 flex-shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-teal flex items-center justify-center shadow-md">
+      <div className="px-5 pt-6 pb-5 flex items-center gap-3 flex-shrink-0 border-b border-slate-100">
+        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 flex-shrink-0">
           <span className="material-symbols-outlined text-white" style={{ fontSize: '20px' }}>propane</span>
         </div>
         <div>
-          <h1 className="text-[17px] font-black text-white tracking-tight leading-none">Vitalis</h1>
-          <p className="text-[10px] text-secondary-fixed-dim opacity-60 mt-0.5 uppercase tracking-widest">Logistics</p>
+          <h1 className="text-[16px] font-black text-slate-800 tracking-tight leading-none">Vitalis</h1>
+          <p className="text-[11px] text-slate-400 mt-0.5">Logistics System</p>
         </div>
       </div>
 
       {/* Nav groups */}
-      <nav className="flex-1 px-3 space-y-5 pb-4">
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="px-2 mb-1.5 text-[10px] font-bold tracking-[0.12em] text-secondary-fixed-dim/40 uppercase">
+            <p className="px-3 mb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
               {group.label}
             </p>
             <ul className="space-y-0.5">
@@ -131,32 +131,28 @@ export function Sidebar() {
                 const childActive = hasActiveChild(item);
                 const isExpanded = expanded[item.path];
                 const hasChildren = !!item.children?.length;
+                const highlighted = active || childActive;
 
                 return (
                   <li key={item.path}>
                     {hasChildren ? (
                       <button
                         onClick={() => toggleExpand(item.path)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-body-md transition-all ${
-                          childActive || active
-                            ? 'text-white bg-on-secondary-fixed-variant/40'
-                            : 'text-secondary-fixed-dim hover:bg-on-secondary-fixed-variant/30 hover:text-white'
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                          highlighted
+                            ? 'bg-primary/8 text-primary'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
                         }`}
                       >
                         <span
-                          className={`material-symbols-outlined flex-shrink-0 ${childActive || active ? 'text-teal' : ''}`}
+                          className={`material-symbols-outlined flex-shrink-0 ${highlighted ? 'text-primary' : 'text-slate-400'}`}
                           style={{ fontSize: '18px' }}
                         >
                           {item.icon}
                         </span>
-                        <span className="flex-1 text-left font-medium text-[13px]">{item.label}</span>
-                        {item.badge && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-on-secondary-fixed-variant/50 text-secondary-fixed-dim uppercase tracking-wide">
-                            {item.badge}
-                          </span>
-                        )}
+                        <span className="flex-1 text-left">{item.label}</span>
                         <span
-                          className={`material-symbols-outlined transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
+                          className={`material-symbols-outlined transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''} ${highlighted ? 'text-primary' : 'text-slate-300'}`}
                           style={{ fontSize: '16px' }}
                         >
                           expand_more
@@ -167,19 +163,19 @@ export function Sidebar() {
                         to={item.path}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
                           active
-                            ? 'text-white bg-on-secondary-fixed-variant/40 border-l-2 border-teal'
-                            : 'text-secondary-fixed-dim hover:bg-on-secondary-fixed-variant/30 hover:text-white'
+                            ? 'bg-primary/8 text-primary'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
                         }`}
                       >
                         <span
-                          className={`material-symbols-outlined flex-shrink-0 ${active ? 'text-teal' : ''}`}
+                          className={`material-symbols-outlined flex-shrink-0 ${active ? 'text-primary' : 'text-slate-400'}`}
                           style={{ fontSize: '18px' }}
                         >
                           {item.icon}
                         </span>
                         <span className="flex-1">{item.label}</span>
                         {item.badge && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-on-secondary-fixed-variant/50 text-secondary-fixed-dim uppercase tracking-wide">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400">
                             {item.badge}
                           </span>
                         )}
@@ -188,22 +184,22 @@ export function Sidebar() {
 
                     {/* Sub-items */}
                     {hasChildren && isExpanded && (
-                      <ul className="mt-0.5 ml-3 pl-3 border-l border-on-secondary-fixed-variant/30 space-y-0.5">
+                      <ul className="mt-1 ml-4 pl-3 border-l-2 border-slate-100 space-y-0.5">
                         {item.children!.map((child) => {
                           const childIsActive = isActive(child.path);
                           return (
                             <li key={child.path}>
                               <Link
                                 to={child.path}
-                                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                                   childIsActive
-                                    ? 'text-white bg-on-secondary-fixed-variant/40 border-l-2 border-teal'
-                                    : 'text-secondary-fixed-dim hover:bg-on-secondary-fixed-variant/30 hover:text-white'
+                                    ? 'bg-primary/8 text-primary'
+                                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
                                 }`}
                               >
                                 <span
-                                  className={`material-symbols-outlined flex-shrink-0 ${childIsActive ? 'text-teal' : ''}`}
-                                  style={{ fontSize: '15px' }}
+                                  className={`material-symbols-outlined flex-shrink-0 ${childIsActive ? 'text-primary' : 'text-slate-300'}`}
+                                  style={{ fontSize: '16px' }}
                                 >
                                   {child.icon}
                                 </span>
@@ -223,18 +219,18 @@ export function Sidebar() {
       </nav>
 
       {/* User profile footer */}
-      <div className="flex-shrink-0 border-t border-on-secondary-fixed-variant/20">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-8 h-8 rounded-full bg-teal flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+      <div className="flex-shrink-0 border-t border-slate-100 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-black text-sm flex-shrink-0">
             {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-white truncate">{username}</p>
-            <p className="text-[10px] text-secondary-fixed-dim/60 uppercase tracking-wider">Administrador</p>
+            <p className="text-[13px] font-semibold text-slate-700 truncate leading-none">{username}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Administrador</p>
           </div>
           <button
             onClick={logout}
-            className="p-1.5 rounded-lg text-secondary-fixed-dim hover:text-error hover:bg-error/10 transition-all"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-error hover:bg-red-50 transition-all"
             title="Sair"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span>
