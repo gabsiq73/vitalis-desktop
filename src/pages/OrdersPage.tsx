@@ -18,21 +18,44 @@ import {
 
 const PAGE_SIZE = 20;
 
-const ALL_FILTER_CARDS = [
-  // status
-  { key: 'PENDING',     filterType: 'status',  label: 'Pendente',    icon: 'pending_actions', iconColor: 'text-yellow-600', iconBg: 'bg-yellow-50',  active: 'bg-yellow-50 border-yellow-400 text-yellow-800' },
-  { key: 'SHIPPED',     filterType: 'status',  label: 'Em Trânsito', icon: 'local_shipping',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50',    active: 'bg-blue-50 border-blue-400 text-blue-800' },
-  { key: 'DELIVERED',   filterType: 'status',  label: 'Entregue',    icon: 'check_circle',    iconColor: 'text-green-600',  iconBg: 'bg-green-50',   active: 'bg-green-50 border-green-400 text-green-800' },
-  { key: 'CANCELLED',   filterType: 'status',  label: 'Cancelado',   icon: 'cancel',          iconColor: 'text-red-500',    iconBg: 'bg-red-50',     active: 'bg-red-50 border-red-400 text-red-800' },
-  // payment
-  { key: 'PAY_PENDING', filterType: 'payment', label: 'Aguardando',  icon: 'hourglass_empty', iconColor: 'text-orange-500', iconBg: 'bg-orange-50',  active: 'bg-orange-50 border-orange-400 text-orange-800' },
-  { key: 'PAY_PARTIAL', filterType: 'payment', label: 'Parcial',     icon: 'payments',        iconColor: 'text-amber-600',  iconBg: 'bg-amber-50',   active: 'bg-amber-50 border-amber-400 text-amber-800' },
-  { key: 'PAY_PAID',    filterType: 'payment', label: 'Pago',        icon: 'done_all',        iconColor: 'text-emerald-600',iconBg: 'bg-emerald-50', active: 'bg-emerald-50 border-emerald-400 text-emerald-800' },
+const STATUS_CHIPS = [
+  {
+    key: 'PENDING',
+    label: 'Pendente',
+    icon: 'pending_actions',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-yellow-300 hover:bg-yellow-50',
+    active:   'bg-yellow-50 border-yellow-400 text-yellow-800',
+    dot:      'bg-yellow-400',
+  },
+  {
+    key: 'SHIPPED',
+    label: 'Em Trânsito',
+    icon: 'local_shipping',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50',
+    active:   'bg-blue-50 border-blue-400 text-blue-800',
+    dot:      'bg-blue-400',
+  },
+  {
+    key: 'DELIVERED',
+    label: 'Entregue',
+    icon: 'check_circle',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-green-300 hover:bg-green-50',
+    active:   'bg-green-50 border-green-400 text-green-800',
+    dot:      'bg-green-400',
+  },
+];
+
+const STATUS_CHANGE_OPTIONS = [
+  { value: 'PENDING',   label: 'Pendente',    icon: 'pending_actions', color: 'text-yellow-700 hover:bg-yellow-50' },
+  { value: 'SHIPPED',   label: 'Em Trânsito', icon: 'local_shipping',  color: 'text-blue-700 hover:bg-blue-50' },
+  { value: 'DELIVERED', label: 'Entregue',    icon: 'check_circle',    color: 'text-green-700 hover:bg-green-50' },
+  { value: 'CANCELLED', label: 'Cancelado',   icon: 'cancel',          color: 'text-red-600 hover:bg-red-50' },
 ];
 
 export function OrdersPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderResponseDTO[]>([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -40,7 +63,6 @@ export function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
-
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const [showNewOrder, setShowNewOrder] = useState(false);
@@ -60,13 +82,13 @@ export function OrdersPage() {
   async function fetchCounts() {
     if (!http) return;
     const keys = [
-      { key: 'PENDING',   params: { status: 'PENDING',   size: 1 } },
-      { key: 'SHIPPED',   params: { status: 'SHIPPED',   size: 1 } },
-      { key: 'DELIVERED', params: { status: 'DELIVERED', size: 1 } },
-      { key: 'CANCELLED', params: { status: 'CANCELLED', size: 1 } },
-      { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING', size: 1 } },
-      { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL', size: 1 } },
-      { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',    size: 1 } },
+      { key: 'PENDING',     params: { status: 'PENDING',           size: 1 } },
+      { key: 'SHIPPED',     params: { status: 'SHIPPED',           size: 1 } },
+      { key: 'DELIVERED',   params: { status: 'DELIVERED',         size: 1 } },
+      { key: 'CANCELLED',   params: { status: 'CANCELLED',         size: 1 } },
+      { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING',    size: 1 } },
+      { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL',    size: 1 } },
+      { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',       size: 1 } },
     ];
     const results = await Promise.allSettled(
       keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: k.params }))
@@ -84,9 +106,7 @@ export function OrdersPage() {
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (statusFilter) params.status = statusFilter;
     if (paymentFilter) params.paymentStatus = paymentFilter;
-
-    http
-      .get<SpringPage<OrderResponseDTO>>('/orders', { params })
+    http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
       .then((res) => {
         setOrders(res.data.content);
         setTotalElements(res.data.totalElements);
@@ -101,13 +121,14 @@ export function OrdersPage() {
     fetchCounts();
   }, [http, currentPage, statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleStatusChange(value: string) {
-    setStatusFilter(value);
+  function handleStatusChip(key: string) {
+    setStatusFilter((prev) => (prev === key ? '' : key));
     setCurrentPage(0);
   }
 
-  function handlePaymentChange(value: string) {
-    setPaymentFilter(value);
+  function clearFilters() {
+    setStatusFilter('');
+    setPaymentFilter('');
     setCurrentPage(0);
   }
 
@@ -129,98 +150,144 @@ export function OrdersPage() {
     }
   }
 
-  async function cancelOrder() {
-    if (!http || !cancelTarget) return;
-    await http.delete(`/orders/${cancelTarget}`);
-    fetchOrders();
-  }
+  const hasActiveFilters = !!(statusFilter || paymentFilter);
+  const totalActive = (counts['PENDING'] ?? 0) + (counts['SHIPPED'] ?? 0);
 
   return (
     <>
       <TopBar />
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+        {/* Header */}
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-h1 text-on-surface">Lista de Pedidos</h1>
-            <p className="text-body-lg text-on-surface-variant">
-              Gerencie e monitore todos os pedidos do sistema em tempo real.
+            <h1 className="text-h1 text-slate-800">Pedidos</h1>
+            <p className="text-body-lg text-slate-500">
+              {totalActive > 0
+                ? <><span className="font-semibold text-slate-700">{totalActive}</span> pedidos ativos no momento</>
+                : 'Gerencie todos os pedidos do sistema.'}
             </p>
           </div>
           <button
             onClick={() => setShowNewOrder(true)}
-            className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-lg font-bold text-h3 hover:brightness-110 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
           >
-            <span className="material-symbols-outlined">add</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             Novo Pedido
           </button>
         </div>
 
-        {/* Filtros em linha única */}
-        <div className="grid grid-cols-7 gap-2">
-          {ALL_FILTER_CARDS.map((card) => {
-            const isStatus = card.filterType === 'status';
-            const paymentKey = card.key.replace('PAY_', '');
-            const isActive = isStatus ? statusFilter === card.key : paymentFilter === paymentKey;
-            const count = counts[card.key] ?? (loading ? '…' : '0');
-
-            function toggle() {
-              if (isStatus) handleStatusChange(isActive ? '' : card.key);
-              else handlePaymentChange(isActive ? '' : paymentKey);
-            }
-
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Main 3 status chips */}
+          {STATUS_CHIPS.map((chip) => {
+            const isActive = statusFilter === chip.key;
+            const count = counts[chip.key] ?? 0;
             return (
               <button
-                key={card.key}
-                onClick={toggle}
-                className={`flex flex-col items-start gap-1.5 p-3 rounded-xl border text-left transition-all hover:shadow-md ${
-                  isActive
-                    ? card.active + ' shadow-sm ring-1 ring-inset ring-current/20'
-                    : `bg-surface border-outline-variant hover:border-outline`
+                key={chip.key}
+                onClick={() => handleStatusChip(chip.key)}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+                  isActive ? chip.active : chip.inactive
                 }`}
               >
-                <div className={`p-1.5 rounded-lg ${isActive ? 'bg-white/60' : card.iconBg}`}>
-                  <span className={`material-symbols-outlined ${isActive ? '' : card.iconColor}`} style={{ fontSize: '18px' }}>
-                    {card.icon}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant leading-none mb-1">
-                    {card.label}
-                  </p>
-                  <p className="text-h2 font-black text-on-surface leading-none">{count}</p>
-                </div>
+                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>{chip.icon}</span>
+                {chip.label}
+                <span className={`min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-black flex items-center justify-center ${
+                  isActive ? 'bg-white/60' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {loading ? '—' : count}
+                </span>
               </button>
             );
           })}
+
+          <div className="h-6 w-px bg-slate-200" />
+
+          {/* Secondary: Cancelado + Pagamento as selects */}
+          <select
+            value={statusFilter === 'CANCELLED' ? 'CANCELLED' : statusFilter.startsWith('CANCELLED') ? 'CANCELLED' : ''}
+            onChange={(e) => {
+              if (e.target.value === 'CANCELLED') {
+                setStatusFilter('CANCELLED');
+              } else if (!['PENDING','SHIPPED','DELIVERED'].includes(statusFilter)) {
+                setStatusFilter('');
+              }
+              setCurrentPage(0);
+            }}
+            className={`px-3 py-2 rounded-lg border text-[13px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer ${
+              statusFilter === 'CANCELLED'
+                ? 'bg-red-50 border-red-300 text-red-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+            }`}
+          >
+            <option value="">Cancelados</option>
+            <option value="CANCELLED">Ver cancelados</option>
+          </select>
+
+          <select
+            value={paymentFilter}
+            onChange={(e) => { setPaymentFilter(e.target.value); setCurrentPage(0); }}
+            className={`px-3 py-2 rounded-lg border text-[13px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer ${
+              paymentFilter
+                ? 'bg-primary/8 border-primary/40 text-primary'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+            }`}
+          >
+            <option value="">Pagamento: Todos</option>
+            <option value="PENDING">Aguardando pagamento</option>
+            <option value="PARTIAL">Pagamento parcial</option>
+            <option value="PAID">Pago</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+              Limpar
+            </button>
+          )}
         </div>
 
-        <div className="bg-surface rounded-xl border border-outline-variant overflow-hidden shadow-sm">
+        {/* Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">ID</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Cliente</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Itens</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Total</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Status</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Pagamento</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface">Criação</th>
-                  <th className="px-6 py-4 text-sm font-semibold text-on-surface text-right">Ações</th>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Itens</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entrega</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Criado</th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant">
+              <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
-                      Carregando...
+                    <td colSpan={8} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[13px] text-slate-400">Carregando...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
-                      Nenhum pedido encontrado.
+                    <td colSpan={8} className="px-5 py-12 text-center">
+                      <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>inbox</span>
+                      <p className="text-[13px] text-slate-400">Nenhum pedido encontrado.</p>
+                      {hasActiveFilters && (
+                        <button onClick={clearFilters} className="mt-2 text-[12px] text-primary hover:underline">
+                          Limpar filtros
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -230,112 +297,101 @@ export function OrdersPage() {
                     const isDelivered = order.status === 'DELIVERED';
                     const isCancelled = order.status === 'CANCELLED';
                     const isLoadingThis = actionLoading === order.id;
+
                     return (
                       <tr
                         key={order.id}
-                        className="hover:bg-surface-container-low transition-colors"
+                        className="hover:bg-slate-50/70 transition-colors"
                       >
-                        <td className="px-6 py-4 text-body-md text-on-surface font-semibold">
+                        <td
+                          className="px-5 py-3.5 font-mono font-semibold text-[13px] text-primary cursor-pointer hover:underline"
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                        >
                           {formatOrderId(order.id)}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs flex-shrink-0">
+
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[11px] flex-shrink-0">
                               {getInitials(order.clientName)}
                             </div>
-                            <span className="text-body-md text-on-surface">{order.clientName}</span>
+                            <span className="text-[13px] font-medium text-slate-700">{order.clientName}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-3">
+
+                        <td className="px-5 py-3.5">
                           <div className="flex flex-col gap-0.5">
-                            {order.items.slice(0, 3).map((item) => (
-                              <span key={item.id} className="text-[11px] text-on-surface-variant leading-tight">
-                                {item.productName} <span className="font-bold text-on-surface">×{item.quantity}</span>
+                            {order.items.slice(0, 2).map((item) => (
+                              <span key={item.id} className="text-[11px] text-slate-500 leading-tight">
+                                {item.productName} <span className="font-bold text-slate-700">×{item.quantity}</span>
                               </span>
                             ))}
-                            {order.items.length > 3 && (
-                              <span className="text-[10px] text-outline">+{order.items.length - 3} mais</span>
+                            {order.items.length > 2 && (
+                              <span className="text-[10px] text-slate-400">+{order.items.length - 2} mais</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-body-md text-on-surface font-bold">
+
+                        <td className="px-5 py-3.5 text-[13px] font-bold text-slate-800 whitespace-nowrap">
                           {formatBRL(order.totalValue)}
                         </td>
-                        <td className="px-6 py-4">
+
+                        <td className="px-5 py-3.5">
                           <button
                             onClick={(e) => {
                               if (isDelivered || isCancelled) return;
                               const rect = e.currentTarget.getBoundingClientRect();
-                              if (statusMenu?.id === order.id) {
-                                setStatusMenu(null);
-                              } else {
-                                setStatusMenu({ id: order.id, top: rect.bottom + 4, left: rect.left });
-                              }
+                              setStatusMenu(statusMenu?.id === order.id ? null : { id: order.id, top: rect.bottom + 4, left: rect.left });
                             }}
-                            title={isDelivered || isCancelled ? undefined : 'Clique para alterar status'}
-                            className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight transition-all ${statusBadge.className} ${!isDelivered && !isCancelled ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all ${statusBadge.className} ${!isDelivered && !isCancelled ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
                           >
-                            {statusBadge.label}
-                            {!isDelivered && !isCancelled && <span className="ml-1 opacity-60">▾</span>}
+                            {isLoadingThis ? '...' : statusBadge.label}
+                            {!isDelivered && !isCancelled && !isLoadingThis && <span className="opacity-50">▾</span>}
                           </button>
                         </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${paymentBadge.className}`}
-                          >
+
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${paymentBadge.className}`}>
                             {paymentBadge.label}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-body-md text-on-surface-variant">
+
+                        <td className="px-5 py-3.5 text-[12px] text-slate-400 whitespace-nowrap tabular-nums">
                           {formatShortDateTime(order.createDate)}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
+
+                        <td className="px-5 py-3.5">
+                          <div className="flex justify-end gap-0.5">
                             <button
                               title="Ver detalhes"
                               onClick={() => navigate(`/orders/${order.id}`)}
-                              className="p-1.5 text-on-surface-variant hover:text-primary transition-all"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all"
                             >
-                              <span className="material-symbols-outlined">visibility</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
                             {order.paymentStatus !== 'PAID' && !isCancelled && (
                               <button
                                 title="Registrar pagamento"
                                 onClick={() => setPaymentTarget(order.id)}
-                                className="p-1.5 text-on-surface-variant hover:text-green-600 transition-all"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
                               >
-                                <span className="material-symbols-outlined">payments</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
                               </button>
                             )}
                             <button
-                              title="Adicionar pontos de fidelidade"
-                              onClick={() =>
-                                setAddPointsTarget({
-                                  clientId: order.clientId,
-                                  clientName: order.clientName,
-                                })
-                              }
-                              className="p-1.5 text-on-surface-variant hover:text-tertiary transition-all"
+                              title="Pontos de fidelidade"
+                              onClick={() => setAddPointsTarget({ clientId: order.clientId, clientName: order.clientName })}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
                             >
-                              <span className="material-symbols-outlined">workspace_premium</span>
-                            </button>
-                            <button
-                              title="Confirmar entrega"
-                              disabled={isDelivered || isCancelled || isLoadingThis}
-                              onClick={() => changeStatus(order.id, 'DELIVERED')}
-                              className="p-1.5 text-on-surface-variant hover:text-green-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <span className="material-symbols-outlined">
-                                {isLoadingThis ? 'hourglass_empty' : 'check_circle'}
-                              </span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>workspace_premium</span>
                             </button>
                             <button
                               title="Cancelar pedido"
                               disabled={isDelivered || isCancelled || isLoadingThis}
                               onClick={() => setCancelTarget(order.id)}
-                              className="p-1.5 text-on-surface-variant hover:text-error transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
                             >
-                              <span className="material-symbols-outlined">cancel</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>cancel</span>
                             </button>
                           </div>
                         </td>
@@ -347,49 +403,52 @@ export function OrdersPage() {
             </table>
           </div>
 
-          <div className="px-6 py-4 bg-surface-container-low border-t border-outline-variant flex justify-between items-center">
-            <span className="text-body-md text-on-surface-variant">
-              Exibindo{' '}
-              <span className="font-semibold text-on-surface">
-                {Math.min(currentPage * PAGE_SIZE + 1, Math.max(totalElements, 1))}–
-                {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
-              </span>{' '}
-              de <span className="font-semibold text-on-surface">{totalElements}</span> resultados
-            </span>
-            <div className="flex gap-1">
-              <button
-                disabled={currentPage === 0}
-                onClick={() => setCurrentPage((p) => p - 1)}
-                className="p-1.5 border border-outline-variant rounded-lg hover:bg-surface transition-colors disabled:opacity-30"
-              >
-                <span className="material-symbols-outlined">chevron_left</span>
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                const start = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
-                return start + i;
-              }).map((pageNum) => (
+          {/* Pagination */}
+          {totalElements > 0 && (
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-[12px] text-slate-500">
+                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {' '}<span className="text-slate-400">de</span>{' '}
+                <span className="font-semibold text-slate-700">{totalElements}</span> pedidos
+              </span>
+              <div className="flex items-center gap-1">
                 <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`px-3 py-1 rounded-lg text-body-md transition-colors ${
-                    pageNum === currentPage ? 'bg-primary text-on-primary' : 'hover:bg-surface'
-                  }`}
+                  disabled={currentPage === 0}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  {pageNum + 1}
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_left</span>
                 </button>
-              ))}
-              <button
-                disabled={currentPage >= totalPages - 1}
-                onClick={() => setCurrentPage((p) => p + 1)}
-                className="p-1.5 border border-outline-variant rounded-lg hover:bg-surface transition-colors disabled:opacity-30"
-              >
-                <span className="material-symbols-outlined">chevron_right</span>
-              </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const start = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
+                  return start + i;
+                }).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-[13px] font-semibold transition-colors ${
+                      pageNum === currentPage
+                        ? 'bg-primary text-white'
+                        : 'text-slate-500 hover:bg-white border border-transparent hover:border-slate-200'
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                ))}
+                <button
+                  disabled={currentPage >= totalPages - 1}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Modals */}
       <NewOrderModal
         open={showNewOrder}
         onClose={() => setShowNewOrder(false)}
@@ -402,13 +461,13 @@ export function OrdersPage() {
         message="Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita."
         confirmLabel="Cancelar Pedido"
         danger
-        onConfirm={cancelOrder}
+        onConfirm={() => changeStatus(cancelTarget!, 'CANCELLED')}
         onClose={() => setCancelTarget(null)}
       />
 
       {addPointsTarget && (
         <AddFidelityPointsModal
-          open={addPointsTarget !== null}
+          open
           onClose={() => setAddPointsTarget(null)}
           onSuccess={() => setAddPointsTarget(null)}
           clientId={addPointsTarget.clientId}
@@ -418,7 +477,7 @@ export function OrdersPage() {
 
       {paymentTarget && (
         <AddPaymentModal
-          open={paymentTarget !== null}
+          open
           orderId={paymentTarget}
           onClose={() => setPaymentTarget(null)}
           onSuccess={() => { setPaymentTarget(null); fetchOrders(); fetchCounts(); }}
@@ -427,37 +486,27 @@ export function OrdersPage() {
 
       {statusMenu && (() => {
         const currentOrder = orders.find((o) => o.id === statusMenu.id);
-        const STATUS_OPTIONS = [
-          { value: 'PENDING',   label: 'Pendente',     icon: 'pending_actions',  color: 'text-yellow-700 hover:bg-yellow-50' },
-          { value: 'SHIPPED',   label: 'Em Trânsito',  icon: 'local_shipping',   color: 'text-blue-700 hover:bg-blue-50' },
-          { value: 'DELIVERED', label: 'Entregue',     icon: 'check_circle',     color: 'text-green-700 hover:bg-green-50' },
-          { value: 'CANCELLED', label: 'Cancelado',    icon: 'cancel',           color: 'text-error hover:bg-error/5' },
-        ];
         return (
           <div
             onMouseDown={(e) => e.stopPropagation()}
             style={{ position: 'fixed', top: statusMenu.top, left: statusMenu.left, zIndex: 9999 }}
-            className="bg-surface border border-outline-variant rounded-lg shadow-xl min-w-[190px] overflow-hidden"
+            className="bg-white border border-slate-200 rounded-xl shadow-card-hover min-w-[190px] overflow-hidden"
           >
-            <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant border-b border-outline-variant bg-surface-container-low">
+            <p className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50">
               Alterar status
             </p>
-            {STATUS_OPTIONS.map((opt) => {
+            {STATUS_CHANGE_OPTIONS.map((opt) => {
               const isCurrent = currentOrder?.status === opt.value;
               return (
                 <button
                   key={opt.value}
                   disabled={isCurrent}
-                  onClick={() => {
-                    const id = statusMenu.id;
-                    setStatusMenu(null);
-                    changeStatus(id, opt.value);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-default ${isCurrent ? 'bg-surface-container' : opt.color}`}
+                  onClick={() => { const id = statusMenu.id; setStatusMenu(null); changeStatus(id, opt.value); }}
+                  className={`w-full text-left px-4 py-2.5 text-[13px] font-semibold flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-default ${isCurrent ? 'bg-slate-50 text-slate-400' : opt.color}`}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{opt.icon}</span>
                   {opt.label}
-                  {isCurrent && <span className="ml-auto text-[10px] font-bold uppercase opacity-60">atual</span>}
+                  {isCurrent && <span className="ml-auto text-[10px] uppercase opacity-50">atual</span>}
                 </button>
               );
             })}
