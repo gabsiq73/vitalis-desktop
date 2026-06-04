@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
@@ -19,6 +20,14 @@ import {
 const PAGE_SIZE = 20;
 
 const STATUS_CHIPS = [
+  {
+    key: '',
+    label: 'Todos',
+    icon: 'list',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+    active:   'bg-slate-800 border-slate-800 text-white',
+    dot:      'bg-slate-500',
+  },
   {
     key: 'PENDING',
     label: 'Pendente',
@@ -43,6 +52,14 @@ const STATUS_CHIPS = [
     active:   'bg-green-50 border-green-400 text-green-800',
     dot:      'bg-green-400',
   },
+  {
+    key: 'CANCELLED',
+    label: 'Cancelado',
+    icon: 'cancel',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50',
+    active:   'bg-red-50 border-red-400 text-red-800',
+    dot:      'bg-red-400',
+  },
 ];
 
 const STATUS_CHANGE_OPTIONS = [
@@ -55,6 +72,7 @@ const STATUS_CHANGE_OPTIONS = [
 export function OrdersPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
+  const { notify } = useNotification();
 
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderResponseDTO[]>([]);
@@ -138,10 +156,13 @@ export function OrdersPage() {
     try {
       if (status === 'DELIVERED') {
         await http.patch(`/orders/${orderId}/confirm-delivery`);
+        notify('Entrega confirmada com sucesso.', 'success');
       } else if (status === 'CANCELLED') {
         await http.delete(`/orders/${orderId}`);
+        notify('Pedido cancelado.', 'warning');
       } else {
         await http.patch(`/orders/${orderId}/status`, null, { params: { status } });
+        notify('Status do pedido atualizado.', 'info');
       }
       fetchOrders();
       fetchCounts();
@@ -180,51 +201,31 @@ export function OrdersPage() {
 
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Main 3 status chips */}
           {STATUS_CHIPS.map((chip) => {
             const isActive = statusFilter === chip.key;
-            const count = counts[chip.key] ?? 0;
+            const count = chip.key ? (counts[chip.key] ?? 0) : undefined;
             return (
               <button
-                key={chip.key}
+                key={chip.key || 'all'}
                 onClick={() => handleStatusChip(chip.key)}
-                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
                   isActive ? chip.active : chip.inactive
                 }`}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>{chip.icon}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{chip.icon}</span>
                 {chip.label}
-                <span className={`min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-black flex items-center justify-center ${
-                  isActive ? 'bg-white/60' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {loading ? '—' : count}
-                </span>
+                {count !== undefined && (
+                  <span className={`min-w-[20px] h-5 px-1 rounded-full text-[11px] font-black flex items-center justify-center ${
+                    isActive ? 'bg-white/60' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {loading ? '—' : count}
+                  </span>
+                )}
               </button>
             );
           })}
 
           <div className="h-6 w-px bg-slate-200" />
-
-          {/* Secondary: Cancelado + Pagamento as selects */}
-          <select
-            value={statusFilter === 'CANCELLED' ? 'CANCELLED' : statusFilter.startsWith('CANCELLED') ? 'CANCELLED' : ''}
-            onChange={(e) => {
-              if (e.target.value === 'CANCELLED') {
-                setStatusFilter('CANCELLED');
-              } else if (!['PENDING','SHIPPED','DELIVERED'].includes(statusFilter)) {
-                setStatusFilter('');
-              }
-              setCurrentPage(0);
-            }}
-            className={`px-3 py-2 rounded-lg border text-[13px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer ${
-              statusFilter === 'CANCELLED'
-                ? 'bg-red-50 border-red-300 text-red-700'
-                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-            }`}
-          >
-            <option value="">Cancelados</option>
-            <option value="CANCELLED">Ver cancelados</option>
-          </select>
 
           <select
             value={paymentFilter}
@@ -301,12 +302,10 @@ export function OrdersPage() {
                     return (
                       <tr
                         key={order.id}
-                        className="hover:bg-slate-50/70 transition-colors"
+                        className="hover:bg-slate-50/70 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/orders/${order.id}`)}
                       >
-                        <td
-                          className="px-5 py-3.5 font-mono font-semibold text-[13px] text-primary cursor-pointer hover:underline"
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                        >
+                        <td className="px-5 py-3.5 font-mono font-semibold text-[13px] text-primary">
                           {formatOrderId(order.id)}
                         </td>
 
@@ -336,7 +335,7 @@ export function OrdersPage() {
                           {formatBRL(order.totalValue)}
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={(e) => {
                               if (isDelivered || isCancelled) return;
@@ -360,7 +359,7 @@ export function OrdersPage() {
                           {formatShortDateTime(order.createDate)}
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
                           <div className="flex justify-end gap-0.5">
                             <button
                               title="Ver detalhes"
@@ -369,16 +368,6 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
-                            {!isDelivered && !isCancelled && (
-                              <button
-                                title="Confirmar entrega"
-                                disabled={isLoadingThis}
-                                onClick={() => changeStatus(order.id, 'DELIVERED')}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>task_alt</span>
-                              </button>
-                            )}
                             {order.paymentStatus !== 'PAID' && !isCancelled && (
                               <button
                                 title="Registrar pagamento"
@@ -395,6 +384,16 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>workspace_premium</span>
                             </button>
+                            {!isDelivered && !isCancelled && (
+                              <button
+                                title="Confirmar entrega"
+                                disabled={isLoadingThis}
+                                onClick={() => changeStatus(order.id, 'DELIVERED')}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>task_alt</span>
+                              </button>
+                            )}
                             <button
                               title="Cancelar pedido"
                               disabled={isDelivered || isCancelled || isLoadingThis}

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -15,9 +16,9 @@ import { formatBRL } from '../utils/format';
 
 const PAGE_SIZE = 20;
 
-const PRODUCT_ICONS: Record<string, string> = {
-  GAS: 'propane_tank',
-  WATER: 'water_drop',
+const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string; bg: string }> = {
+  GAS:   { icon: 'propane_tank', label: 'Gás GLP',  color: 'text-orange-600', bg: 'bg-orange-50' },
+  WATER: { icon: 'water_drop',  label: 'Água',       color: 'text-blue-600',   bg: 'bg-blue-50' },
 };
 
 interface ProductFormProps {
@@ -40,12 +41,8 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
   useEffect(() => {
     if (http) {
       http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 100 } })
-        .then((res) => {
-          setSuppliers(res.data.content);
-        })
-        .catch(() => {
-          setSuppliers([]);
-        });
+        .then(res => setSuppliers(res.data.content))
+        .catch(() => setSuppliers([]));
     }
   }, [http]);
 
@@ -54,19 +51,11 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
     if (!name.trim()) { setError('Nome é obrigatório.'); return; }
     const price = parseFloat(basePrice);
     if (isNaN(price) || price <= 0) { setError('Preço de venda deve ser maior que zero.'); return; }
-
     const cost = lastCostPrice ? parseFloat(lastCostPrice) : undefined;
     if (type === 'GAS') {
-      if (cost === undefined || isNaN(cost) || cost <= 0) {
-        setError('Preço de custo é obrigatório e deve ser maior que zero para produtos do tipo GÁS.');
-        return;
-      }
-      if (!defaultSupplierId) {
-        setError('Distribuidor padrão é obrigatório para produtos do tipo GÁS.');
-        return;
-      }
+      if (!cost || isNaN(cost) || cost <= 0) { setError('Preço de custo obrigatório para Gás GLP.'); return; }
+      if (!defaultSupplierId) { setError('Distribuidor padrão obrigatório para Gás GLP.'); return; }
     }
-
     setLoading(true);
     setError('');
     try {
@@ -78,121 +67,72 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
         defaultSupplierId: type === 'GAS' ? defaultSupplierId : undefined,
       });
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      const errMsg = axiosError.response?.data?.message || 'Erro ao salvar produto. Verifique os dados.';
-      setError(errMsg);
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message ?? 'Erro ao salvar produto.');
     } finally {
       setLoading(false);
     }
   }
 
+  const inputCls = 'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
+
   return (
-    <form onSubmit={handleSubmit} className="p-6 space-y-5">
+    <form onSubmit={handleSubmit} className="p-6 space-y-4">
       <div>
-        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">Nome *</label>
-        <input
-          className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-          placeholder="Ex: Botijão P13 - GLP"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={100}
-        />
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Nome *</label>
+        <input className={inputCls} placeholder="Ex: Botijão P13" value={name} onChange={e => setName(e.target.value)} maxLength={100} />
       </div>
 
       <div>
-        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">Tipo *</label>
-        <div className="flex gap-3">
-          {(['GAS', 'WATER'] as ProductType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => {
-                setType(t);
-                if (t === 'WATER') {
-                  setDefaultSupplierId('');
-                }
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-bold text-sm transition-all ${type === t
-                  ? 'bg-primary text-on-primary border-primary'
-                  : 'border-outline-variant text-on-surface-variant hover:border-primary/40'
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Tipo *</label>
+        <div className="flex gap-2">
+          {(['GAS', 'WATER'] as ProductType[]).map(t => {
+            const cfg = TYPE_CONFIG[t];
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => { setType(t); if (t === 'WATER') setDefaultSupplierId(''); }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
+                  type === t ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-600 hover:border-primary/40 hover:bg-slate-50'
                 }`}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                {PRODUCT_ICONS[t]}
-              </span>
-              {t === 'GAS' ? 'Gás GLP' : 'Água / Água Mineral'}
-            </button>
-          ))}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{cfg.icon}</span>
+                {cfg.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
-            Preço de Venda (R$) *
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            placeholder="0,00"
-            value={basePrice}
-            onChange={(e) => setBasePrice(e.target.value)}
-          />
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Preço de Venda *</label>
+          <input type="number" step="0.01" min="0.01" className={inputCls} placeholder="0,00" value={basePrice} onChange={e => setBasePrice(e.target.value)} />
         </div>
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
-            Último Custo (R$) {type === 'GAS' && '*'}
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            placeholder="0,00"
-            value={lastCostPrice}
-            onChange={(e) => setLastCostPrice(e.target.value)}
-          />
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Último Custo {type === 'GAS' && '*'}</label>
+          <input type="number" step="0.01" min="0.01" className={inputCls} placeholder="0,00" value={lastCostPrice} onChange={e => setLastCostPrice(e.target.value)} />
         </div>
       </div>
 
       {type === 'GAS' && (
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5 font-semibold">
-            Distribuidor Padrão *
-          </label>
-          <select
-            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            value={defaultSupplierId}
-            onChange={(e) => setDefaultSupplierId(e.target.value)}
-          >
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Distribuidor Padrão *</label>
+          <select className={inputCls} value={defaultSupplierId} onChange={e => setDefaultSupplierId(e.target.value)}>
             <option value="">Selecione um distribuidor...</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
       )}
 
-      {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
 
-      <div className="flex gap-3 justify-end pt-2">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={loading}
-          className="px-6 py-2.5 border border-outline-variant rounded-lg font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
-        >
+      <div className="flex gap-3 justify-end pt-1">
+        <button type="button" onClick={onClose} disabled={loading} className="px-5 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
           Cancelar
         </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-70"
-        >
+        <button type="submit" disabled={loading} className="px-5 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:brightness-110 active:scale-95 transition-all disabled:opacity-70">
           {loading ? 'Salvando...' : initial ? 'Salvar Alterações' : 'Criar Produto'}
         </button>
       </div>
@@ -202,44 +142,45 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
 
 export function ProductsPage() {
   const { http } = useAuth();
+  const { notify } = useNotification();
+
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
+  const [search, setSearch] = useState('');
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProductResponseDTO | undefined>(undefined);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProductResponseDTO | null>(null);
   const [toggleTarget, setToggleTarget] = useState<ProductResponseDTO | null>(null);
 
-  function fetchProducts() {
+  const fetchProducts = useCallback(() => {
     if (!http) return;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE, sort: 'name' };
-    http
-      .get<SpringPage<ProductResponseDTO>>('/products', { params })
-      .then((res) => {
+    http.get<SpringPage<ProductResponseDTO>>('/products', { params })
+      .then(res => {
         setProducts(res.data.content);
         setTotalElements(res.data.totalElements);
         setTotalPages(res.data.totalPages);
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }
+  }, [http, currentPage]);
 
-  useEffect(() => { fetchProducts(); }, [http, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const filtered = typeFilter
-    ? products.filter((p) => p.type === typeFilter)
-    : products;
-
-  const activeCount = products.filter((p) => p.isActive).length;
+  const filtered = products
+    .filter(p => !typeFilter || p.type === typeFilter)
+    .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
 
   async function handleCreate(data: ProductRequestDTO | ProductUpdateDTO) {
     await http!.post('/products', data);
     setShowForm(false);
+    notify('Produto criado com sucesso.', 'success');
     fetchProducts();
   }
 
@@ -247,258 +188,229 @@ export function ProductsPage() {
     await http!.put(`/products/${editing!.id}`, data);
     setEditing(undefined);
     setShowForm(false);
+    notify('Produto atualizado com sucesso.', 'success');
     fetchProducts();
   }
 
   async function handleDelete() {
     if (!http || !deleteTarget) return;
-    await http.delete(`/products/${deleteTarget}`);
+    await http.delete(`/products/${deleteTarget.id}`);
+    notify(`Produto "${deleteTarget.name}" excluído.`, 'info');
+    setDeleteTarget(null);
     fetchProducts();
   }
 
   async function handleToggleActive() {
     if (!http || !toggleTarget) return;
     await http.patch(`/products/${toggleTarget.id}/toggle-active`);
+    notify(`Produto "${toggleTarget.name}" ${toggleTarget.isActive ? 'desativado' : 'ativado'}.`, toggleTarget.isActive ? 'warning' : 'success');
+    setToggleTarget(null);
     fetchProducts();
   }
 
-  function openEdit(p: ProductResponseDTO) {
-    setEditing(p);
-    setShowForm(true);
-  }
+  function openEdit(p: ProductResponseDTO) { setEditing(p); setShowForm(true); }
+  function closeForm() { setShowForm(false); setEditing(undefined); }
 
-  function closeForm() {
-    setShowForm(false);
-    setEditing(undefined);
-  }
+  const gasCount = products.filter(p => p.type === 'GAS').length;
+  const waterCount = products.filter(p => p.type === 'WATER').length;
+  const activeCount = products.filter(p => p.isActive).length;
 
   return (
-    <>
-      <TopBar />
+    <div className="flex flex-col min-h-screen bg-background">
+      <TopBar title="Produtos" subtitle="Gerencie o catálogo de produtos" />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="md:col-span-2">
-            <h1 className="text-h1 text-on-surface">Produtos</h1>
-            <p className="text-body-lg text-on-surface-variant">
-              Gerencie o catálogo completo de mercadorias e insumos.
-            </p>
-          </div>
-          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
-            <div className="flex justify-between items-start">
-              <span className="text-label-sm text-on-surface-variant uppercase font-bold tracking-wider">
-                Total de SKUs
-              </span>
-              <span className="material-symbols-outlined text-primary">inventory</span>
+      <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Total de SKUs',    value: loading ? '—' : String(totalElements), icon: 'inventory',     topColor: '#0056c6' },
+            { label: 'Produtos Ativos',  value: loading ? '—' : String(activeCount),   icon: 'check_circle',  topColor: '#0d9488' },
+            { label: 'Gás GLP',          value: loading ? '—' : String(gasCount),      icon: 'propane_tank',  topColor: '#f97316' },
+            { label: 'Água',             value: loading ? '—' : String(waterCount),    icon: 'water_drop',    topColor: '#3b82f6' },
+          ].map(k => (
+            <div key={k.label} className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden relative">
+              <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: k.topColor }} />
+              <div className="p-5 pt-6 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-slate-500 font-medium mb-1">{k.label}</p>
+                  <p className="text-2xl font-bold text-slate-800">{k.value}</p>
+                </div>
+                <span className="material-symbols-outlined text-slate-300" style={{ fontSize: '28px' }}>{k.icon}</span>
+              </div>
             </div>
-            <p className="text-h2 text-on-surface mt-1">{loading ? '—' : totalElements}</p>
-          </div>
-          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
-            <div className="flex justify-between items-start">
-              <span className="text-label-sm text-on-surface-variant uppercase font-bold tracking-wider">
-                Produtos Ativos
-              </span>
-              <span className="material-symbols-outlined text-tertiary">check_circle</span>
-            </div>
-            <p className="text-h2 text-on-surface mt-1">
-              {loading
-                ? '—'
-                : products.length === 0
-                  ? '—'
-                  : `${Math.round((activeCount / products.length) * 100)}%`}
-            </p>
-          </div>
+          ))}
         </div>
 
-        <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-low flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+        {/* Table card */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
+
+          {/* Toolbar */}
+          <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center gap-3">
+            {/* Type filter chips */}
+            <div className="flex gap-1.5">
               {[
-                { value: '', label: 'Todos' },
-                { value: 'GAS', label: 'Gás GLP' },
+                { value: '',      label: 'Todos' },
+                { value: 'GAS',   label: 'Gás GLP' },
                 { value: 'WATER', label: 'Água' },
-              ].map((opt) => (
+              ].map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => setTypeFilter(opt.value)}
-                  className={`px-4 py-1.5 rounded-full text-label-sm font-bold transition-colors ${typeFilter === opt.value
-                      ? 'bg-secondary-container text-on-secondary-container'
-                      : 'text-on-surface-variant hover:bg-surface-container'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+                    typeFilter === opt.value
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
+
+            <div className="flex-1 max-w-xs relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: '16px' }}>search</span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar produto..."
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+
             <button
               onClick={() => { setEditing(undefined); setShowForm(true); }}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-semibold shadow-sm shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>add</span>
               Novo Produto
             </button>
           </div>
 
+          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="bg-surface-container-high border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Nome</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Tipo</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Preço Base</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Último Custo</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Distribuidor Padrão</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Produto</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Preço Venda</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Último Custo</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Distribuidor Padrão</th>
+                  <th className="text-center px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant">
+              <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
-                      Carregando...
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[13px] text-slate-400">Carregando...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
-                      Nenhum produto encontrado.
+                    <td colSpan={7} className="px-5 py-16 text-center">
+                      <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '40px' }}>inventory_2</span>
+                      <p className="text-[13px] text-slate-400">Nenhum produto encontrado.</p>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((p) => (
-                    <tr key={p.id} className="hover:bg-surface-container transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-primary" style={{ fontSize: '20px' }}>
-                              {PRODUCT_ICONS[p.type] ?? 'inventory'}
-                            </span>
+                  filtered.map(p => {
+                    const cfg = TYPE_CONFIG[p.type] ?? TYPE_CONFIG['WATER'];
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/70 transition-colors group">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl ${cfg.bg} flex items-center justify-center flex-shrink-0`}>
+                              <span className={`material-symbols-outlined ${cfg.color}`} style={{ fontSize: '18px' }}>{cfg.icon}</span>
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-semibold text-slate-800">{p.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">{p.id.slice(-8).toUpperCase()}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-on-surface">{p.name}</p>
-                            <p className="text-[10px] text-on-surface-variant font-mono">
-                              {p.id.slice(-8).toUpperCase()}
-                            </p>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>{cfg.icon}</span>
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-bold text-slate-800">{formatBRL(p.basePrice)}</td>
+                        <td className="px-4 py-3.5 text-right text-slate-500">{p.lastCostPrice ? formatBRL(p.lastCostPrice) : '—'}</td>
+                        <td className="px-4 py-3.5 text-slate-600 text-[13px]">
+                          {p.type === 'GAS' ? (p.defaultSupplierName ?? <span className="text-slate-400">Não definido</span>) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                            p.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.isActive ? 'bg-green-500' : 'bg-slate-400'}`} />
+                            {p.isActive ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <button onClick={() => openEdit(p)} title="Editar" className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+                            </button>
+                            <button onClick={() => setToggleTarget(p)} title={p.isActive ? 'Desativar' : 'Ativar'} className={`p-1.5 rounded-lg transition-all ${p.isActive ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}`}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{p.isActive ? 'block' : 'check_circle'}</span>
+                            </button>
+                            <button onClick={() => setDeleteTarget(p)} title="Excluir" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-on-surface-variant text-body-md">
-                        {p.type === 'GAS' ? 'Gás GLP' : 'Água'}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-on-surface">
-                        {formatBRL(p.basePrice)}
-                      </td>
-                      <td className="px-6 py-4 text-on-surface-variant">
-                        {p.lastCostPrice ? formatBRL(p.lastCostPrice) : '—'}
-                      </td>
-                      <td className="px-6 py-4 text-on-surface-variant text-body-md font-semibold">
-                        {p.type === 'GAS' ? (p.defaultSupplierName || 'Não definido') : '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-label-sm font-bold inline-flex items-center gap-1.5 ${p.isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-surface-container text-on-surface-variant'
-                            }`}
-                        >
-                          <span
-                            className={`w-2 h-2 rounded-full ${p.isActive ? 'bg-green-500' : 'bg-outline'}`}
-                          />
-                          {p.isActive ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-2 text-primary hover:bg-primary/10 rounded-lg"
-                            title="Editar"
-                          >
-                            <span className="material-symbols-outlined">edit</span>
-                          </button>
-                          <button
-                            onClick={() => setToggleTarget(p)}
-                            className="p-2 text-on-surface-variant hover:bg-surface-container rounded-lg"
-                            title={p.isActive ? 'Desativar' : 'Ativar'}
-                          >
-                            <span className="material-symbols-outlined">
-                              {p.isActive ? 'block' : 'check_circle'}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(p.id)}
-                            className="p-2 text-error hover:bg-error/10 rounded-lg"
-                            title="Excluir"
-                          >
-                            <span className="material-symbols-outlined">delete</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-outline-variant bg-surface-container-low flex items-center justify-between">
-              <p className="text-sm text-on-surface-variant">
-                Mostrando{' '}
-                <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
-                </span>{' '}
-                de <span className="font-bold text-on-surface">{totalElements}</span> produtos
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={currentPage === 0}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
-                >
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-[12px] text-slate-500">
+                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {' '}<span className="text-slate-400">de</span>{' '}
+                <span className="font-semibold text-slate-700">{totalElements}</span> produtos
+              </span>
+              <div className="flex items-center gap-1">
+                <button disabled={currentPage === 0} onClick={() => setCurrentPage(p => p - 1)} className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_left</span>
-                  Anterior
                 </button>
-                <span className="text-sm text-on-surface-variant px-2">
-                  Página {currentPage + 1} de {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages - 1}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
-                >
-                  Próxima
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const start = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
+                  return start + i;
+                }).map(pageNum => (
+                  <button key={pageNum} onClick={() => setCurrentPage(pageNum)} className={`w-8 h-8 rounded-lg text-[13px] font-semibold transition-colors ${pageNum === currentPage ? 'bg-primary text-white' : 'text-slate-500 hover:bg-white border border-transparent hover:border-slate-200'}`}>
+                    {pageNum + 1}
+                  </button>
+                ))}
+                <button disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage(p => p + 1)} className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
                 </button>
               </div>
             </div>
           )}
-        </section>
-      </div>
+        </div>
+      </main>
 
-      <Modal
-        open={showForm}
-        onClose={closeForm}
-        title={editing ? 'Editar Produto' : 'Novo Produto'}
-        maxWidth="max-w-lg"
-      >
-        <ProductForm
-          initial={editing}
-          onSubmit={editing ? handleEdit : handleCreate}
-          onClose={closeForm}
-        />
+      <Modal open={showForm} onClose={closeForm} title={editing ? 'Editar Produto' : 'Novo Produto'} maxWidth="max-w-lg">
+        <ProductForm initial={editing} onSubmit={editing ? handleEdit : handleCreate} onClose={closeForm} />
       </Modal>
 
       <ConfirmModal
         open={toggleTarget !== null}
         title={toggleTarget?.isActive ? 'Desativar Produto' : 'Ativar Produto'}
-        message={
-          toggleTarget?.isActive
-            ? `Desativar "${toggleTarget?.name}"? Ele não aparecerá em novos pedidos.`
-            : `Ativar "${toggleTarget?.name}"?`
-        }
+        message={toggleTarget?.isActive ? `Desativar "${toggleTarget?.name}"? Ele não aparecerá em novos pedidos.` : `Ativar "${toggleTarget?.name}"?`}
         confirmLabel={toggleTarget?.isActive ? 'Desativar' : 'Ativar'}
         danger={toggleTarget?.isActive}
         onConfirm={handleToggleActive}
@@ -508,12 +420,12 @@ export function ProductsPage() {
       <ConfirmModal
         open={deleteTarget !== null}
         title="Excluir Produto"
-        message="Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+        message={`Excluir "${deleteTarget?.name}"? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         danger
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
       />
-    </>
+    </div>
   );
 }

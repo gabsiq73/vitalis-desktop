@@ -1,5 +1,7 @@
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { ToastContainer } from './components/ToastContainer';
 import { useAuth } from './hooks/useAuth';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
@@ -46,6 +48,7 @@ function ProtectedLayout() {
 
 function App() {
   return (
+    <NotificationProvider>
     <AuthProvider>
       <HashRouter>
         <Routes>
@@ -70,7 +73,9 @@ function App() {
           </Route>
         </Routes>
       </HashRouter>
+      <ToastContainer />
     </AuthProvider>
+    </NotificationProvider>
   );
 }
 
