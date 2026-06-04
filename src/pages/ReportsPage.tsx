@@ -84,7 +84,7 @@ export function ReportsPage() {
       const [ordersRes, clientsRes, stockRes] = await Promise.allSettled([
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 500, page: 0 } }),
         http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 500, page: 0 } }),
-        http.get<SpringPage<StockResponseDTO>>('/stock', { params: { size: 200, page: 0 } }),
+        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { size: 200, page: 0 } }),
       ]);
       if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value.data.content ?? []);
       if (clientsRes.status === 'fulfilled') setClients(clientsRes.value.data.content ?? []);

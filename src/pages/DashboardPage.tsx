@@ -76,7 +76,7 @@ export function DashboardPage() {
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 20, page: 0 } }),
         http.get<OrderResponseDTO[]>('/orders/active'),
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'SHIPPED', size: 1 } }),
-        http.get<SpringPage<StockResponseDTO>>('/stock', { params: { size: 200 } }),
+        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { size: 200 } }),
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 100, page: 0 } }),
       ]);
 
