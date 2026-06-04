@@ -26,6 +26,7 @@ import {
 } from '../utils/format';
 
 type TabId = 'pedidos' | 'pagamentos' | 'precos' | 'fidelidade' | 'vasilhames';
+type OrderPayFilter = 'all' | 'open' | 'paid';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'pedidos',    label: 'Pedidos',           icon: 'shopping_cart' },
@@ -55,6 +56,7 @@ export function ClientDetailPage() {
   const [bottles, setBottles] = useState<LoanedBottleResponseDTO[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('pedidos');
 
+  const [orderPayFilter, setOrderPayFilter] = useState<OrderPayFilter>('all');
   const [showEditClient, setShowEditClient] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
@@ -346,6 +348,37 @@ export function ClientDetailPage() {
 
             {/* ── PEDIDOS ── */}
             {activeTab === 'pedidos' && (
+              <div className="space-y-4">
+                {/* Filter chips */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {([
+                    { key: 'all',  label: 'Todos',        count: orders.length },
+                    { key: 'open', label: 'Em débito',     count: orders.filter(o => o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED').length },
+                    { key: 'paid', label: 'Pagos',         count: orders.filter(o => o.paymentStatus === 'PAID').length },
+                  ] as const).map((chip) => (
+                    <button
+                      key={chip.key}
+                      onClick={() => setOrderPayFilter(chip.key)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all ${
+                        orderPayFilter === chip.key
+                          ? chip.key === 'open'
+                            ? 'bg-red-50 border-red-200 text-red-700'
+                            : chip.key === 'paid'
+                            ? 'bg-green-50 border-green-200 text-green-700'
+                            : 'bg-slate-800 border-slate-800 text-white'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {chip.label}
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                        orderPayFilter === chip.key ? 'bg-white/30' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {chip.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
@@ -360,16 +393,22 @@ export function ClientDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {orders.length === 0 ? (
+                    {(() => {
+                    const visibleOrders = orders.filter(o => {
+                      if (orderPayFilter === 'open') return o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED';
+                      if (orderPayFilter === 'paid') return o.paymentStatus === 'PAID';
+                      return true;
+                    });
+                    if (visibleOrders.length === 0) return (
                       <tr>
                         <td colSpan={7} className="px-4 py-10 text-center">
                           <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '32px' }}>inbox</span>
                           <p className="text-[13px] text-slate-400">Nenhum pedido encontrado.</p>
                         </td>
                       </tr>
-                    ) : (
-                      orders.map((order) => {
-                        const statusBadge = getOrderStatusBadge(order.status);
+                    );
+                    return visibleOrders.map((order) => {
+                        const statusBadge = getOrderStatusBadge(order.status, order.deliveryDate);
                         const payBadge = getPaymentStatusBadge(order.paymentStatus);
                         const itemsSummary = order.items.slice(0, 3).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
                           + (order.items.length > 3 ? ` +${order.items.length - 3}` : '');
@@ -397,9 +436,10 @@ export function ClientDetailPage() {
                           </tr>
                         );
                       })
-                    )}
+                    })()}
                   </tbody>
                 </table>
+              </div>
               </div>
             )}
 

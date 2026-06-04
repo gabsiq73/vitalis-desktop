@@ -50,7 +50,17 @@ export function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function getOrderStatusBadge(status: string): { label: string; className: string } {
+export function isScheduledOrder(status: string, deliveryDate?: string | null): boolean {
+  return status === 'PENDING' && !!deliveryDate && new Date(deliveryDate) > new Date();
+}
+
+export function getOrderStatusBadge(
+  status: string,
+  deliveryDate?: string | null,
+): { label: string; className: string } {
+  if (isScheduledOrder(status, deliveryDate)) {
+    return { label: 'Agendado', className: 'bg-violet-100 text-violet-700' };
+  }
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: 'Pendente', className: 'bg-yellow-100 text-yellow-700' },
     PROCESSING: { label: 'Em Processamento', className: 'bg-blue-100 text-blue-700' },

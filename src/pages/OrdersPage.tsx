@@ -374,7 +374,7 @@ export function OrdersPage() {
                   </tr>
                 ) : (
                   orders.map((order) => {
-                    const statusBadge = getOrderStatusBadge(order.status);
+                    const statusBadge = getOrderStatusBadge(order.status, order.deliveryDate);
                     const paymentBadge = getPaymentStatusBadge(order.paymentStatus);
                     const isDelivered = order.status === 'DELIVERED';
                     const isCancelled = order.status === 'CANCELLED';

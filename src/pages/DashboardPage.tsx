@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import type { OrderResponseDTO, SpringPage, StockResponseDTO } from '../types';
-import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge } from '../utils/format';
+import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge, isScheduledOrder } from '../utils/format';
 
 const STATUS_OPTIONS = [
   { value: 'PENDING',   label: 'Pendente',    icon: 'pending_actions', color: 'text-yellow-700 hover:bg-yellow-50' },
@@ -55,6 +55,7 @@ export function DashboardPage() {
   const [recentOrders, setRecentOrders] = useState<OrderResponseDTO[]>([]);
   const [allTodayOrders, setAllTodayOrders] = useState<OrderResponseDTO[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderResponseDTO[]>([]);
+  const [scheduledPending, setScheduledPending] = useState<OrderResponseDTO[]>([]);
   const [shippedCount, setShippedCount] = useState(0);
   const [criticalStock, setCriticalStock] = useState(0);
   const [period, setPeriod] = useState<Period>('all');
@@ -72,14 +73,16 @@ export function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!http) return;
     try {
-      const [ordersRes, activeRes, shippedRes, stockRes, todayRes] = await Promise.allSettled([
+      const [ordersRes, activeRes, shippedRes, stockRes, todayRes, pendingRes] = await Promise.allSettled([
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 20, page: 0 } }),
         http.get<OrderResponseDTO[]>('/orders/active'),
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'SHIPPED', size: 1 } }),
         http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { size: 200 } }),
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 100, page: 0 } }),
+        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'PENDING', size: 50 } }),
       ]);
 
+      const nowMs = Date.now();
       if (ordersRes.status === 'fulfilled') setRecentOrders(ordersRes.value.data.content);
       if (activeRes.status === 'fulfilled') setActiveOrders(activeRes.value.data);
       if (shippedRes.status === 'fulfilled') setShippedCount(shippedRes.value.data.totalElements);
@@ -95,6 +98,12 @@ export function DashboardPage() {
           (o) => new Date(o.createDate).toDateString() === todayStr
         );
         setAllTodayOrders(todayOnly);
+      }
+      if (pendingRes.status === 'fulfilled') {
+        const scheduled = (pendingRes.value.data.content ?? []).filter(
+          (o) => o.deliveryDate && new Date(o.deliveryDate).getTime() > nowMs,
+        );
+        setScheduledPending(scheduled);
       }
     } finally {
       setLoading(false);
@@ -122,8 +131,11 @@ export function DashboardPage() {
 
   const now = new Date();
 
-  const upcomingDeliveries = activeOrders
-    .filter((o) => o.deliveryDate && new Date(o.deliveryDate) > now)
+  const upcomingDeliveries = [
+    ...activeOrders.filter((o) => o.deliveryDate && new Date(o.deliveryDate) > now),
+    ...scheduledPending,
+  ]
+    .filter((o, i, arr) => arr.findIndex((x) => x.id === o.id) === i) // deduplicate
     .sort((a, b) => new Date(a.deliveryDate!).getTime() - new Date(b.deliveryDate!).getTime())
     .slice(0, 6);
 
@@ -171,7 +183,7 @@ export function DashboardPage() {
       icon: 'schedule_send',
       label: 'Entregas Agendadas',
       value: loading ? '—' : upcomingDeliveries.length,
-      sub: 'a partir de agora',
+      sub: `${scheduledPending.length} agendadas, ${activeOrders.filter(o => o.deliveryDate && new Date(o.deliveryDate) > now).length} em trânsito`,
       iconColor: 'text-primary',
       iconBg: 'bg-primary/10',
       topColor: '#0056c6',
@@ -335,7 +347,7 @@ export function DashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredOrders.map((order) => {
-                      const badge = getOrderStatusBadge(order.status);
+                      const badge = getOrderStatusBadge(order.status, order.deliveryDate);
                       const payBadge = getPaymentStatusBadge(order.paymentStatus);
                       const isDelivered = order.status === 'DELIVERED';
                       const isCancelled = order.status === 'CANCELLED';
@@ -410,20 +422,28 @@ export function DashboardPage() {
                 <div className="divide-y divide-slate-50">
                   {upcomingDeliveries.map((order) => {
                     const { label: timeLabel, isUrgent } = formatDeliveryTime(order.deliveryDate!);
+                    const scheduled = isScheduledOrder(order.status, order.deliveryDate);
                     const itemsSummary = order.items.slice(0, 2).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
                       + (order.items.length > 2 ? ` +${order.items.length - 2}` : '');
                     return (
                       <div
                         key={order.id}
                         onClick={() => navigate(`/orders/${order.id}`)}
-                        className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${scheduled ? 'hover:bg-violet-50/40 bg-violet-50/20' : 'hover:bg-slate-50'}`}
                       >
-                        <div className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${
-                          isUrgent
-                            ? 'bg-red-50 text-red-600 border border-red-200'
-                            : 'bg-primary/8 text-primary border border-primary/20'
-                        }`}>
-                          {timeLabel}
+                        <div className="flex-shrink-0 flex flex-col items-center gap-0.5">
+                          <div className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${
+                            isUrgent
+                              ? 'bg-red-50 text-red-600 border border-red-200'
+                              : scheduled
+                              ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                              : 'bg-primary/8 text-primary border border-primary/20'
+                          }`}>
+                            {timeLabel}
+                          </div>
+                          {scheduled && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-violet-500">Agendado</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold text-slate-700 truncate">{order.clientName}</p>
