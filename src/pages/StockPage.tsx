@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
-import type { StockResponseDTO, SpringPage } from '../types';
+import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 
 const PAGE_SIZE = 20;
 
@@ -119,23 +119,34 @@ export function StockPage() {
   const { http } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<StockResponseDTO[]>([]);
-  const [totalElements, setTotalElements] = useState(0);
+  const [gasProductIds, setGasProductIds] = useState<Set<string>>(new Set());
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [adjustTarget, setAdjustTarget] = useState<StockResponseDTO | null>(null);
 
-  function fetchStock() {
+  async function fetchStock() {
     if (!http) return;
     setLoading(true);
-    http
-      .get<SpringPage<StockResponseDTO>>('/stocks', { params: { page: currentPage, size: PAGE_SIZE } })
-      .then((res) => {
-        setItems(res.data.content);
-        setTotalElements(res.data.totalElements);
-        setTotalPages(res.data.totalPages);
-      })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+    try {
+      const [stockRes, productsRes] = await Promise.allSettled([
+        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { page: currentPage, size: PAGE_SIZE } }),
+        http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200, page: 0 } }),
+      ]);
+      if (productsRes.status === 'fulfilled') {
+        const gasIds = new Set(
+          (productsRes.value.data.content ?? [])
+            .filter(p => p.type === 'GAS')
+            .map(p => p.id)
+        );
+        setGasProductIds(gasIds);
+      }
+      if (stockRes.status === 'fulfilled') {
+        setItems(stockRes.value.data.content ?? []);
+        setTotalPages(stockRes.value.data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchStock(); }, [http, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,12 +159,14 @@ export function StockPage() {
     fetchStock();
   }
 
-  const lowCount = items.filter((i) => {
+  const waterItems = items.filter(i => !gasProductIds.has(i.productId));
+
+  const lowCount = waterItems.filter((i) => {
     const s = i.status.toUpperCase();
     return s === 'LOW' || s === 'LOW_STOCK' || s === 'OUT_OF_STOCK' || s === 'CRITICAL';
   }).length;
 
-  const waterTotal = items.filter((i) => i.productName.toUpperCase().includes('WATER') || i.productName.toUpperCase().includes('GALÃO') || i.productName.toUpperCase().includes('ÁGUA')).reduce((sum, i) => sum + i.quantityInStock, 0);
+  const waterTotal = waterItems.reduce((sum, i) => sum + i.quantityInStock, 0);
 
   return (
     <>
@@ -177,7 +190,7 @@ export function StockPage() {
             </div>
             <p className="text-sm font-medium text-on-surface-variant">Total Itens</p>
             <p className="text-h2 text-on-surface">
-              {loading ? '—' : totalElements.toLocaleString('pt-BR')}
+              {loading ? '—' : waterItems.length.toLocaleString('pt-BR')}
             </p>
           </div>
 
@@ -242,14 +255,14 @@ export function StockPage() {
                       Carregando...
                     </td>
                   </tr>
-                ) : items.length === 0 ? (
+                ) : waterItems.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
                       Nenhum produto encontrado.
                     </td>
                   </tr>
                 ) : (
-                  items.map((item) => {
+                  waterItems.map((item) => {
                     const badge = getStockStatusBadge(item.status);
                     const isLow = item.quantityInStock < item.minimumStock;
                     return (
@@ -304,10 +317,10 @@ export function StockPage() {
               <p className="text-sm text-on-surface-variant">
                 Mostrando{' '}
                 <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                  {Math.min(currentPage * PAGE_SIZE + 1, waterItems.length)}–
+                  {Math.min((currentPage + 1) * PAGE_SIZE, waterItems.length)}
                 </span>{' '}
-                de <span className="font-bold text-on-surface">{totalElements}</span> produtos
+                de <span className="font-bold text-on-surface">{waterItems.length}</span> produtos
               </p>
               <div className="flex items-center gap-2">
                 <button

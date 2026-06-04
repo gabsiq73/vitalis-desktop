@@ -30,28 +30,29 @@ export function ClientsPage() {
   const [showNewClient, setShowNewClient] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  function fetchClients() {
+  async function fetchClients() {
     if (!http) return;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (debouncedSearch) params.name = debouncedSearch;
     if (typeFilter) params.type = typeFilter;
-
-    http
-      .get<SpringPage<ClientResponseDTO>>('/clients', { params })
-      .then((res) => {
-        setClients(res.data.content);
-        setTotalElements(res.data.totalElements);
-        setTotalPages(res.data.totalPages);
-      })
-      .catch(() => setClients([]))
-      .finally(() => setLoading(false));
+    try {
+      const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', { params });
+      setClients(res.data.content);
+      setTotalElements(res.data.totalElements);
+      setTotalPages(res.data.totalPages);
+    } catch {
+      setClients([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -80,8 +81,19 @@ export function ClientsPage() {
 
   async function deleteClient() {
     if (!http || !deleteTarget) return;
-    await http.delete(`/clients/${deleteTarget}`);
-    fetchClients();
+    setDeleteError('');
+    try {
+      await http.delete(`/clients/${deleteTarget}`);
+      await fetchClients();
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409 || status === 422) {
+        setDeleteError('Não é possível excluir: este cliente possui pedidos vinculados.');
+      } else {
+        setDeleteError('Erro ao excluir cliente. Tente novamente.');
+      }
+      throw err;
+    }
   }
 
   const overdueCount = clients.filter((c) => c.balance < 0).length;
@@ -402,8 +414,9 @@ export function ClientsPage() {
         message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
         confirmLabel="Excluir"
         danger
+        error={deleteError}
         onConfirm={deleteClient}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => { setDeleteTarget(null); setDeleteError(''); }}
       />
     </>
   );

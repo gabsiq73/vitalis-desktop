@@ -7,6 +7,7 @@ interface ConfirmModalProps {
   message: string;
   confirmLabel?: string;
   danger?: boolean;
+  error?: string;
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }
@@ -17,6 +18,7 @@ export function ConfirmModal({
   message,
   confirmLabel = 'Confirmar',
   danger = false,
+  error,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
@@ -35,7 +37,12 @@ export function ConfirmModal({
   return (
     <Modal open={open} onClose={onClose} title={title} maxWidth="max-w-md">
       <div className="p-6">
-        <p className="text-body-lg text-on-surface-variant mb-6">{message}</p>
+        <p className="text-body-lg text-on-surface-variant mb-4">{message}</p>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">
+            {error}
+          </div>
+        )}
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
