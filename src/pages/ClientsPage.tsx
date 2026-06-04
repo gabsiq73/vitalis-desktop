@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
@@ -9,15 +10,40 @@ import { formatBRL, getInitials } from '../utils/format';
 
 const PAGE_SIZE = 20;
 
-function getStatusBadge(status: string): { label: string; className: string } {
-  return status === 'OVERDUE'
-    ? { label: 'OVERDUE', className: 'bg-red-100 text-red-700' }
-    : { label: 'PAID', className: 'bg-green-100 text-green-700' };
+const TYPE_CHIPS = [
+  {
+    key: '',
+    label: 'Todos',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+    active: 'bg-slate-800 border-slate-800 text-white',
+  },
+  {
+    key: 'RETAIL',
+    label: 'Varejo',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50',
+    active: 'bg-blue-50 border-blue-400 text-blue-800',
+  },
+  {
+    key: 'RESELLER',
+    label: 'Revendedor',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50',
+    active: 'bg-violet-50 border-violet-400 text-violet-800',
+  },
+];
+
+interface ClientStats {
+  total: number;
+  overdueCount: number;
+  overduePercent: number;
+  totalBalance: number;
+  adimplenceRate: number;
 }
 
 export function ClientsPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
+  const { notify } = useNotification();
+
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientResponseDTO[]>([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -27,13 +53,16 @@ export function ClientsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
+  const [stats, setStats] = useState<ClientStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   const [showNewClient, setShowNewClient] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -55,9 +84,38 @@ export function ClientsPage() {
     }
   }
 
+  async function fetchStats() {
+    if (!http) return;
+    setStatsLoading(true);
+    try {
+      const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', {
+        params: { size: 1000, sort: 'name,asc' },
+      });
+      const all = res.data.content;
+      const total = res.data.totalElements;
+      const overdueCount = all.filter((c) => c.clientStatus === 'OVERDUE').length;
+      const totalBalance = all.reduce((sum, c) => sum + c.balance, 0);
+      setStats({
+        total,
+        overdueCount,
+        overduePercent: total > 0 ? (overdueCount / total) * 100 : 0,
+        totalBalance,
+        adimplenceRate: total > 0 ? ((total - overdueCount) / total) * 100 : 100,
+      });
+    } catch {
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
   useEffect(() => {
     fetchClients();
   }, [http, currentPage, debouncedSearch, typeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchStats();
+  }, [http]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleTypeFilter(type: string) {
     setTypeFilter(type);
@@ -84,208 +142,255 @@ export function ClientsPage() {
     setDeleteError('');
     try {
       await http.delete(`/clients/${deleteTarget}`);
+      notify('Cliente excluído com sucesso.', 'success');
       await fetchClients();
+      await fetchStats();
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setDeleteError(message ?? 'Erro ao excluir cliente. Tente novamente.');
+      const msg = message ?? 'Erro ao excluir cliente. Tente novamente.';
+      setDeleteError(msg);
       throw err;
     }
   }
 
-  const overdueCount = clients.filter((c) => c.balance < 0).length;
-  const avgBalance =
-    clients.length > 0 ? clients.reduce((sum, c) => sum + c.balance, 0) / clients.length : null;
+  const KPI_CARDS = [
+    {
+      icon: 'group',
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      label: 'Total de Clientes',
+      value: statsLoading ? '—' : (stats?.total ?? 0).toLocaleString('pt-BR'),
+      badge: null,
+      badgeColor: '',
+    },
+    {
+      icon: 'warning',
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-500',
+      label: 'Inadimplentes',
+      value: statsLoading ? '—' : `${stats?.overduePercent.toFixed(1) ?? '0.0'}%`,
+      badge: statsLoading ? null : `${stats?.overdueCount ?? 0} clientes`,
+      badgeColor: (stats?.overdueCount ?? 0) > 0 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50',
+    },
+    {
+      icon: 'account_balance_wallet',
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      label: 'Saldo Total da Carteira',
+      value: statsLoading ? '—' : formatBRL(stats?.totalBalance ?? 0),
+      badge: null,
+      badgeColor: '',
+    },
+    {
+      icon: 'verified_user',
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      label: 'Taxa de Adimplência',
+      value: statsLoading ? '—' : `${stats?.adimplenceRate.toFixed(1) ?? '100.0'}%`,
+      badge: null,
+      badgeColor: '',
+      progress: stats?.adimplenceRate,
+    },
+  ];
 
   return (
     <>
       <TopBar />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto w-full space-y-6">
+
+        {/* Header */}
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-h1 text-on-surface">Lista de Clientes</h1>
-            <p className="text-body-lg text-on-surface-variant">
-              Gerencie todos os clientes cadastrados no sistema.
+            <h1 className="text-h1 text-slate-800">Clientes</h1>
+            <p className="text-body-lg text-slate-500">
+              {stats && !statsLoading
+                ? <><span className="font-semibold text-slate-700">{stats.total}</span> clientes cadastrados</>
+                : 'Gerencie todos os clientes cadastrados no sistema.'}
             </p>
           </div>
           <button
             onClick={() => { setEditingClient(undefined); setShowNewClient(true); }}
-            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-[13px] font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-              person_add
-            </span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
             Novo Cliente
           </button>
         </div>
 
-        <section className="bg-surface border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                search
-              </span>
-              <input
-                className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                placeholder="Buscar por nome..."
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center bg-surface-container-low border border-outline-variant rounded-lg p-1">
-              {['', 'RETAIL', 'RESELLER'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeFilter(type)}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                    typeFilter === type
-                      ? 'bg-white shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-primary'
-                  }`}
-                >
-                  {type || 'TODOS'}
-                </button>
-              ))}
-            </div>
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[220px] max-w-xs">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: '18px' }}>
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Buscar por nome..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-white text-[13px] text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+            />
           </div>
-        </section>
 
-        <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+          <div className="h-6 w-px bg-slate-200" />
+
+          {/* Type chips */}
+          {TYPE_CHIPS.map((chip) => (
+            <button
+              key={chip.key || 'all'}
+              onClick={() => handleTypeFilter(chip.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+                typeFilter === chip.key ? chip.active : chip.inactive
+              }`}
+            >
+              {chip.label}
+            </button>
+          ))}
+
+          {(searchQuery || typeFilter) && (
+            <button
+              onClick={() => { setSearchQuery(''); setTypeFilter(''); setCurrentPage(0); }}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+              Limpar
+            </button>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Nome do Cliente
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Telefone
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">
-                    Saldo
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
-                    Fidelidade
-                  </th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-center">
-                    Ações
-                  </th>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Telefone</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Saldo</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Fidelidade</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant">
+              <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
-                      Carregando...
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[13px] text-slate-400">Carregando...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
-                      Nenhum cliente encontrado.
+                    <td colSpan={7} className="px-5 py-12 text-center">
+                      <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>person_off</span>
+                      <p className="text-[13px] text-slate-400">Nenhum cliente encontrado.</p>
+                      {(searchQuery || typeFilter) && (
+                        <button
+                          onClick={() => { setSearchQuery(''); setTypeFilter(''); }}
+                          className="mt-2 text-[12px] text-primary hover:underline"
+                        >
+                          Limpar filtros
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ) : (
                   clients.map((client) => {
-                    const status = getStatusBadge(client.clientStatus);
                     const isRetail = client.clientType === 'RETAIL';
+                    const isOverdue = client.clientStatus === 'OVERDUE';
                     return (
                       <tr
                         key={client.id}
-                        className="hover:bg-surface-container transition-colors group cursor-pointer"
+                        className="hover:bg-slate-50/70 transition-colors cursor-pointer"
                         onClick={() => navigate(`/clients/${client.id}`)}
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                                isRetail
-                                  ? 'bg-primary/5 text-primary'
-                                  : 'bg-secondary-container/30 text-secondary'
-                              }`}
-                            >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${
+                              isRetail ? 'bg-blue-50 text-blue-600' : 'bg-violet-50 text-violet-600'
+                            }`}>
                               {getInitials(client.name)}
                             </div>
                             <div>
-                              <p className="font-bold text-on-surface">{client.name}</p>
-                              <p className="text-xs text-on-surface-variant">{client.address ?? '—'}</p>
+                              <p className="text-[13px] font-semibold text-slate-800">{client.name}</p>
+                              <p className="text-[11px] text-slate-400">{client.address ?? '—'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-body-md text-on-surface-variant">
+
+                        <td className="px-5 py-3.5 text-[13px] text-slate-500 tabular-nums">
                           {client.phone ?? '—'}
                         </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`text-[10px] font-black px-2 py-1 rounded ${
-                              isRetail
-                                ? 'bg-surface-container-highest text-on-surface'
-                                : 'bg-primary-fixed text-on-primary-fixed-variant'
-                            }`}
-                          >
-                            {client.clientType}
+
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                            isRetail
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-violet-50 text-violet-700'
+                          }`}>
+                            {isRetail ? 'Varejo' : 'Revendedor'}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full font-semibold text-[11px] uppercase tracking-wide ${status.className}`}
-                          >
-                            {status.label}
+
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                            isOverdue ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+                          }`}>
+                            {isOverdue ? 'Inadimplente' : 'Adimplente'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right font-mono font-bold">
-                          <span className={client.balance < 0 ? 'text-error' : 'text-on-surface'}>
+
+                        <td className="px-5 py-3.5 text-right">
+                          <span className={`text-[13px] font-bold tabular-nums ${client.balance < 0 ? 'text-red-600' : 'text-slate-800'}`}>
                             {formatBRL(client.balance)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center">
+
+                        <td className="px-5 py-3.5 text-center">
                           {client.fidelityPoints > 0 || client.pendingBonusWater > 0 ? (
                             <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-sm font-bold text-tertiary">
+                              <span className="text-[12px] font-bold text-amber-600">
                                 {client.fidelityPoints.toLocaleString('pt-BR')} pts
                               </span>
                               {client.pendingBonusWater > 0 && (
-                                <span className="text-[10px] font-bold text-tertiary bg-tertiary-fixed px-1.5 py-0.5 rounded-full">
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
                                   +{client.pendingBonusWater} galão
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-on-surface-variant text-sm">—</span>
+                            <span className="text-[12px] text-slate-300">—</span>
                           )}
                         </td>
-                        <td
-                          className="px-6 py-4"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-center gap-2">
+
+                        <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-0.5">
                             <button
                               onClick={() => navigate(`/clients/${client.id}`)}
-                              className="p-2 text-primary hover:bg-primary/10 rounded-lg"
-                              title="Ver"
+                              title="Ver detalhes"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all"
                             >
-                              <span className="material-symbols-outlined">visibility</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
                             <button
                               onClick={() => openEdit(client)}
-                              className="p-2 text-on-surface-variant hover:bg-surface-container rounded-lg"
                               title="Editar"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
                             >
-                              <span className="material-symbols-outlined">edit</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                             </button>
                             <button
                               onClick={() => setDeleteTarget(client.id)}
-                              className="p-2 text-error hover:bg-error/10 rounded-lg"
                               title="Excluir"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                             >
-                              <span className="material-symbols-outlined">delete</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
                             </button>
                           </div>
                         </td>
@@ -297,110 +402,88 @@ export function ClientsPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-outline-variant bg-surface-container-low flex items-center justify-between">
-              <p className="text-sm text-on-surface-variant">
-                Mostrando{' '}
-                <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
-                </span>{' '}
-                de <span className="font-bold text-on-surface">{totalElements}</span> clientes
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={currentPage === 0}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    chevron_left
-                  </span>
-                  Anterior
-                </button>
-                <span className="text-sm text-on-surface-variant px-2">
-                  Página {currentPage + 1} de {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages - 1}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-30 transition-colors"
-                >
-                  Próxima
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    chevron_right
-                  </span>
-                </button>
-              </div>
+          {/* Pagination */}
+          {totalElements > 0 && (
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-[12px] text-slate-500">
+                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {' '}<span className="text-slate-400">de</span>{' '}
+                <span className="font-semibold text-slate-700">{totalElements}</span> clientes
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={currentPage === 0}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_left</span>
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const start = Math.max(0, Math.min(currentPage - 2, totalPages - 5));
+                    return start + i;
+                  }).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-[13px] font-semibold transition-colors ${
+                        pageNum === currentPage
+                          ? 'bg-primary text-white'
+                          : 'text-slate-500 hover:bg-white border border-transparent hover:border-slate-200'
+                      }`}
+                    >
+                      {pageNum + 1}
+                    </button>
+                  ))}
+                  <button
+                    disabled={currentPage >= totalPages - 1}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>chevron_right</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </section>
+        </div>
 
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
-                group
-              </span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                Total
-              </span>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {KPI_CARDS.map((card, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.iconBg}`}>
+                  <span className={`material-symbols-outlined ${card.iconColor}`} style={{ fontSize: '20px' }}>
+                    {card.icon}
+                  </span>
+                </div>
+                {card.badge && (
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${card.badgeColor}`}>
+                    {card.badge}
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] font-medium text-slate-500 mb-0.5">{card.label}</p>
+              <p className="text-2xl font-black text-slate-800">{card.value}</p>
+              {card.progress !== undefined && (
+                <div className="mt-3 w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-violet-500 rounded-full transition-all"
+                    style={{ width: `${card.progress}%` }}
+                  />
+                </div>
+              )}
             </div>
-            <p className="text-sm font-medium text-on-surface-variant">Total Clientes</p>
-            <p className="text-h2 text-on-surface">
-              {loading ? '—' : totalElements.toLocaleString('pt-BR')}
-            </p>
-          </div>
+          ))}
+        </div>
 
-          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">
-                warning
-              </span>
-              <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                {overdueCount} atrasos
-              </span>
-            </div>
-            <p className="text-sm font-medium text-on-surface-variant">Inadimplentes</p>
-            <p className="text-h2 text-on-surface">
-              {loading || clients.length === 0
-                ? '—'
-                : `${((overdueCount / clients.length) * 100).toFixed(1)}%`}
-            </p>
-          </div>
-
-          <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">
-                payments
-              </span>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                Saudável
-              </span>
-            </div>
-            <p className="text-sm font-medium text-on-surface-variant">Crédito Médio</p>
-            <p className="text-h2 text-on-surface">
-              {loading || avgBalance === null ? '—' : formatBRL(avgBalance)}
-            </p>
-          </div>
-
-          <div className="bg-primary text-white rounded-xl p-5 shadow-lg shadow-primary/20 flex flex-col justify-center">
-            <p className="text-sm font-bold opacity-80">Meta de Retenção</p>
-            <div className="flex items-end gap-2 mt-1">
-              <p className="text-h2">92%</p>
-              <span className="material-symbols-outlined mb-2 text-white/60">trending_up</span>
-            </div>
-            <div className="w-full bg-white/20 h-1.5 rounded-full mt-4">
-              <div className="bg-white h-full rounded-full w-[92%]" />
-            </div>
-          </div>
-        </section>
       </div>
 
       <NewClientModal
         open={showNewClient}
         onClose={closeClientModal}
-        onSuccess={() => { closeClientModal(); fetchClients(); }}
+        onSuccess={() => { closeClientModal(); fetchClients(); fetchStats(); }}
         client={editingClient}
       />
 
