@@ -15,6 +15,7 @@ import type {
   ClientPriceRequestDTO,
   SpringPage,
   PaymentMethod,
+  SystemConfigDTO,
 } from '../types';
 import {
   formatBRL,
@@ -72,6 +73,7 @@ export function ClientDetailPage() {
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const [outstandingDebt, setOutstandingDebt] = useState<number>(0);
+  const [sysConfig, setSysConfig] = useState<SystemConfigDTO | null>(null);
   const [prices, setPrices] = useState<ClientPriceResponseDTO[]>([]);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [priceForm, setPriceForm] = useState<{ productId: string; customPrice: string }>({ productId: '', customPrice: '' });
@@ -96,6 +98,12 @@ export function ClientDetailPage() {
     if (!http || !id) return;
     http.get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`).then((r) => setPrices(r.data)).catch(() => setPrices([]));
   }
+  function fetchDebt() {
+    if (!http || !id) return;
+    http.get<number>(`/clients/${id}/outstanding-debt`)
+      .then((r) => setOutstandingDebt(Number(r.data) ?? 0))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     if (!http || !id) return;
@@ -107,14 +115,16 @@ export function ClientDetailPage() {
       http.get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`),
       http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200 } }),
       http.get<number>(`/clients/${id}/outstanding-debt`),
+      http.get<SystemConfigDTO>('/config'),
     ])
-      .then(([cRes, oRes, bRes, pricRes, prodRes, debtRes]) => {
+      .then(([cRes, oRes, bRes, pricRes, prodRes, debtRes, cfgRes]) => {
         setClient(cRes.data);
         setOrders(oRes.data.content);
         setBottles(bRes.data.content);
         setPrices(pricRes.data);
         setProducts(prodRes.data.content.filter((p) => p.isActive));
         setOutstandingDebt(Number(debtRes.data) ?? 0);
+        setSysConfig(cfgRes.data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -139,6 +149,7 @@ export function ClientDetailPage() {
       setBulkAmount('');
       fetchClient();
       fetchOrders();
+      fetchDebt();
     } catch {
       setBulkError('Erro ao processar pagamento. Tente novamente.');
     } finally {
@@ -636,25 +647,33 @@ export function ClientDetailPage() {
                 {/* Progresso */}
                 <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-5">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-4">Progresso para próxima água bônus</p>
-                  <div className="mb-3">
-                    <div className="flex justify-between text-[12px] text-slate-500 mb-1.5">
-                      <span>{client.fidelityPoints.toLocaleString('pt-BR')} pts acumulados</span>
-                      <span>Meta: 3.000 pts</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                      <div
-                        className="bg-amber-400 h-full rounded-full transition-all"
-                        style={{ width: `${Math.min((client.fidelityPoints / 3000) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      {Math.max(0, 3000 - client.fidelityPoints).toLocaleString('pt-BR')} pontos restantes para ganhar 1 galão
-                    </p>
-                  </div>
+                  {(() => {
+                    const goal = sysConfig?.pointsPerFreeWater ?? 10;
+                    const pct = Math.min((client.fidelityPoints / goal) * 100, 100);
+                    const remaining = Math.max(0, goal - client.fidelityPoints);
+                    return (
+                      <div className="mb-3">
+                        <div className="flex justify-between text-[12px] text-slate-500 mb-1.5">
+                          <span>{client.fidelityPoints.toLocaleString('pt-BR')} pts acumulados</span>
+                          <span>Meta: {goal.toLocaleString('pt-BR')} pts</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                          <div className="bg-amber-400 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          {remaining.toLocaleString('pt-BR')} pontos restantes para ganhar 1 galão
+                        </p>
+                      </div>
+                    );
+                  })()}
                   <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
                     <div className="flex justify-between text-[13px]">
                       <span className="text-slate-500">Saldo de pontos</span>
                       <span className="font-bold text-amber-500">{client.fidelityPoints.toLocaleString('pt-BR')} pts</span>
+                    </div>
+                    <div className="flex justify-between text-[13px]">
+                      <span className="text-slate-500">Pontos por galão de água</span>
+                      <span className="font-bold text-slate-600">{sysConfig?.pointsPerWaterItem ?? '—'} pts/un</span>
                     </div>
                     {client.pendingBonusWater > 0 && (
                       <div className="flex justify-between text-[13px]">
