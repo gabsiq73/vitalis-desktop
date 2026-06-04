@@ -86,12 +86,8 @@ export function ClientsPage() {
       await http.delete(`/clients/${deleteTarget}`);
       await fetchClients();
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409 || status === 422) {
-        setDeleteError('Não é possível excluir: este cliente possui pedidos vinculados.');
-      } else {
-        setDeleteError('Erro ao excluir cliente. Tente novamente.');
-      }
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setDeleteError(message ?? 'Erro ao excluir cliente. Tente novamente.');
       throw err;
     }
   }
