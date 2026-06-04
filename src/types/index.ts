@@ -245,6 +245,7 @@ export interface FinancialReportDTO {
 export interface OrderItemRequestBody {
   productId: string;
   quantity: number;
+  unitPrice?: number;
   gasCostPrice?: number;
   receivedByUs?: boolean;
   bottleExpiration?: string;

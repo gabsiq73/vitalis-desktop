@@ -11,6 +11,7 @@ import type {
   OrderItemRequestBody,
   OrderRequestBody,
   PaymentMethod,
+  SystemConfigDTO,
 } from '../types';
 import { formatBRL } from '../utils/format';
 
@@ -27,6 +28,7 @@ interface ItemForm {
   gasCostPrice: string;
   receivedByUs: boolean;
   bottleExpiration: string;
+  useBonus: boolean;
 }
 
 interface NewOrderModalProps {
@@ -43,6 +45,7 @@ const emptyItem = (): ItemForm => ({
   gasCostPrice: '',
   receivedByUs: false,
   bottleExpiration: '',
+  useBonus: false,
 });
 
 function nowDatetimeLocal() {
@@ -70,6 +73,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [suppliers, setSuppliers] = useState<GasSupplierResponseDTO[]>([]);
+  const [sysConfig, setSysConfig] = useState<SystemConfigDTO | null>(null);
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
 
   const [isDelivery, setIsDelivery] = useState(true);
@@ -114,10 +118,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     Promise.all([
       http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 100 } }),
       http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 100 } }),
+      http.get<SystemConfigDTO>('/config'),
     ])
-      .then(([prodRes, suppRes]) => {
+      .then(([prodRes, suppRes, cfgRes]) => {
         setProducts(prodRes.data.content.filter((p) => p.isActive));
         setSuppliers(suppRes.data.content);
+        setSysConfig(cfgRes.data);
       })
       .catch(() => {});
   }, [http, open]);
@@ -187,8 +193,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
   function buildTotal(): number {
     return items.reduce((sum, item) => {
-      if (!item.productId) return sum;
+      if (!item.productId || item.useBonus) return sum;
       return sum + getItemUnitPrice(item) * item.quantity;
+    }, 0);
+  }
+
+  function bonusesUsedInOrder(): number {
+    return items.reduce((sum, item) => {
+      if (!item.productId || !item.useBonus) return sum;
+      const p = getProduct(item.productId);
+      if (p?.type !== 'WATER') return sum;
+      return sum + item.quantity;
     }, 0);
   }
 
@@ -237,6 +252,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
+      if (item.useBonus && p?.type === 'WATER') base.unitPrice = 0;
       if (item.bottleExpiration) base.bottleExpiration = item.bottleExpiration;
       if (p?.type === 'GAS') {
         if (item.supplierId) base.supplierId = item.supplierId;
@@ -479,6 +495,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                       {hasGasItem && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-24 text-center">Recebido</th>
                       )}
+                      {selectedClient && selectedClient.pendingBonusWater > 0 && (
+                        <th className="px-3 py-2.5 text-[11px] font-semibold text-green-600 uppercase tracking-wider w-24 text-center">Usar Bônus</th>
+                      )}
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -552,11 +571,19 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                               />
                             ) : (
                               <div className="px-1">
-                                <span className={`text-[13px] font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-amber-600' : 'text-slate-800'}`}>
-                                  {item.productId ? formatBRL(unitPrice) : '—'}
-                                </span>
-                                {customPrice !== null && item.productId && (
-                                  <p className="text-[10px] text-amber-600 font-bold leading-none mt-0.5">★ preço especial</p>
+                                {item.useBonus ? (
+                                  <span className="text-[12px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                                    BÔNUS
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className={`text-[13px] font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-amber-600' : 'text-slate-800'}`}>
+                                      {item.productId ? formatBRL(unitPrice) : '—'}
+                                    </span>
+                                    {customPrice !== null && item.productId && (
+                                      <p className="text-[10px] text-amber-600 font-bold leading-none mt-0.5">★ preço especial</p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             )}
@@ -575,6 +602,34 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                               )}
                             </td>
                           )}
+                          {selectedClient && selectedClient.pendingBonusWater > 0 && (() => {
+                            const isWater = getProduct(item.productId)?.type === 'WATER';
+                            const availableBonuses = selectedClient.pendingBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
+                            const canToggle = isWater && item.productId && (item.useBonus || availableBonuses >= item.quantity);
+                            return (
+                              <td className="px-3 py-2 text-center">
+                                {isWater && item.productId ? (
+                                  <button
+                                    type="button"
+                                    disabled={!canToggle}
+                                    onClick={() => updateItem(idx, 'useBonus', !item.useBonus)}
+                                    title={item.useBonus ? 'Remover bônus' : canToggle ? 'Usar bônus (galão grátis)' : 'Bônus insuficiente'}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                                      item.useBonus
+                                        ? 'bg-green-500 text-white border-green-500'
+                                        : canToggle
+                                        ? 'bg-white border-green-400 text-green-700 hover:bg-green-50'
+                                        : 'bg-white border-slate-200 text-slate-300 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {item.useBonus ? '✓ Bônus' : 'Resgatar'}
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-300 text-[13px]">—</span>
+                                )}
+                              </td>
+                            );
+                          })()}
                           <td className="px-2 py-2">
                             {items.length > 1 && (
                               <button
@@ -603,25 +658,40 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                   <span className="font-semibold text-[13px] text-slate-700">Fidelidade do Cliente</span>
                 </div>
                 {selectedClient ? (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xl font-black text-amber-600">
-                        {selectedClient.fidelityPoints.toLocaleString('pt-BR')} pts
-                      </p>
-                      {selectedClient.pendingBonusWater > 0 && (
-                        <p className="text-[11px] text-amber-700 mt-0.5">
-                          {selectedClient.pendingBonusWater} galão(ões) bônus disponível
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xl font-black text-amber-600">
+                          {selectedClient.fidelityPoints.toLocaleString('pt-BR')} pts
                         </p>
-                      )}
+                        <p className="text-[11px] text-amber-700/70 mt-0.5">
+                          +{sysConfig?.pointsPerWaterItem ?? '?'} pt por galão de água
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddPoints(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-lg text-[12px] font-bold hover:brightness-110 transition-all"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_circle</span>
+                        Dar Pontos
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddPoints(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-lg text-[12px] font-bold hover:brightness-110 transition-all"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_circle</span>
-                      Dar Pontos
-                    </button>
+                    {(() => {
+                      const total = selectedClient.pendingBonusWater;
+                      const used = bonusesUsedInOrder();
+                      const remaining = total - used;
+                      if (total === 0) return null;
+                      return (
+                        <div className={`flex items-center gap-2 p-2 rounded-lg border text-[12px] font-semibold ${
+                          used > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+                        }`}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>redeem</span>
+                          {total} galão(ões) bônus disponível
+                          {used > 0 && <span className="ml-auto">{used} resgatado(s) · {remaining} restante(s)</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <p className="text-[13px] text-slate-500">Selecione um cliente para ver fidelidade</p>
@@ -642,8 +712,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                       const price = getItemUnitPrice(item);
                       return (
                         <div key={idx} className="flex justify-between items-center text-[13px]">
-                          <span className="text-slate-500">{p.name} × {item.quantity}</span>
-                          <span className="font-semibold text-slate-700">{formatBRL(price * item.quantity)}</span>
+                          <span className="text-slate-500">
+                            {p.name} × {item.quantity}
+                            {item.useBonus && <span className="ml-1.5 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-200">BÔNUS</span>}
+                          </span>
+                          <span className={`font-semibold ${item.useBonus ? 'text-green-600 line-through decoration-1' : 'text-slate-700'}`}>
+                            {item.useBonus ? formatBRL(price * item.quantity) : formatBRL(price * item.quantity)}
+                          </span>
+                          {item.useBonus && <span className="font-bold text-green-600 ml-1">R$ 0,00</span>}
                         </div>
                       );
                     })}
