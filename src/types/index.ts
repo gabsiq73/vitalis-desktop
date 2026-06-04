@@ -196,6 +196,34 @@ export interface ClientPriceRequestDTO {
   customPrice: number;
 }
 
+export interface DailyCashPaymentDTO {
+  id: string;
+  orderId: string;
+  orderRef: string;
+  clientName: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+}
+
+export interface DailyReportDTO {
+  totalPix: number;
+  totalCash: number;
+  totalBalanceUsed: number;
+  totalDebt: number;
+  totalCreditGenerated: number;
+  totalWaterSold: number;
+  totalGasSold: number;
+}
+
+export interface FinancialReportDTO {
+  totalInvoiced: number;
+  totalReceived: number;
+  gasGrossProfit: number;
+  getBalance: number;
+}
+
 export interface OrderItemRequestBody {
   productId: string;
   quantity: number;
