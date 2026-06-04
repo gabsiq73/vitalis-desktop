@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -49,6 +49,7 @@ export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { http } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientResponseDTO | null>(null);
@@ -56,7 +57,9 @@ export function ClientDetailPage() {
   const [bottles, setBottles] = useState<LoanedBottleResponseDTO[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('pedidos');
 
-  const [orderPayFilter, setOrderPayFilter] = useState<OrderPayFilter>('all');
+  const [orderPayFilter, setOrderPayFilter] = useState<OrderPayFilter>(
+    () => (searchParams.get('filter') as OrderPayFilter) ?? 'all'
+  );
   const [showEditClient, setShowEditClient] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
@@ -68,6 +71,7 @@ export function ClientDetailPage() {
   const [bulkSuccess, setBulkSuccess] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
+  const [outstandingDebt, setOutstandingDebt] = useState<number>(0);
   const [prices, setPrices] = useState<ClientPriceResponseDTO[]>([]);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [priceForm, setPriceForm] = useState<{ productId: string; customPrice: string }>({ productId: '', customPrice: '' });
@@ -102,13 +106,15 @@ export function ClientDetailPage() {
       http.get<SpringPage<LoanedBottleResponseDTO>>(`/bottles/client/${id}`, { params: { size: 50 } }),
       http.get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`),
       http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200 } }),
+      http.get<number>(`/clients/${id}/outstanding-debt`),
     ])
-      .then(([cRes, oRes, bRes, pricRes, prodRes]) => {
+      .then(([cRes, oRes, bRes, pricRes, prodRes, debtRes]) => {
         setClient(cRes.data);
         setOrders(oRes.data.content);
         setBottles(bRes.data.content);
         setPrices(pricRes.data);
         setProducts(prodRes.data.content.filter((p) => p.isActive));
+        setOutstandingDebt(Number(debtRes.data) ?? 0);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -166,7 +172,7 @@ export function ClientDetailPage() {
     );
   }
 
-  const pendingDebt = client.balance < 0 ? Math.abs(client.balance) : 0;
+  const pendingDebt = outstandingDebt > 0 ? outstandingDebt : (client.balance < 0 ? Math.abs(client.balance) : 0);
   const creditBalance = client.balance > 0 ? client.balance : 0;
   const pendingOrders = orders.filter((o) => o.paymentStatus !== 'PAID');
   const isOverdue = client.clientStatus === 'OVERDUE';

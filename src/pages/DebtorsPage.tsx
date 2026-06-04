@@ -12,8 +12,8 @@ export function DebtorsPage() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [debtors, setDebtors] = useState<ClientResponseDTO[]>([]);
-  const [filtered, setFiltered] = useState<ClientResponseDTO[]>([]);
+  const [debtors, setDebtors] = useState<(ClientResponseDTO & { debt: number })[]>([]);
+  const [filtered, setFiltered] = useState<(ClientResponseDTO & { debt: number })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'debt' | 'name'>('debt');
   const [currentPage, setCurrentPage] = useState(0);
@@ -22,12 +22,22 @@ export function DebtorsPage() {
     if (!http) return;
     setLoading(true);
     http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 1000 } })
-      .then((res) => {
-        const allDebtors = res.data.content
-          .filter((c) => c.clientStatus === 'OVERDUE')
-          .sort((a, b) => a.balance - b.balance); // most negative balance first
-        setDebtors(allDebtors);
-        setFiltered(allDebtors);
+      .then(async (res) => {
+        const overdue = res.data.content.filter((c) => c.clientStatus === 'OVERDUE');
+        // Fetch real outstanding debt for each debtor in parallel
+        const withDebt = await Promise.all(
+          overdue.map(async (c) => {
+            try {
+              const r = await http.get<number>(`/clients/${c.id}/outstanding-debt`);
+              return { ...c, debt: Number(r.data) };
+            } catch {
+              return { ...c, debt: Math.abs(c.balance) };
+            }
+          })
+        );
+        const sorted = withDebt.sort((a, b) => b.debt - a.debt);
+        setDebtors(sorted);
+        setFiltered(sorted);
       })
       .catch(() => setDebtors([]))
       .finally(() => setLoading(false));
@@ -42,7 +52,7 @@ export function DebtorsPage() {
       );
     }
     if (sortBy === 'debt') {
-      result = [...result].sort((a, b) => a.balance - b.balance);
+      result = [...result].sort((a, b) => b.debt - a.debt);
     } else {
       result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -50,7 +60,7 @@ export function DebtorsPage() {
     setCurrentPage(0);
   }, [searchQuery, sortBy, debtors]);
 
-  const totalDebt = debtors.reduce((sum, c) => sum + (c.balance < 0 ? Math.abs(c.balance) : 0), 0);
+  const totalDebt = debtors.reduce((sum, c) => sum + c.debt, 0);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
@@ -179,14 +189,14 @@ export function DebtorsPage() {
                   </tr>
                 ) : (
                   paginated.map((client) => {
-                    const debt = client.balance < 0 ? Math.abs(client.balance) : 0;
+                    const debt = client.debt;
                     const isRetail = client.clientType === 'RETAIL';
                     const urgency = debt > 200 ? 'text-red-600' : debt > 50 ? 'text-orange-600' : debt > 0 ? 'text-amber-600' : 'text-slate-400';
                     return (
                       <tr
                         key={client.id}
                         className="hover:bg-red-50/30 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/clients/${client.id}`)}
+                        onClick={() => navigate(`/clients/${client.id}?filter=open`)}
                       >
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
@@ -216,24 +226,21 @@ export function DebtorsPage() {
 
                         <td className="px-5 py-3.5 text-right">
                           <span className={`text-[15px] font-black tabular-nums ${urgency}`}>
-                            {debt > 0 ? formatBRL(debt) : '—'}
+                            {formatBRL(debt)}
                           </span>
-                          {debt === 0 && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">ver pedidos</p>
-                          )}
                         </td>
 
                         <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => navigate(`/clients/${client.id}`)}
+                              onClick={() => navigate(`/clients/${client.id}?filter=open`)}
                               title="Ver cliente"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all"
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
                             <button
-                              onClick={() => navigate(`/clients/${client.id}?tab=pagamentos`)}
+                              onClick={() => navigate(`/clients/${client.id}?filter=open&tab=pagamentos`)}
                               title="Registrar pagamento"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
                             >
