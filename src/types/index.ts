@@ -106,6 +106,24 @@ export interface GasSupplierResponseDTO {
   notes?: string;
 }
 
+export type SettlementType = 'YOU_OWE' | 'SUPPLIER_OWE';
+
+export interface GasSettlementResponseDTO {
+  id: string;
+  supplierName: string;
+  amount: number;
+  settled: boolean;
+  settledDate?: string;
+  settlementType: SettlementType;
+  orderItemId?: string;
+  createDate: string;
+  clientName?: string;
+  productName?: string;
+  quantity?: number;
+  salePrice?: number;
+  costPrice?: number;
+}
+
 export interface GasSupplierRequestDTO {
   name: string;
   notes?: string;
