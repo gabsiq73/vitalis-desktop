@@ -26,13 +26,12 @@ let win: BrowserWindow | null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    title: 'Vitalis - Sistema de Gerenciamento de Água e Gás',
+    icon: path.join(process.env.VITE_PUBLIC, 'ico_vitalis.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
-
-  win.webContents.openDevTools()
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
