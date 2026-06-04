@@ -24,8 +24,8 @@ export function DebtorsPage() {
     http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 1000 } })
       .then((res) => {
         const allDebtors = res.data.content
-          .filter((c) => c.balance < 0)
-          .sort((a, b) => a.balance - b.balance); // most in debt first
+          .filter((c) => c.clientStatus === 'OVERDUE')
+          .sort((a, b) => a.balance - b.balance); // most negative balance first
         setDebtors(allDebtors);
         setFiltered(allDebtors);
       })
@@ -50,7 +50,7 @@ export function DebtorsPage() {
     setCurrentPage(0);
   }, [searchQuery, sortBy, debtors]);
 
-  const totalDebt = debtors.reduce((sum, c) => sum + Math.abs(c.balance), 0);
+  const totalDebt = debtors.reduce((sum, c) => sum + (c.balance < 0 ? Math.abs(c.balance) : 0), 0);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
@@ -179,9 +179,9 @@ export function DebtorsPage() {
                   </tr>
                 ) : (
                   paginated.map((client) => {
-                    const debt = Math.abs(client.balance);
+                    const debt = client.balance < 0 ? Math.abs(client.balance) : 0;
                     const isRetail = client.clientType === 'RETAIL';
-                    const urgency = debt > 200 ? 'text-red-600' : debt > 100 ? 'text-orange-600' : 'text-amber-600';
+                    const urgency = debt > 200 ? 'text-red-600' : debt > 50 ? 'text-orange-600' : debt > 0 ? 'text-amber-600' : 'text-slate-400';
                     return (
                       <tr
                         key={client.id}
@@ -216,8 +216,11 @@ export function DebtorsPage() {
 
                         <td className="px-5 py-3.5 text-right">
                           <span className={`text-[15px] font-black tabular-nums ${urgency}`}>
-                            {formatBRL(debt)}
+                            {debt > 0 ? formatBRL(debt) : '—'}
                           </span>
+                          {debt === 0 && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">ver pedidos</p>
+                          )}
                         </td>
 
                         <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
