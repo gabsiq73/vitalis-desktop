@@ -250,7 +250,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
       clientId,
       items: orderItems,
       isDelivery,
-      deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : undefined,
+      deliveryDate: deliveryDate ? `${deliveryDate}:00` : undefined,
     };
 
     try {
