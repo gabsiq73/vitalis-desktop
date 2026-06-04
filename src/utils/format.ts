@@ -51,7 +51,8 @@ export function getInitials(name: string): string {
 }
 
 export function isScheduledOrder(status: string, deliveryDate?: string | null): boolean {
-  return status === 'PENDING' && !!deliveryDate && new Date(deliveryDate) > new Date();
+  if (status !== 'PENDING' || !deliveryDate) return false;
+  return new Date(deliveryDate).getTime() - Date.now() > 10 * 60 * 1000;
 }
 
 export function getOrderStatusBadge(
