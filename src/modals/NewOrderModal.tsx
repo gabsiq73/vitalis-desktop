@@ -625,10 +625,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                                   <span className="text-[12px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                                     BÔNUS
                                   </span>
-                                ) : (
-                                  {(() => {
+                                ) : (() => {
                                     const src = getPriceSource(item);
-                                    const colorMap = { custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
+                                    const colorMap: Record<string, string> = { custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
                                     const badgeMap: Record<string, string | null> = { custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
                                     return (
                                       <>
@@ -641,7 +640,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                                       </>
                                     );
                                   })()}
-                                )}
                               </div>
                             )}
                           </td>
