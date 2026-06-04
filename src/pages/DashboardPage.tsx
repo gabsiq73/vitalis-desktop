@@ -53,6 +53,7 @@ export function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<OrderResponseDTO[]>([]);
+  const [allTodayOrders, setAllTodayOrders] = useState<OrderResponseDTO[]>([]);
   const [activeOrders, setActiveOrders] = useState<OrderResponseDTO[]>([]);
   const [shippedCount, setShippedCount] = useState(0);
   const [criticalStock, setCriticalStock] = useState(0);
@@ -71,11 +72,12 @@ export function DashboardPage() {
   const fetchData = useCallback(async () => {
     if (!http) return;
     try {
-      const [ordersRes, activeRes, shippedRes, stockRes] = await Promise.allSettled([
+      const [ordersRes, activeRes, shippedRes, stockRes, todayRes] = await Promise.allSettled([
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 20, page: 0 } }),
         http.get<OrderResponseDTO[]>('/orders/active'),
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'SHIPPED', size: 1 } }),
         http.get<SpringPage<StockResponseDTO>>('/stock', { params: { size: 200 } }),
+        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 100, page: 0 } }),
       ]);
 
       if (ordersRes.status === 'fulfilled') setRecentOrders(ordersRes.value.data.content);
@@ -86,6 +88,13 @@ export function DashboardPage() {
           (s) => s.status.toUpperCase() !== 'NORMAL'
         ).length;
         setCriticalStock(critical);
+      }
+      if (todayRes.status === 'fulfilled') {
+        const todayStr = new Date().toDateString();
+        const todayOnly = (todayRes.value.data.content ?? []).filter(
+          (o) => new Date(o.createDate).toDateString() === todayStr
+        );
+        setAllTodayOrders(todayOnly);
       }
     } finally {
       setLoading(false);
@@ -173,6 +182,20 @@ export function DashboardPage() {
 
   const today = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
+  const todayRevenue = allTodayOrders
+    .filter(o => o.status !== 'CANCELLED')
+    .reduce((s, o) => s + o.totalValue, 0);
+
+  const todayReceived = allTodayOrders
+    .filter(o => o.status !== 'CANCELLED' && o.paymentStatus === 'PAID')
+    .reduce((s, o) => s + o.totalValue, 0);
+
+  const todayPending = allTodayOrders
+    .filter(o => o.status !== 'CANCELLED' && o.paymentStatus !== 'PAID')
+    .reduce((s, o) => s + o.totalValue, 0);
+
+  const todayCount = allTodayOrders.filter(o => o.status !== 'CANCELLED').length;
+
   return (
     <>
       <TopBar />
@@ -192,6 +215,41 @@ export function DashboardPage() {
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
             Novo Pedido
           </button>
+        </div>
+
+        {/* Saldo do Dia banner */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-primary via-teal to-teal-light" />
+          <div className="px-6 py-4 flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <span className="material-symbols-outlined text-primary" style={{ fontSize: '22px' }}>account_balance_wallet</span>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Saldo do Dia</p>
+                <p className="text-[28px] font-black text-slate-800 leading-none">
+                  {loading ? '—' : formatBRL(todayRevenue)}
+                </p>
+              </div>
+            </div>
+            <div className="h-10 w-px bg-slate-100 hidden md:block" />
+            <div className="text-center">
+              <p className="text-[11px] text-slate-500 font-medium">Pedidos</p>
+              <p className="text-[20px] font-black text-slate-700">{loading ? '—' : todayCount}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-100 hidden md:block" />
+            <div className="text-center">
+              <p className="text-[11px] text-slate-500 font-medium">Recebido</p>
+              <p className="text-[20px] font-black text-teal">{loading ? '—' : formatBRL(todayReceived)}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-100 hidden md:block" />
+            <div className="text-center">
+              <p className="text-[11px] text-slate-500 font-medium">Em Aberto</p>
+              <p className={`text-[20px] font-black ${todayPending > 0 ? 'text-orange-500' : 'text-slate-400'}`}>
+                {loading ? '—' : formatBRL(todayPending)}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* KPI Cards */}
@@ -411,21 +469,34 @@ export function DashboardPage() {
               </button>
             </div>
 
-            {/* Quick links */}
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Clientes', icon: 'group', path: '/clients' },
-                { label: 'Vasilhames', icon: 'propane_tank', path: '/bottles' },
-              ].map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-all group shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors" style={{ fontSize: '22px' }}>{item.icon}</span>
-                  <span className="text-[11px] font-semibold text-slate-400 group-hover:text-primary transition-colors">{item.label}</span>
-                </button>
-              ))}
+            {/* Controle de Caixa */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>point_of_sale</span>
+                <h2 className="text-[15px] font-bold text-slate-800">Controle de Caixa</h2>
+                <span className="ml-auto text-[11px] text-slate-400">hoje</span>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {[
+                  { label: 'Receita Bruta', value: todayRevenue, color: 'text-slate-800', icon: 'trending_up' },
+                  { label: 'Recebido (Quitado)', value: todayReceived, color: 'text-teal', icon: 'check_circle' },
+                  { label: 'Pendente / Parcial', value: todayPending, color: todayPending > 0 ? 'text-orange-500' : 'text-slate-400', icon: 'schedule' },
+                ].map(row => (
+                  <div key={row.label} className="flex items-center justify-between px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`material-symbols-outlined ${row.color}`} style={{ fontSize: '16px' }}>{row.icon}</span>
+                      <span className="text-[13px] text-slate-600">{row.label}</span>
+                    </div>
+                    <span className={`text-[13px] font-bold tabular-nums ${row.color}`}>
+                      {loading ? '—' : formatBRL(row.value)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-5 py-3 bg-slate-50">
+                  <span className="text-[12px] font-semibold text-slate-500">Pedidos hoje</span>
+                  <span className="text-[13px] font-black text-slate-700">{loading ? '—' : todayCount}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

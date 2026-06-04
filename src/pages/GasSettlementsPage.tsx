@@ -56,10 +56,10 @@ export function GasSettlementsPage() {
     try {
       const [ordersRes, suppliersRes] = await Promise.allSettled([
         http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 300, page: 0 } }),
-        http.get<GasSupplierResponseDTO[]>('/suppliers'),
+        http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 200, page: 0 } }),
       ]);
       if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value.data.content ?? []);
-      if (suppliersRes.status === 'fulfilled') setSuppliers(suppliersRes.value.data ?? []);
+      if (suppliersRes.status === 'fulfilled') setSuppliers(suppliersRes.value.data.content ?? []);
     } finally {
       setLoading(false);
     }

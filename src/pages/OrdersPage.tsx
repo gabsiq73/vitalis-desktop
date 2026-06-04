@@ -369,6 +369,16 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
+                            {!isDelivered && !isCancelled && (
+                              <button
+                                title="Confirmar entrega"
+                                disabled={isLoadingThis}
+                                onClick={() => changeStatus(order.id, 'DELIVERED')}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>task_alt</span>
+                              </button>
+                            )}
                             {order.paymentStatus !== 'PAID' && !isCancelled && (
                               <button
                                 title="Registrar pagamento"
