@@ -29,6 +29,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: 'dashboard', label: 'Dashboard', path: '/dashboard' },
       { icon: 'shopping_cart', label: 'Pedidos', path: '/orders' },
       { icon: 'group', label: 'Clientes', path: '/clients' },
+      { icon: 'point_of_sale', label: 'Caixa do Dia', path: '/cash-register' },
     ],
   },
   {
@@ -43,7 +44,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Operações',
     items: [
       { icon: 'propane_tank', label: 'Vasilhames', path: '/bottles' },
-      { icon: 'point_of_sale', label: 'Caixa do Dia', path: '/cash-register' },
       { icon: 'payments', label: 'Acertos de Gás', path: '/gas-settlements' },
       { icon: 'assessment', label: 'Relatórios', path: '/reports' },
     ],

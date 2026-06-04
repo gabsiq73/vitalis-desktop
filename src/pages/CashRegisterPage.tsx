@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO } from '../types';
+import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, GasSettlementResponseDTO } from '../types';
 import { formatBRL } from '../utils/format';
 
 const METHOD_LABEL: Record<string, string> = {
@@ -36,19 +36,23 @@ export function CashRegisterPage() {
   const [payments, setPayments] = useState<DailyCashPaymentDTO[]>([]);
   const [operational, setOperational] = useState<DailyReportDTO | null>(null);
   const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
+  const [gasSettlements, setGasSettlements] = useState<GasSettlementResponseDTO[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!http) return;
     setLoading(true);
     try {
-      const [paymentsRes, operationalRes, financialRes] = await Promise.allSettled([
+      const [paymentsRes, operationalRes, financialRes, gasRes] = await Promise.allSettled([
         http.get<DailyCashPaymentDTO[]>('/payments/daily', { params: { date: selectedDate } }),
         http.get<DailyReportDTO>('/reports/operational', { params: { start: selectedDate, end: selectedDate } }),
         http.get<FinancialReportDTO>('/reports/performance/daily', { params: { date: selectedDate } }),
+        http.get<GasSettlementResponseDTO[]>('/gas-settlements/daily', { params: { date: selectedDate } }),
       ]);
       if (paymentsRes.status === 'fulfilled') setPayments(paymentsRes.value.data ?? []);
       if (operationalRes.status === 'fulfilled') setOperational(operationalRes.value.data);
       if (financialRes.status === 'fulfilled') setFinancial(financialRes.value.data);
+      if (gasRes.status === 'fulfilled') setGasSettlements(gasRes.value.data ?? []);
+      else setGasSettlements([]);
     } finally {
       setLoading(false);
     }
@@ -294,6 +298,116 @@ export function CashRegisterPage() {
 
           </div>
         </div>
+
+        {/* Gas settlements */}
+        {(gasSettlements.length > 0 || loading) && (
+          <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-orange-500" style={{ fontSize: '18px' }}>local_fire_department</span>
+                <h2 className="text-[15px] font-bold text-slate-800">Acertos de Gás</h2>
+                <span className="text-[11px] text-slate-400 font-medium">acertos liquidados hoje</span>
+              </div>
+              <div className="flex items-center gap-4 text-[12px]">
+                {(() => {
+                  const inflow = gasSettlements
+                    .filter(s => s.settlementType === 'SUPPLIER_OWE')
+                    .reduce((sum, s) => sum + s.amount, 0);
+                  const outflow = gasSettlements
+                    .filter(s => s.settlementType === 'YOU_OWE')
+                    .reduce((sum, s) => sum + s.amount, 0);
+                  return (
+                    <>
+                      {inflow > 0 && (
+                        <span className="flex items-center gap-1 text-green-600 font-semibold">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_downward</span>
+                          {formatBRL(inflow)} recebido
+                        </span>
+                      )}
+                      {outflow > 0 && (
+                        <span className="flex items-center gap-1 text-red-500 font-semibold">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_upward</span>
+                          {formatBRL(outflow)} repassado
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+                <span className="text-slate-400">{loading ? '—' : `${gasSettlements.length} acertos`}</span>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Horário</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fornecedora</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                      <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {gasSettlements.map(s => {
+                      const isInflow = s.settlementType === 'SUPPLIER_OWE';
+                      const time = s.settledDate
+                        ? `${String(new Date(s.settledDate).getHours()).padStart(2,'0')}:${String(new Date(s.settledDate).getMinutes()).padStart(2,'0')}`
+                        : '—';
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-5 py-3 text-[12px] text-slate-400 font-mono tabular-nums">{time}</td>
+                          <td className="px-4 py-3 text-[13px] font-medium text-slate-700">{s.supplierName}</td>
+                          <td className="px-4 py-3 text-[13px] text-slate-500">{s.clientName ?? '—'}</td>
+                          <td className="px-4 py-3">
+                            {isInflow ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-green-50 text-green-700">
+                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_downward</span>
+                                Comissão recebida
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700">
+                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_upward</span>
+                                Repasse à distribuidora
+                              </span>
+                            )}
+                          </td>
+                          <td className={`px-5 py-3 text-right font-bold text-[14px] tabular-nums ${isInflow ? 'text-green-600' : 'text-orange-600'}`}>
+                            {isInflow ? '+' : '−'} {formatBRL(s.amount)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t border-slate-200">
+                      <td colSpan={4} className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
+                        Saldo dos acertos
+                      </td>
+                      <td className="px-5 py-3 text-right font-black text-[15px] tabular-nums">
+                        {(() => {
+                          const net = gasSettlements.reduce((sum, s) =>
+                            s.settlementType === 'SUPPLIER_OWE' ? sum + s.amount : sum - s.amount, 0
+                          );
+                          return (
+                            <span className={net >= 0 ? 'text-green-600' : 'text-orange-600'}>
+                              {net >= 0 ? '+' : ''}{formatBRL(net)}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
       </main>
     </div>
