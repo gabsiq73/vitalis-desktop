@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
+import { EditOrderModal } from '../modals/EditOrderModal';
 import type { OrderResponseDTO, PaymentResponseDTO, OrderBalanceDTO } from '../types';
 import {
   formatBRL,
@@ -41,6 +42,7 @@ export function OrderDetailPage() {
   const [balance, setBalance] = useState<OrderBalanceDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [showEditOrder, setShowEditOrder] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchAll = useCallback(() => {
@@ -161,7 +163,19 @@ export function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Step tracker inline */}
+            {/* Edit button + step tracker */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {!isCancelled && !isDelivered && (
+                <button
+                  onClick={() => setShowEditOrder(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                  Editar
+                </button>
+              )}
+            </div>
+
             {!isCancelled ? (
               <div className="flex items-center gap-0 flex-shrink-0">
                 {STATUS_STEPS.map((step, idx) => {
@@ -420,6 +434,15 @@ export function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {showEditOrder && (
+        <EditOrderModal
+          open={showEditOrder}
+          order={order}
+          onClose={() => setShowEditOrder(false)}
+          onSuccess={() => { setShowEditOrder(false); fetchAll(); }}
+        />
+      )}
 
       <AddPaymentModal
         open={showAddPayment}

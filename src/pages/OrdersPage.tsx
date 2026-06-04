@@ -60,6 +60,14 @@ const STATUS_CHIPS = [
     active:   'bg-red-50 border-red-400 text-red-800',
     dot:      'bg-red-400',
   },
+  {
+    key: 'SCHEDULED',
+    label: 'Agendado',
+    icon: 'event',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50',
+    active:   'bg-violet-50 border-violet-400 text-violet-800',
+    dot:      'bg-violet-400',
+  },
 ];
 
 const STATUS_CHANGE_OPTIONS = [
@@ -72,6 +80,12 @@ const STATUS_CHANGE_OPTIONS = [
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function scheduledThreshold(): string {
+  const d = new Date(Date.now() + 10 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export function OrdersPage() {
@@ -119,6 +133,7 @@ export function OrdersPage() {
       { key: 'SHIPPED',     params: { status: 'SHIPPED',        size: 1, ...dateParams } },
       { key: 'DELIVERED',   params: { status: 'DELIVERED',      size: 1, ...dateParams } },
       { key: 'CANCELLED',   params: { status: 'CANCELLED',      size: 1, ...dateParams } },
+      { key: 'SCHEDULED',   params: { status: 'PENDING', deliveryAfter: scheduledThreshold(), size: 1 } },
       { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING', size: 1, ...dateParams } },
       { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL', size: 1, ...dateParams } },
       { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',    size: 1, ...dateParams } },
@@ -137,11 +152,18 @@ export function OrdersPage() {
     if (!http) return;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
-    if (statusFilter) params.status = statusFilter;
+    if (statusFilter === 'SCHEDULED') {
+      params.status = 'PENDING';
+      params.deliveryAfter = scheduledThreshold();
+      // Scheduled filter ignores date range (deliveryAfter is the relevant filter)
+    } else {
+      if (statusFilter) params.status = statusFilter;
+      const dp = getDateParams();
+      if (dp.start) params.start = dp.start;
+      if (dp.end)   params.end   = dp.end;
+    }
     if (paymentFilter) params.paymentStatus = paymentFilter;
-    const dp = getDateParams();
-    if (dp.start) params.start = dp.start;
-    if (dp.end)   params.end   = dp.end;
+    if (statusFilter === 'SCHEDULED') params.sort = 'deliveryDate,asc';
     http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
       .then((res) => {
         setOrders(res.data.content);

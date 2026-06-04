@@ -31,6 +31,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
   const { http } = useAuth();
   const [name, setName] = useState(initial?.name ?? '');
   const [basePrice, setBasePrice] = useState(initial?.basePrice?.toString() ?? '');
+  const [resellerPrice, setResellerPrice] = useState(initial?.resellerPrice?.toString() ?? '');
   const [lastCostPrice, setLastCostPrice] = useState(initial?.lastCostPrice?.toString() ?? '');
   const [type, setType] = useState<ProductType>(initial?.type ?? 'GAS');
   const [defaultSupplierId, setDefaultSupplierId] = useState(initial?.defaultSupplierId ?? '');
@@ -58,10 +59,18 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
     }
     setLoading(true);
     setError('');
+    const reseller = resellerPrice ? parseFloat(resellerPrice) : undefined;
+    if (reseller !== undefined && (isNaN(reseller) || reseller <= 0)) {
+      setError('Preço de revenda deve ser maior que zero se informado.'); setLoading(false); return;
+    }
+    if (reseller !== undefined && price > 0 && reseller >= price) {
+      setError('Preço de revenda deve ser menor que o preço de venda.'); setLoading(false); return;
+    }
     try {
       await onSubmit({
         name: name.trim(),
         basePrice: price,
+        resellerPrice: reseller,
         lastCostPrice: cost,
         type,
         defaultSupplierId: type === 'GAS' ? defaultSupplierId : undefined,
@@ -114,6 +123,22 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
           <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Último Custo {type === 'GAS' && '*'}</label>
           <input type="number" step="0.01" min="0.01" className={inputCls} placeholder="0,00" value={lastCostPrice} onChange={e => setLastCostPrice(e.target.value)} />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+          Preço de Revenda
+          <span className="ml-1 normal-case font-normal text-slate-400">(opcional — aplicado automaticamente para clientes Revendedor)</span>
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0.01"
+          className={inputCls}
+          placeholder={basePrice ? `Deve ser menor que R$ ${parseFloat(basePrice).toFixed(2)}` : '0,00'}
+          value={resellerPrice}
+          onChange={e => setResellerPrice(e.target.value)}
+        />
       </div>
 
       {type === 'GAS' && (
@@ -295,6 +320,7 @@ export function ProductsPage() {
                   <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Produto</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
                   <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Preço Venda</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-violet-500 uppercase tracking-wider">Preço Revenda</th>
                   <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Último Custo</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Distribuidor Padrão</th>
                   <th className="text-center px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -304,7 +330,7 @@ export function ProductsPage() {
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center">
+                    <td colSpan={8} className="px-5 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         <span className="text-[13px] text-slate-400">Carregando...</span>
@@ -313,7 +339,7 @@ export function ProductsPage() {
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center">
+                    <td colSpan={8} className="px-5 py-16 text-center">
                       <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '40px' }}>inventory_2</span>
                       <p className="text-[13px] text-slate-400">Nenhum produto encontrado.</p>
                     </td>
@@ -341,6 +367,11 @@ export function ProductsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right font-bold text-slate-800">{formatBRL(p.basePrice)}</td>
+                        <td className="px-4 py-3.5 text-right">
+                          {p.resellerPrice
+                            ? <span className="font-semibold text-violet-700">{formatBRL(p.resellerPrice)}</span>
+                            : <span className="text-slate-300 text-[12px]">—</span>}
+                        </td>
                         <td className="px-4 py-3.5 text-right text-slate-500">{p.lastCostPrice ? formatBRL(p.lastCostPrice) : '—'}</td>
                         <td className="px-4 py-3.5 text-slate-600 text-[13px]">
                           {p.type === 'GAS' ? (p.defaultSupplierName ?? <span className="text-slate-400">Não definido</span>) : <span className="text-slate-300">—</span>}

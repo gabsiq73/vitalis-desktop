@@ -29,6 +29,7 @@ export interface ProductResponseDTO {
   id: string;
   name: string;
   basePrice: number;
+  resellerPrice?: number;
   lastCostPrice?: number;
   type: ProductType;
   isActive: boolean;
@@ -60,6 +61,7 @@ export interface OrderResponseDTO {
   items: OrderItemResponseDTO[];
   totalValue: number;
   createDate: string;
+  isDelivery?: boolean;
 }
 
 export interface StockResponseDTO {

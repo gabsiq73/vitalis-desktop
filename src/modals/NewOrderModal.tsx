@@ -185,10 +185,21 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     const custom = getClientCustomPrice(item.productId);
     if (custom !== null) return custom;
     if (p.type === 'GAS') return p.basePrice;
+    // Reseller price (applied server-side; shown client-side for preview)
+    if (selectedClient?.clientType === 'RESELLER' && p.resellerPrice) return p.resellerPrice;
     if (!isDelivery && selectedClient?.clientType === 'RETAIL') {
       return Math.max(0, p.basePrice - 0.5);
     }
     return p.basePrice;
+  }
+
+  function getPriceSource(item: ItemForm): 'custom' | 'reseller' | 'discount' | 'base' {
+    const p = getProduct(item.productId);
+    if (!p || !item.productId) return 'base';
+    if (getClientCustomPrice(item.productId) !== null) return 'custom';
+    if (selectedClient?.clientType === 'RESELLER' && p.resellerPrice) return 'reseller';
+    if (!isDelivery && selectedClient?.clientType === 'RETAIL') return 'discount';
+    return 'base';
   }
 
   function buildTotal(): number {
@@ -576,14 +587,21 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                                     BÔNUS
                                   </span>
                                 ) : (
-                                  <>
-                                    <span className={`text-[13px] font-bold ${!isDelivery && isRetail && !customPrice ? 'text-primary' : customPrice ? 'text-amber-600' : 'text-slate-800'}`}>
-                                      {item.productId ? formatBRL(unitPrice) : '—'}
-                                    </span>
-                                    {customPrice !== null && item.productId && (
-                                      <p className="text-[10px] text-amber-600 font-bold leading-none mt-0.5">★ preço especial</p>
-                                    )}
-                                  </>
+                                  {(() => {
+                                    const src = getPriceSource(item);
+                                    const colorMap = { custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
+                                    const badgeMap: Record<string, string | null> = { custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
+                                    return (
+                                      <>
+                                        <span className={`text-[13px] font-bold ${colorMap[src]}`}>
+                                          {item.productId ? formatBRL(unitPrice) : '—'}
+                                        </span>
+                                        {badgeMap[src] && item.productId && (
+                                          <p className={`text-[10px] font-bold leading-none mt-0.5 ${colorMap[src]}`}>{badgeMap[src]}</p>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 )}
                               </div>
                             )}
