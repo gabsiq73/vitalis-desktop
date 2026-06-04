@@ -36,6 +36,7 @@ interface NewOrderModalProps {
   onClose: () => void;
   onSuccess: () => void;
   defaultClient?: ClientResponseDTO;
+  editOrder?: import('../types').OrderResponseDTO;
 }
 
 const emptyItem = (): ItemForm => ({
@@ -60,7 +61,8 @@ function nowPaymentDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOrderModalProps) {
+export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrder }: NewOrderModalProps) {
+  const isEditMode = !!editOrder;
   const { http } = useAuth();
 
   const [isAvulso, setIsAvulso] = useState(false);
@@ -93,9 +95,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
   useEffect(() => {
     if (open) {
       setError(null);
-      setItems([emptyItem()]);
-      setIsDelivery(true);
-      setDeliveryDate(nowDatetimeLocal());
       setIsAvulso(false);
       setAvulsoName('');
       setClientPrices([]);
@@ -103,15 +102,42 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
       setPaymentAmount('');
       setPaymentMethod('PIX');
       paymentAmountAutoSync.current = true;
-      if (defaultClient) {
-        setSelectedClient(defaultClient);
-        setClientSearch(defaultClient.name);
-      } else {
+
+      if (editOrder) {
+        // Edit mode: pre-populate from existing order
+        setIsDelivery(editOrder.isDelivery ?? true);
+        setDeliveryDate(editOrder.deliveryDate
+          ? (() => {
+              const d = new Date(editOrder.deliveryDate!);
+              const pad = (n: number) => String(n).padStart(2, '0');
+              return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            })()
+          : nowDatetimeLocal());
+        setItems(editOrder.items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          supplierId: i.supplierId ?? '',
+          gasCostPrice: i.gasCostPrice?.toString() ?? '',
+          receivedByUs: i.receivedByUs ?? false,
+          bottleExpiration: i.bottleExpiration ?? '',
+          useBonus: i.unitPrice === 0,
+        })));
         setSelectedClient(null);
-        setClientSearch('');
+        setClientSearch(editOrder.clientName);
+      } else {
+        setItems([emptyItem()]);
+        setIsDelivery(true);
+        setDeliveryDate(nowDatetimeLocal());
+        if (defaultClient) {
+          setSelectedClient(defaultClient);
+          setClientSearch(defaultClient.name);
+        } else {
+          setSelectedClient(null);
+          setClientSearch('');
+        }
       }
     }
-  }, [open, defaultClient]);
+  }, [open, defaultClient, editOrder]);
 
   useEffect(() => {
     if (!http || !open) return;
@@ -281,25 +307,30 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
     };
 
     try {
-      const orderRes = await http.post<{ id: string }[]>('/orders', body);
-      const newOrderId = orderRes.data[0]?.id;
+      if (isEditMode) {
+        await http.put(`/orders/${editOrder!.id}`, body);
+      } else {
+        const orderRes = await http.post<{ id: string }[]>('/orders', body);
+        const newOrderId = orderRes.data[0]?.id;
 
-      if (registerPayment && paymentAmount) {
-        const amount = parseFloat(paymentAmount);
-        if (!isNaN(amount) && amount > 0) {
-          await http.post('/payments', {
-            paymentDate: nowPaymentDate(),
-            amount,
-            orderId: newOrderId,
-            paymentMethod,
-          });
+        if (registerPayment && paymentAmount) {
+          const amount = parseFloat(paymentAmount);
+          if (!isNaN(amount) && amount > 0) {
+            await http.post('/payments', {
+              paymentDate: nowPaymentDate(),
+              amount,
+              orderId: newOrderId,
+              paymentMethod,
+            });
+          }
         }
       }
 
       onSuccess();
       onClose();
-    } catch {
-      setError('Erro ao criar pedido. Verifique os dados e tente novamente.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg ?? (isEditMode ? 'Erro ao editar pedido.' : 'Erro ao criar pedido. Verifique os dados e tente novamente.'));
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +347,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title="Novo Pedido" maxWidth="max-w-5xl">
+      <Modal open={open} onClose={onClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
         <form onSubmit={handleSubmit} className="flex flex-col max-h-[82vh]">
 
           {/* Scrollable body */}
@@ -333,8 +364,15 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Cliente *
+                  Cliente {!isEditMode && '*'}
                 </label>
+                {isEditMode ? (
+                  <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50">
+                    <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '16px' }}>person</span>
+                    <span className="text-[13px] font-semibold text-slate-700">{editOrder?.clientName}</span>
+                    <span className="ml-auto text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">bloqueado</span>
+                  </div>
+                ) : (
                 <div className="relative">
                   <button
                     type="button"
@@ -417,6 +455,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                     </div>
                   )}
                 </div>
+                )}
 
                 {isOverdue && (
                   <div className="mt-1.5 flex items-center gap-2 p-2 bg-red-50 text-red-700 rounded-lg border border-red-200">
@@ -668,9 +707,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </div>
 
             {/* ── Fidelidade + Resumo ── */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Fidelidade */}
-              <div className={`rounded-xl p-4 border ${selectedClient ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+            <div className={`grid gap-4 ${selectedClient?.clientType !== 'RESELLER' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {/* Fidelidade — oculta para Revendedor */}
+              {selectedClient?.clientType !== 'RESELLER' && <div className={`rounded-xl p-4 border ${selectedClient ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="material-symbols-outlined text-amber-500" style={{ fontSize: '18px' }}>workspace_premium</span>
                   <span className="font-semibold text-[13px] text-slate-700">Fidelidade do Cliente</span>
@@ -714,7 +753,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                 ) : (
                   <p className="text-[13px] text-slate-500">Selecione um cliente para ver fidelidade</p>
                 )}
-              </div>
+              </div>}
 
               {/* Resumo do pedido */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -752,8 +791,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
               </div>
             </div>
 
-            {/* ── Pagamento ── */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            {/* ── Pagamento (apenas no modo criação) ── */}
+            {!isEditMode && <div className="border border-slate-200 rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>payments</span>
@@ -820,7 +859,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
                   </div>
                 </div>
               </div>
-            </div>
+            </div>}
 
           </div>
 
@@ -836,7 +875,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
             </button>
             <button
               type="submit"
-              disabled={submitting || (!selectedClient && !isAvulso)}
+              disabled={submitting || (!isEditMode && !selectedClient && !isAvulso)}
               className="px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-[13px] hover:brightness-110 transition-all disabled:opacity-70 flex items-center gap-2 shadow-md shadow-primary/20"
             >
               {submitting ? (
@@ -847,7 +886,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient }: NewOr
               ) : (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
-                  Salvar Pedido
+                  {isEditMode ? 'Salvar Alterações' : 'Salvar Pedido'}
                 </>
               )}
             </button>

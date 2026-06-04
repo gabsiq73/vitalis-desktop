@@ -14,20 +14,23 @@ const TYPE_CHIPS = [
   {
     key: '',
     label: 'Todos',
+    icon: 'groups',
     inactive: 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50',
     active: 'bg-slate-800 border-slate-800 text-white',
   },
   {
     key: 'RETAIL',
     label: 'Varejo',
+    icon: 'person',
     inactive: 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50',
     active: 'bg-blue-50 border-blue-400 text-blue-800',
   },
   {
     key: 'RESELLER',
     label: 'Revendedor',
-    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50',
-    active: 'bg-violet-50 border-violet-400 text-violet-800',
+    icon: 'storefront',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-400 hover:bg-violet-50',
+    active: 'bg-violet-600 border-violet-600 text-white',
   },
 ];
 
@@ -245,6 +248,7 @@ export function ClientsPage() {
                 typeFilter === chip.key ? chip.active : chip.inactive
               }`}
             >
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{chip.icon}</span>
               {chip.label}
             </button>
           ))}
@@ -313,7 +317,7 @@ export function ClientsPage() {
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${
-                              isRetail ? 'bg-blue-50 text-blue-600' : 'bg-violet-50 text-violet-600'
+                              isRetail ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'
                             }`}>
                               {getInitials(client.name)}
                             </div>
@@ -329,11 +333,12 @@ export function ClientsPage() {
                         </td>
 
                         <td className="px-5 py-3.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
                             isRetail
                               ? 'bg-blue-50 text-blue-700'
-                              : 'bg-violet-50 text-violet-700'
+                              : 'bg-violet-600 text-white'
                           }`}>
+                            {!isRetail && <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>storefront</span>}
                             {isRetail ? 'Varejo' : 'Revendedor'}
                           </span>
                         </td>

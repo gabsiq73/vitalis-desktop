@@ -5,7 +5,6 @@ import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
-import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
@@ -108,7 +107,7 @@ export function OrdersPage() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [addPointsTarget, setAddPointsTarget] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
 
@@ -472,6 +471,15 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
+                            {!isDelivered && !isCancelled && (
+                              <button
+                                title="Editar pedido"
+                                onClick={() => setEditTarget(order)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+                              </button>
+                            )}
                             {order.paymentStatus !== 'PAID' && !isCancelled && (
                               <button
                                 title="Registrar pagamento"
@@ -481,13 +489,6 @@ export function OrdersPage() {
                                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
                               </button>
                             )}
-                            <button
-                              title="Pontos de fidelidade"
-                              onClick={() => setAddPointsTarget({ clientId: order.clientId, clientName: order.clientName })}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>workspace_premium</span>
-                            </button>
                             {!isDelivered && !isCancelled && (
                               <button
                                 title="Confirmar entrega"
@@ -578,13 +579,12 @@ export function OrdersPage() {
         onClose={() => setCancelTarget(null)}
       />
 
-      {addPointsTarget && (
-        <AddFidelityPointsModal
+      {editTarget && (
+        <NewOrderModal
           open
-          onClose={() => setAddPointsTarget(null)}
-          onSuccess={() => setAddPointsTarget(null)}
-          clientId={addPointsTarget.clientId}
-          clientName={addPointsTarget.clientName}
+          editOrder={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={() => { setEditTarget(null); fetchOrders(); fetchCounts(); }}
         />
       )}
 

@@ -214,7 +214,11 @@ export function ClientDetailPage() {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-[20px] font-black text-slate-800">{client.name}</h1>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-primary/10 text-primary">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    client.clientType === 'RESELLER'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-primary/10 text-primary'
+                  }`}>
                     {CLIENT_TYPE_LABEL[client.clientType] ?? client.clientType}
                   </span>
                   {isOverdue && (
@@ -296,8 +300,8 @@ export function ClientDetailPage() {
             </p>
           </div>
 
-          {/* Fidelidade */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
+          {/* Fidelidade — oculto para Revendedor */}
+          {client.clientType !== 'RESELLER' && <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
             <div className="flex items-start justify-between mb-3">
               <div className="p-2 rounded-lg bg-amber-50">
                 <span className="material-symbols-outlined text-amber-500" style={{ fontSize: '20px' }}>workspace_premium</span>
@@ -312,7 +316,7 @@ export function ClientDetailPage() {
             <p className="text-[26px] font-black leading-none text-amber-500">
               {client.fidelityPoints.toLocaleString('pt-BR')}
             </p>
-          </div>
+          </div>}
 
           {/* Vasilhames */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
@@ -335,7 +339,7 @@ export function ClientDetailPage() {
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
           {/* Tab bar */}
           <div className="border-b border-slate-200 px-2 flex items-end gap-0.5 overflow-x-auto">
-            {TABS.map((tab) => (
+            {TABS.filter((tab) => !(tab.id === 'fidelidade' && client.clientType === 'RESELLER')).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
