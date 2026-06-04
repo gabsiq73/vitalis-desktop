@@ -69,6 +69,10 @@ const STATUS_CHANGE_OPTIONS = [
   { value: 'CANCELLED', label: 'Cancelado',   icon: 'cancel',          color: 'text-red-600 hover:bg-red-50' },
 ];
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function OrdersPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
@@ -81,6 +85,9 @@ export function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [dateStart, setDateStart] = useState(todayStr());
+  const [dateEnd, setDateEnd] = useState(todayStr());
+  const [dateMode, setDateMode] = useState<'today' | 'custom' | 'all'>('today');
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const [showNewOrder, setShowNewOrder] = useState(false);
@@ -97,16 +104,23 @@ export function OrdersPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [statusMenu]);
 
+  function getDateParams() {
+    if (dateMode === 'today') return { start: todayStr(), end: todayStr() };
+    if (dateMode === 'custom') return { start: dateStart, end: dateEnd };
+    return {};
+  }
+
   async function fetchCounts() {
     if (!http) return;
+    const dateParams = getDateParams();
     const keys = [
-      { key: 'PENDING',     params: { status: 'PENDING',           size: 1 } },
-      { key: 'SHIPPED',     params: { status: 'SHIPPED',           size: 1 } },
-      { key: 'DELIVERED',   params: { status: 'DELIVERED',         size: 1 } },
-      { key: 'CANCELLED',   params: { status: 'CANCELLED',         size: 1 } },
-      { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING',    size: 1 } },
-      { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL',    size: 1 } },
-      { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',       size: 1 } },
+      { key: 'PENDING',     params: { status: 'PENDING',        size: 1, ...dateParams } },
+      { key: 'SHIPPED',     params: { status: 'SHIPPED',        size: 1, ...dateParams } },
+      { key: 'DELIVERED',   params: { status: 'DELIVERED',      size: 1, ...dateParams } },
+      { key: 'CANCELLED',   params: { status: 'CANCELLED',      size: 1, ...dateParams } },
+      { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING', size: 1, ...dateParams } },
+      { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL', size: 1, ...dateParams } },
+      { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',    size: 1, ...dateParams } },
     ];
     const results = await Promise.allSettled(
       keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: k.params }))
@@ -124,6 +138,9 @@ export function OrdersPage() {
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (statusFilter) params.status = statusFilter;
     if (paymentFilter) params.paymentStatus = paymentFilter;
+    const dp = getDateParams();
+    if (dp.start) params.start = dp.start;
+    if (dp.end)   params.end   = dp.end;
     http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
       .then((res) => {
         setOrders(res.data.content);
@@ -137,16 +154,17 @@ export function OrdersPage() {
   useEffect(() => {
     fetchOrders();
     fetchCounts();
-  }, [http, currentPage, statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
-    setStatusFilter((prev) => (prev === key ? '' : key));
+    setStatusFilter(key);
     setCurrentPage(0);
   }
 
   function clearFilters() {
     setStatusFilter('');
     setPaymentFilter('');
+    setDateMode('today');
     setCurrentPage(0);
   }
 
@@ -171,7 +189,7 @@ export function OrdersPage() {
     }
   }
 
-  const hasActiveFilters = !!(statusFilter || paymentFilter);
+  const hasActiveFilters = !!(statusFilter || paymentFilter || dateMode !== 'today');
   const totalActive = (counts['PENDING'] ?? 0) + (counts['SHIPPED'] ?? 0);
 
   return (
@@ -197,6 +215,69 @@ export function OrdersPage() {
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             Novo Pedido
           </button>
+        </div>
+
+        {/* Date filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => { setDateMode('today'); setCurrentPage(0); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+              dateMode === 'today'
+                ? 'bg-primary text-white border-primary shadow-primary/20'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-primary/40 hover:bg-primary/4'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>today</span>
+            Hoje
+          </button>
+
+          <button
+            onClick={() => { setDateMode('all'); setCurrentPage(0); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+              dateMode === 'all'
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>calendar_view_month</span>
+            Todos
+          </button>
+
+          <button
+            onClick={() => { setDateMode('custom'); setCurrentPage(0); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+              dateMode === 'custom'
+                ? 'bg-white border-primary text-primary'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>date_range</span>
+            Período
+          </button>
+
+          {dateMode === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateStart}
+                onChange={e => { setDateStart(e.target.value); setCurrentPage(0); }}
+                className="border border-slate-200 rounded-lg px-3 py-1.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+              <span className="text-slate-400 text-sm">até</span>
+              <input
+                type="date"
+                value={dateEnd}
+                onChange={e => { setDateEnd(e.target.value); setCurrentPage(0); }}
+                className="border border-slate-200 rounded-lg px-3 py-1.5 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+          )}
+
+          {dateMode === 'today' && (
+            <span className="text-[12px] text-slate-400 font-medium">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+            </span>
+          )}
         </div>
 
         {/* Filter bar */}
