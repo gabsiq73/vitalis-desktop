@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
+import { applySortInMemory } from '../utils/sort';
 import { NewLoanModal } from '../modals/NewLoanModal';
 import type { LoanedBottleResponseDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
@@ -34,6 +37,7 @@ export function BottlesPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [bottles, setBottles] = useState<LoanedBottleResponseDTO[]>([]);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
@@ -186,12 +190,12 @@ export function BottlesPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Cliente</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Produto</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Qtd</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Data Empréstimo</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Cliente" field="clientName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Produto" field="productName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Qtd" field="quantity" sort={sort} onSort={setSort} defaultDir="desc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Data Empréstimo" field="loanDate" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Dias em Aberto</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Status" field="status" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
                 </tr>
               </thead>
@@ -209,7 +213,7 @@ export function BottlesPage() {
                     </td>
                   </tr>
                 ) : (
-                  bottles.map((b) => {
+                  applySortInMemory(bottles, sort).map((b) => {
                     const days = b.returnDate ? null : daysSince(b.loanDate);
                     const daysBadge = getDaysBadge(days);
                     const statusBadge = getStatusBadge(b.status);

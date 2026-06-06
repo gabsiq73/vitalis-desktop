@@ -24,6 +24,7 @@ export interface ClientResponseDTO {
   pendingBonusWater: number;
   clientType: ClientType;
   clientStatus: ClientStatus;
+  orderCount?: number;
 }
 
 export interface ProductResponseDTO {

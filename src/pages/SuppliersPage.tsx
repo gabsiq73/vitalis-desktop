@@ -3,6 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
+import { applySortInMemory } from '../utils/sort';
 import type { GasSupplierResponseDTO, GasSupplierRequestDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
 
@@ -124,9 +127,11 @@ export function SuppliersPage() {
 
   useEffect(() => { fetchSuppliers(); }, [http, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = searchQuery.trim()
-    ? suppliers.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : suppliers;
+  const [sort, setSort] = useState<SortState | null>(null);
+  const filtered = applySortInMemory(
+    searchQuery.trim() ? suppliers.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase())) : suppliers,
+    sort
+  );
 
   async function handleCreate(data: GasSupplierRequestDTO) {
     await http!.post('/suppliers', data);
@@ -202,7 +207,7 @@ export function SuppliersPage() {
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase w-1/3">
-                    Nome do Fornecedor
+                    <SortableHeader label="Nome do Fornecedor" field="name" sort={sort} onSort={setSort} defaultDir="asc" />
                   </th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase w-1/2">
                     Observações

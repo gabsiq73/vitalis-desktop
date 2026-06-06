@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
+import { applySortInMemory } from '../utils/sort';
 
 const PAGE_SIZE = 20;
 
@@ -15,7 +18,7 @@ export function DebtorsPage() {
   const [debtors, setDebtors] = useState<(ClientResponseDTO & { debt: number })[]>([]);
   const [filtered, setFiltered] = useState<(ClientResponseDTO & { debt: number })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'debt' | 'name'>('debt');
+  const [sort, setSort] = useState<SortState | null>({ field: 'debt', dir: 'desc' });
   const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
@@ -51,14 +54,10 @@ export function DebtorsPage() {
         (c) => c.name.toLowerCase().includes(q) || c.phone?.includes(q),
       );
     }
-    if (sortBy === 'debt') {
-      result = [...result].sort((a, b) => b.debt - a.debt);
-    } else {
-      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
-    }
+    result = applySortInMemory(result, sort);
     setFiltered(result);
     setCurrentPage(0);
-  }, [searchQuery, sortBy, debtors]);
+  }, [searchQuery, sort, debtors]);
 
   const totalDebt = debtors.reduce((sum, c) => sum + c.debt, 0);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -134,23 +133,6 @@ export function DebtorsPage() {
 
           <div className="h-6 w-px bg-slate-200" />
 
-          <span className="text-[12px] text-slate-500 font-medium">Ordenar por:</span>
-          {([
-            { key: 'debt', label: 'Maior dívida' },
-            { key: 'name', label: 'Nome' },
-          ] as const).map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setSortBy(opt.key)}
-              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ${
-                sortBy === opt.key
-                  ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
         </div>
 
         {/* Table */}
@@ -159,10 +141,10 @@ export function DebtorsPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Cliente" field="name" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Telefone</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Dívida</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Tipo" field="clientType" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right"><SortableHeader label="Dívida" field="debt" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                 </tr>
               </thead>

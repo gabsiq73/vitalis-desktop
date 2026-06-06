@@ -14,6 +14,8 @@ import type {
   GasSupplierResponseDTO,
 } from '../types';
 import { formatBRL } from '../utils/format';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
 
 const PAGE_SIZE = 20;
 
@@ -172,6 +174,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [totalElements, setTotalElements] = useState(0);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
@@ -185,7 +188,7 @@ export function ProductsPage() {
   const fetchProducts = useCallback(() => {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE, sort: 'name' };
+    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE, sort: sort ? `${sort.field},${sort.dir}` : 'name,asc' };
     http.get<SpringPage<ProductResponseDTO>>('/products', { params })
       .then(res => {
         setProducts(res.data.content);
@@ -194,7 +197,7 @@ export function ProductsPage() {
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [http, currentPage]);
+  }, [http, currentPage, sort]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -317,9 +320,9 @@ export function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Produto</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
-                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Preço Venda</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Produto" field="name" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Tipo" field="type" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Preço Venda" field="basePrice" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="text-right px-4 py-3 text-[11px] font-semibold text-violet-500 uppercase tracking-wider">Preço Revenda</th>
                   <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Último Custo</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Distribuidor Padrão</th>

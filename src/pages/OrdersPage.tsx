@@ -7,6 +7,8 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { hasOrderDraft } from '../utils/orderDraft';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
@@ -105,6 +107,8 @@ export function OrdersPage() {
   const [dateMode, setDateMode] = useState<'today' | 'custom' | 'all'>('today');
   const [counts, setCounts] = useState<Record<string, number>>({});
 
+  const [sort, setSort] = useState<SortState | null>(null);
+
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
 
@@ -169,6 +173,7 @@ export function OrdersPage() {
     }
     if (paymentFilter) params.paymentStatus = paymentFilter;
     if (statusFilter === 'SCHEDULED') params.sort = 'deliveryDate,asc';
+    else if (sort) params.sort = `${sort.field},${sort.dir}`;
     http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
       .then((res) => {
         setOrders(res.data.content);
@@ -182,7 +187,7 @@ export function OrdersPage() {
   useEffect(() => {
     fetchOrders();
     fetchCounts();
-  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
     setStatusFilter(key);
@@ -372,12 +377,12 @@ export function OrdersPage() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Cliente" field="client.name" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Itens</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Total" field="totalValue" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entrega</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Criado</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Criado" field="createDate" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-5 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>

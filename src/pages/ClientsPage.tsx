@@ -5,6 +5,8 @@ import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
 
@@ -59,6 +61,8 @@ export function ClientsPage() {
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  const [sort, setSort] = useState<SortState | null>(null);
+
   const [showNewClient, setShowNewClient] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -75,6 +79,7 @@ export function ClientsPage() {
     const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
     if (debouncedSearch) params.name = debouncedSearch;
     if (typeFilter) params.type = typeFilter;
+    if (sort) params.sort = `${sort.field},${sort.dir}`;
     try {
       const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', { params });
       setClients(res.data.content);
@@ -114,7 +119,7 @@ export function ClientsPage() {
 
   useEffect(() => {
     fetchClients();
-  }, [http, currentPage, debouncedSearch, typeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, debouncedSearch, typeFilter, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchStats();
@@ -270,19 +275,20 @@ export function ClientsPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Cliente" field="name" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Telefone</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Saldo</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Tipo" field="clientType" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Status" field="clientStatus" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right"><SortableHeader label="Saldo" field="balance" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Fidelidade</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Pedidos</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center">
+                    <td colSpan={8} className="px-5 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         <span className="text-[13px] text-slate-400">Carregando...</span>
@@ -291,7 +297,7 @@ export function ClientsPage() {
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center">
+                    <td colSpan={8} className="px-5 py-12 text-center">
                       <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>person_off</span>
                       <p className="text-[13px] text-slate-400">Nenhum cliente encontrado.</p>
                       {(searchQuery || typeFilter) && (
@@ -372,6 +378,12 @@ export function ClientsPage() {
                           ) : (
                             <span className="text-[12px] text-slate-300">—</span>
                           )}
+                        </td>
+
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="text-[13px] font-semibold text-slate-700">
+                            {client.orderCount ?? '—'}
+                          </span>
                         </td>
 
                         <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>

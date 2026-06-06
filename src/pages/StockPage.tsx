@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
+import { applySortInMemory } from '../utils/sort';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 
 const PAGE_SIZE = 20;
@@ -159,7 +162,8 @@ export function StockPage() {
     fetchStock();
   }
 
-  const waterItems = items.filter(i => !gasProductIds.has(i.productId));
+  const [sort, setSort] = useState<SortState | null>(null);
+  const waterItems = applySortInMemory(items.filter(i => !gasProductIds.has(i.productId)), sort);
 
   const lowCount = waterItems.filter((i) => {
     const s = i.status.toUpperCase();
@@ -241,10 +245,10 @@ export function StockPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Produto</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Qtd. Atual</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Qtd. Mínima</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Status</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Produto" field="productName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Qtd. Atual" field="quantityInStock" sort={sort} onSort={setSort} defaultDir="desc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Qtd. Mínima" field="minimumStock" sort={sort} onSort={setSort} defaultDir="desc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Status" field="status" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
                 </tr>
               </thead>

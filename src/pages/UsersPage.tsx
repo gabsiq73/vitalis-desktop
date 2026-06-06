@@ -3,6 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { SortableHeader } from '../components/SortableHeader';
+import type { SortState } from '../components/SortableHeader';
+import { applySortInMemory } from '../utils/sort';
 import type { UserResponseDTO, UserRequestDTO, UserUpdateDTO, UserRole } from '../types';
 import { getInitials } from '../utils/format';
 
@@ -204,8 +207,10 @@ export function UsersPage() {
 
   useEffect(() => { fetchUsers(); }, [http]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [sort, setSort] = useState<SortState | null>(null);
   const adminCount = users.filter((u) => u.userRole === 'ADMIN').length;
   const sellerCount = users.filter((u) => u.userRole === 'SELLER').length;
+  const sortedUsers = applySortInMemory(users, sort);
 
   async function handleCreate(data: UserRequestDTO | UserUpdateDTO) {
     await http!.post('/users', data);
@@ -300,10 +305,10 @@ export function UsersPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-high border-b border-outline-variant">
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Nome Completo</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Username</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Email</th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Perfil</th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Nome Completo" field="firstName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Username" field="username" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Email" field="email" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Perfil" field="userRole" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
                 </tr>
               </thead>
@@ -321,7 +326,7 @@ export function UsersPage() {
                     </td>
                   </tr>
                 ) : (
-                  users.map((u) => {
+                  sortedUsers.map((u) => {
                     const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ');
                     const badge = ROLE_BADGE[u.userRole];
                     return (
