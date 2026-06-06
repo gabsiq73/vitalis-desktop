@@ -347,6 +347,23 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const isRetail = selectedClient?.clientType === 'RETAIL';
   const hasGasItem = items.some((item) => getProduct(item.productId)?.type === 'GAS');
 
+  // Projected available bonuses: existing + what this order will earn
+  const ptPerItem = sysConfig?.pointsPerWaterItem ?? 1;
+  const ptPerFree = sysConfig?.pointsPerFreeWater ?? 10;
+  const paidWaterQtyInOrder = selectedClient
+    ? items.reduce((sum, item) => {
+        if (!item.productId || item.useBonus) return sum;
+        const p = getProduct(item.productId);
+        return p?.type === 'WATER' ? sum + item.quantity : sum;
+      }, 0)
+    : 0;
+  const projectedRawPoints = (selectedClient?.fidelityPoints ?? 0) + paidWaterQtyInOrder * ptPerItem;
+  const projectedBonusWater = selectedClient ? Math.floor(projectedRawPoints / ptPerFree) : 0;
+  const showBonusColumn =
+    selectedClient?.clientType !== 'RESELLER' &&
+    selectedClient != null &&
+    (selectedClient.pendingBonusWater > 0 || projectedBonusWater > 0 || bonusesUsedInOrder() > 0);
+
   return (
     <>
       <Modal open={open} onClose={onClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
@@ -665,9 +682,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               )}
                             </td>
                           )}
-                          {selectedClient && selectedClient.pendingBonusWater > 0 && (() => {
+                          {showBonusColumn && (() => {
                             const isWater = getProduct(item.productId)?.type === 'WATER';
-                            const availableBonuses = selectedClient.pendingBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
+                            const availableBonuses = projectedBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
                             const canToggle = isWater && item.productId && (item.useBonus || availableBonuses >= item.quantity);
                             return (
                               <td className="px-3 py-2 text-center">
@@ -741,7 +758,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       </button>
                     </div>
                     {(() => {
-                      const total = selectedClient.pendingBonusWater;
+                      const total = projectedBonusWater;
                       const used = bonusesUsedInOrder();
                       const remaining = total - used;
                       if (total === 0) return null;
@@ -750,30 +767,21 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           used > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'
                         }`}>
                           <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>redeem</span>
-                          {total} galão(ões) bônus disponível
+                          {total} galão(ões) bônus disponível{paidWaterQtyInOrder > 0 && selectedClient.pendingBonusWater < total ? ' (inclui projetados)' : ''}
                           {used > 0 && <span className="ml-auto">{used} resgatado(s) · {remaining} restante(s)</span>}
                         </div>
                       );
                     })()}
-                    {(() => {
-                      const ptPerItem = sysConfig?.pointsPerWaterItem ?? 1;
-                      const ptPerFree = sysConfig?.pointsPerFreeWater ?? 10;
-                      const paidWaterQty = items.reduce((sum, item) => {
-                        if (!item.productId || item.useBonus) return sum;
-                        const p = getProduct(item.productId);
-                        return p?.type === 'WATER' ? sum + item.quantity : sum;
-                      }, 0);
-                      if (paidWaterQty === 0) return null;
-                      const earned = paidWaterQty * ptPerItem;
-                      const newTotal = selectedClient.fidelityPoints - bonusesUsedInOrder() * ptPerFree + earned;
-                      const newBonus = Math.floor(newTotal / ptPerFree);
+                    {paidWaterQtyInOrder > 0 && (() => {
+                      const earned = paidWaterQtyInOrder * ptPerItem;
+                      const gainedNewBonuses = projectedBonusWater > selectedClient.pendingBonusWater;
                       return (
                         <div className="flex items-center gap-2 p-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700 text-[12px] font-semibold">
                           <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>trending_up</span>
                           <span>Este pedido vai gerar <b>+{earned} pt</b></span>
-                          {newBonus > selectedClient.pendingBonusWater && (
+                          {gainedNewBonuses && (
                             <span className="ml-auto text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-[11px]">
-                              atingirá {newBonus} bônus
+                              atingirá {projectedBonusWater} bônus
                             </span>
                           )}
                         </div>
@@ -929,7 +937,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         <AddFidelityPointsModal
           open={showAddPoints}
           onClose={() => setShowAddPoints(false)}
-          onSuccess={() => setShowAddPoints(false)}
+          onSuccess={() => {
+            setShowAddPoints(false);
+            if (http && selectedClient) {
+              http.get<import('../types').ClientResponseDTO>(`/clients/${selectedClient.id}`)
+                .then((r) => setSelectedClient(r.data))
+                .catch(() => {});
+            }
+          }}
           clientId={selectedClient.id}
           clientName={selectedClient.name}
         />
