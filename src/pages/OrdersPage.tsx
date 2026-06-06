@@ -5,6 +5,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
+import { hasOrderDraft } from '../utils/orderDraft';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
@@ -105,6 +106,11 @@ export function OrdersPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
+
+  useEffect(() => {
+    if (!showNewOrder) setHasDraft(hasOrderDraft());
+  }, [showNewOrder]);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
@@ -232,10 +238,13 @@ export function OrdersPage() {
           </div>
           <button
             onClick={() => setShowNewOrder(true)}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+            className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
             Novo Pedido
+            {hasDraft && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
+            )}
           </button>
         </div>
 

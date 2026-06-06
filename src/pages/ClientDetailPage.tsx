@@ -26,6 +26,7 @@ import {
   getPaymentStatusBadge,
   maskPhone,
 } from '../utils/format';
+import { hasOrderDraft } from '../utils/orderDraft';
 
 type TabId = 'pedidos' | 'pagamentos' | 'precos' | 'fidelidade' | 'vasilhames';
 type OrderPayFilter = 'all' | 'open' | 'paid';
@@ -64,6 +65,11 @@ export function ClientDetailPage() {
   );
   const [showEditClient, setShowEditClient] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
+
+  useEffect(() => {
+    if (!showNewOrder) setHasDraft(hasOrderDraft());
+  }, [showNewOrder]);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
   const [showAddPoints, setShowAddPoints] = useState(false);
 
@@ -260,10 +266,13 @@ export function ClientDetailPage() {
               </button>
               <button
                 onClick={() => setShowNewOrder(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+                className="relative flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-bold shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_shopping_cart</span>
                 Novo Pedido
+                {hasDraft && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
+                )}
               </button>
             </div>
           </div>

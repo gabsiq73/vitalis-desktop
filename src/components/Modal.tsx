@@ -17,23 +17,10 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-2xl' }
     };
   }, [open]);
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    if (open) document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
       <div className={`bg-surface rounded-xl shadow-2xl w-full ${maxWidth} max-h-[90vh] flex flex-col`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant flex-shrink-0">
           <h2 className="text-h2 text-on-surface">{title}</h2>

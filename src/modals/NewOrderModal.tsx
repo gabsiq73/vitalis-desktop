@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent, useCallback } from 'react'
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
+import { ORDER_DRAFT_KEY, clearOrderDraft } from '../utils/orderDraft';
 import { AddFidelityPointsModal } from './AddFidelityPointsModal';
 import type {
   ClientResponseDTO,
@@ -96,16 +97,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   useEffect(() => {
     if (open) {
       setError(null);
-      setIsAvulso(false);
-      setAvulsoName('');
       setClientPrices([]);
-      setRegisterPayment(true);
-      setPaymentAmount('');
-      setPaymentMethod('PIX');
       paymentAmountAutoSync.current = true;
 
       if (editOrder) {
         // Edit mode: pre-populate from existing order
+        setIsAvulso(false);
+        setAvulsoName('');
+        setRegisterPayment(true);
+        setPaymentAmount('');
+        setPaymentMethod('PIX');
         setIsDelivery(editOrder.isDelivery ?? true);
         setDeliveryDate(editOrder.deliveryDate
           ? (() => {
@@ -126,15 +127,36 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         setSelectedClient(null);
         setClientSearch(editOrder.clientName);
       } else {
-        setItems([emptyItem()]);
-        setIsDelivery(true);
-        setDeliveryDate(nowDatetimeLocal());
-        if (defaultClient) {
-          setSelectedClient(defaultClient);
-          setClientSearch(defaultClient.name);
+        // New order: try to restore draft first
+        const rawDraft = localStorage.getItem(ORDER_DRAFT_KEY);
+        const draft = rawDraft ? (() => { try { return JSON.parse(rawDraft); } catch { return null; } })() : null;
+        if (draft) {
+          setItems(draft.items ?? [emptyItem()]);
+          setSelectedClient(draft.selectedClient ?? null);
+          setClientSearch(draft.clientSearch ?? '');
+          setIsAvulso(draft.isAvulso ?? false);
+          setAvulsoName(draft.avulsoName ?? '');
+          setIsDelivery(draft.isDelivery ?? true);
+          setDeliveryDate(draft.deliveryDate ?? nowDatetimeLocal());
+          setPaymentMethod(draft.paymentMethod ?? 'PIX');
+          setRegisterPayment(draft.registerPayment ?? true);
+          setPaymentAmount(draft.paymentAmount ?? '');
         } else {
-          setSelectedClient(null);
-          setClientSearch('');
+          setItems([emptyItem()]);
+          setIsDelivery(true);
+          setDeliveryDate(nowDatetimeLocal());
+          setIsAvulso(false);
+          setAvulsoName('');
+          setRegisterPayment(true);
+          setPaymentAmount('');
+          setPaymentMethod('PIX');
+          if (defaultClient) {
+            setSelectedClient(defaultClient);
+            setClientSearch(defaultClient.name);
+          } else {
+            setSelectedClient(null);
+            setClientSearch('');
+          }
         }
       }
     }
@@ -195,6 +217,27 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function removeItem(idx: number) { setItems((p) => p.filter((_, i) => i !== idx)); }
   function updateItem<K extends keyof ItemForm>(idx: number, key: K, value: ItemForm[K]) {
     setItems((p) => p.map((item, i) => (i === idx ? { ...item, [key]: value } : item)));
+  }
+
+  function handleBonusToggle(idx: number, item: ItemForm, available: number) {
+    if (item.useBonus) {
+      updateItem(idx, 'useBonus', false);
+      return;
+    }
+    if (available <= 0) return;
+    if (available >= item.quantity) {
+      updateItem(idx, 'useBonus', true);
+    } else {
+      // Auto-split: keep paid portion, add bonus row after
+      const bonusQty = available;
+      const paidQty = item.quantity - bonusQty;
+      setItems((prev) => {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], quantity: paidQty };
+        const bonusRow: ItemForm = { ...updated[idx], quantity: bonusQty, useBonus: true };
+        return [...updated.slice(0, idx + 1), bonusRow, ...updated.slice(idx + 1)];
+      });
+    }
   }
 
   function getProduct(id: string): ProductResponseDTO | undefined {
@@ -329,6 +372,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         }
       }
 
+      clearOrderDraft();
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -342,6 +386,19 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     'w-full border border-slate-200 rounded-lg bg-white text-[13px] py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700 placeholder-slate-400';
   const cellInputClass =
     'w-full border border-slate-200 rounded bg-white text-[13px] py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all text-slate-700';
+
+  function saveDraftAndClose() {
+    if (!isEditMode) {
+      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount };
+      try { localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft)); } catch { /* noop */ }
+    }
+    onClose();
+  }
+
+  function handleCancel() {
+    clearOrderDraft();
+    onClose();
+  }
 
   const isOverdue = selectedClient && selectedClient.balance < 0;
   const isRetail = selectedClient?.clientType === 'RETAIL';
@@ -366,7 +423,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
+      <Modal open={open} onClose={isEditMode ? onClose : saveDraftAndClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
         <form onSubmit={handleSubmit} className="flex flex-col max-h-[82vh]">
 
           {/* Scrollable body */}
@@ -684,15 +741,15 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           )}
                           {showBonusColumn && (() => {
                             const isWater = getProduct(item.productId)?.type === 'WATER';
-                            const availableBonuses = projectedBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
-                            const canToggle = isWater && item.productId && (item.useBonus || availableBonuses >= item.quantity);
+                            const netAvailable = projectedBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
+                            const canToggle = isWater && !!item.productId && (item.useBonus || netAvailable >= 1);
                             return (
                               <td className="px-3 py-2 text-center">
                                 {isWater && item.productId ? (
                                   <button
                                     type="button"
                                     disabled={!canToggle}
-                                    onClick={() => updateItem(idx, 'useBonus', !item.useBonus)}
+                                    onClick={() => handleBonusToggle(idx, item, netAvailable)}
                                     title={item.useBonus ? 'Remover bônus' : canToggle ? 'Usar bônus (galão grátis)' : 'Bônus insuficiente'}
                                     className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                                       item.useBonus
@@ -905,7 +962,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           <div className="flex gap-3 justify-end px-6 py-4 border-t border-slate-200 bg-slate-50">
             <button
               type="button"
-              onClick={onClose}
+              onClick={isEditMode ? onClose : handleCancel}
               disabled={submitting}
               className="px-5 py-2.5 border border-slate-200 rounded-lg font-semibold text-[13px] text-slate-600 hover:bg-white transition-colors disabled:opacity-50"
             >
