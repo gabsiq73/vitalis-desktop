@@ -243,18 +243,26 @@ export function OrderDetailPage() {
                   <tbody className="divide-y divide-slate-50">
                     {order.items.map((item) => {
                       const isGas = !!item.supplierId;
+                      const isBonus = item.unitPrice === 0;
                       return (
-                        <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                        <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${isBonus ? 'bg-green-50/40' : ''}`}>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                isGas ? 'bg-orange-50' : 'bg-blue-50'
+                                isBonus ? 'bg-green-50' : isGas ? 'bg-orange-50' : 'bg-blue-50'
                               }`}>
-                                <span className={`material-symbols-outlined ${isGas ? 'text-orange-500' : 'text-blue-500'}`} style={{ fontSize: '18px' }}>
-                                  {isGas ? 'propane_tank' : 'water_drop'}
+                                <span className={`material-symbols-outlined ${isBonus ? 'text-green-500' : isGas ? 'text-orange-500' : 'text-blue-500'}`} style={{ fontSize: '18px' }}>
+                                  {isGas ? 'propane_tank' : isBonus ? 'redeem' : 'water_drop'}
                                 </span>
                               </div>
-                              <span className="text-[13px] font-semibold text-slate-700">{item.productName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-semibold text-slate-700">{item.productName}</span>
+                                {isBonus && (
+                                  <span className="text-[10px] font-black text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-200">
+                                    BÔNUS
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="px-5 py-3.5 text-center">
@@ -268,10 +276,18 @@ export function OrderDetailPage() {
                             </td>
                           )}
                           <td className="px-5 py-3.5 text-right text-[13px] text-slate-500">
-                            {formatBRL(item.unitPrice)}
+                            {isBonus ? (
+                              <span className="text-green-600 font-bold">R$ 0,00</span>
+                            ) : (
+                              formatBRL(item.unitPrice)
+                            )}
                           </td>
                           <td className="px-5 py-3.5 text-right text-[13px] font-bold text-slate-800">
-                            {formatBRL(item.subTotal)}
+                            {isBonus ? (
+                              <span className="text-green-600">R$ 0,00</span>
+                            ) : (
+                              formatBRL(item.subTotal)
+                            )}
                           </td>
                         </tr>
                       );

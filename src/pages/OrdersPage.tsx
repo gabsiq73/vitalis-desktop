@@ -432,11 +432,15 @@ export function OrdersPage() {
 
                         <td className="px-5 py-3.5">
                           <div className="flex flex-col gap-0.5">
-                            {order.items.slice(0, 2).map((item) => (
-                              <span key={item.id} className="text-[11px] text-slate-500 leading-tight">
-                                {item.productName} <span className="font-bold text-slate-700">×{item.quantity}</span>
-                              </span>
-                            ))}
+                            {order.items.slice(0, 2).map((item) => {
+                              const isBonus = item.unitPrice === 0;
+                              return (
+                                <span key={item.id} className="text-[11px] text-slate-500 leading-tight flex items-center gap-1">
+                                  {item.productName} <span className="font-bold text-slate-700">×{item.quantity}</span>
+                                  {isBonus && <span className="text-[9px] font-black text-green-600 bg-green-100 px-1 py-0.5 rounded-full border border-green-200 leading-none">BÔNUS</span>}
+                                </span>
+                              );
+                            })}
                             {order.items.length > 2 && (
                               <span className="text-[10px] text-slate-400">+{order.items.length - 2} mais</span>
                             )}
