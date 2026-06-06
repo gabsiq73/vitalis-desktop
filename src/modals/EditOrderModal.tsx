@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { parseApiError } from '../utils/parseApiError';
 import type { OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 
@@ -118,8 +119,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg ?? 'Erro ao atualizar pedido. Tente novamente.');
+      setError(parseApiError(err));
     } finally {
       setSubmitting(false);
     }

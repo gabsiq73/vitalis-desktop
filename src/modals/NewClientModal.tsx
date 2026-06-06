@@ -1,8 +1,20 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { isAxiosError } from 'axios';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { parseApiError } from '../utils/parseApiError';
 import type { ClientResponseDTO, ClientRequestBody, ClientType, ClientStatus } from '../types';
+
+function maskPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function stripPhone(masked: string): string {
+  return masked.replace(/\D/g, '');
+}
 
 interface NewClientModalProps {
   open: boolean;
@@ -20,20 +32,6 @@ const EMPTY_FORM: ClientRequestBody = {
   clientStatus: 'PAID',
 };
 
-function parseApiError(err: unknown): string {
-  if (!isAxiosError(err)) return 'Erro de conexão. Verifique se o servidor está rodando.';
-  const status = err.response?.status;
-  const data = err.response?.data as Record<string, unknown> | undefined;
-  if (!data) return `Erro no servidor (${status ?? 'desconhecido'}). Tente novamente.`;
-  // Validation errors (422): { fields: [{field, message}] }
-  if (Array.isArray(data.fields) && data.fields.length > 0) {
-    const first = data.fields[0] as Record<string, unknown>;
-    if (typeof first.message === 'string') return first.message;
-  }
-  // Business errors (400): { message: string }
-  if (typeof data.message === 'string' && data.message) return data.message;
-  return `Erro no servidor (${status ?? 'desconhecido'}). Tente novamente.`;
-}
 
 export function NewClientModal({ open, onClose, onSuccess, client }: NewClientModalProps) {
   const { http } = useAuth();
@@ -48,7 +46,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
       if (client) {
         setForm({
           name: client.name,
-          phone: client.phone ?? '',
+          phone: maskPhone(client.phone ?? ''),
           address: client.address ?? '',
           notes: '',
           clientType: client.clientType,
@@ -75,7 +73,8 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
         clientType: form.clientType,
         clientStatus: form.clientStatus,
       };
-      if (form.phone.trim()) body.phone = form.phone.trim();
+      const phoneDigits = stripPhone(form.phone);
+      if (phoneDigits) body.phone = phoneDigits;
       if (form.address.trim()) body.address = form.address.trim();
       if (form.notes.trim().length >= 5) body.notes = form.notes.trim();
 
@@ -135,7 +134,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
             <input
               type="text"
               value={form.phone}
-              onChange={(e) => set('phone', e.target.value)}
+              onChange={(e) => set('phone', maskPhone(e.target.value))}
               placeholder="(00) 00000-0000"
               className={inputClass}
             />

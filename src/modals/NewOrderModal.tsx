@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent, useCallback } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { parseApiError } from '../utils/parseApiError';
 import { AddFidelityPointsModal } from './AddFidelityPointsModal';
 import type {
   ClientResponseDTO,
@@ -268,7 +269,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
     let clientId: string;
 
-    if (isAvulso) {
+    if (isEditMode) {
+      clientId = editOrder!.clientId;
+    } else if (isAvulso) {
       try {
         const params = avulsoName.trim() ? { name: avulsoName.trim() } : undefined;
         const res = await http.post<ClientResponseDTO>('/clients/avulso', null, { params });
@@ -329,8 +332,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg ?? (isEditMode ? 'Erro ao editar pedido.' : 'Erro ao criar pedido. Verifique os dados e tente novamente.'));
+      setError(parseApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -439,12 +441,18 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           key={c.id}
                           type="button"
                           onClick={() => selectClient(c)}
-                          className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex justify-between items-center"
+                          className={`w-full text-left px-4 py-2.5 transition-colors flex justify-between items-center ${
+                            c.clientType === 'RESELLER'
+                              ? 'hover:bg-amber-50 border-l-2 border-amber-400'
+                              : 'hover:bg-slate-50'
+                          }`}
                         >
                           <div>
-                            <p className="font-semibold text-[13px] text-slate-800">{c.name}</p>
-                            <p className="text-[11px] text-slate-500">
-                              {c.clientType === 'RETAIL' ? 'Varejo' : 'Revendedor'}
+                            <p className={`font-semibold text-[13px] ${c.clientType === 'RESELLER' ? 'text-amber-800' : 'text-slate-800'}`}>
+                              {c.name}
+                            </p>
+                            <p className={`text-[11px] font-medium ${c.clientType === 'RESELLER' ? 'text-amber-600' : 'text-slate-500'}`}>
+                              {c.clientType === 'RETAIL' ? 'Varejo' : '★ Revendedor'}
                             </p>
                           </div>
                           <span className={`text-[12px] font-bold ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../contexts/NotificationContext';
+import { parseApiError } from '../utils/parseApiError';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -76,8 +77,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
         defaultSupplierId: type === 'GAS' ? defaultSupplierId : undefined,
       });
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { message?: string } } };
-      setError(ax.response?.data?.message ?? 'Erro ao salvar produto.');
+      setError(parseApiError(err));
     } finally {
       setLoading(false);
     }
