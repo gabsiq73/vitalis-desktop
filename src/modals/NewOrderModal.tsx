@@ -221,23 +221,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   function handleBonusToggle(idx: number, item: ItemForm, available: number) {
     if (item.useBonus) {
-      updateItem(idx, 'useBonus', false);
+      // Remove the bonus row entirely
+      removeItem(idx);
       return;
     }
     if (available <= 0) return;
-    if (available >= item.quantity) {
-      updateItem(idx, 'useBonus', true);
-    } else {
-      // Auto-split: keep paid portion, add bonus row after
-      const bonusQty = available;
-      const paidQty = item.quantity - bonusQty;
-      setItems((prev) => {
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], quantity: paidQty };
-        const bonusRow: ItemForm = { ...updated[idx], quantity: bonusQty, useBonus: true };
-        return [...updated.slice(0, idx + 1), bonusRow, ...updated.slice(idx + 1)];
-      });
-    }
+    // Always add a separate bonus row (qty=1) after the paid row
+    setItems((prev) => {
+      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true };
+      return [...prev.slice(0, idx + 1), bonusRow, ...prev.slice(idx + 1)];
+    });
   }
 
   function getProduct(id: string): ProductResponseDTO | undefined {
@@ -627,7 +620,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       {hasGasItem && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-24 text-center">Recebido</th>
                       )}
-                      {selectedClient && selectedClient.pendingBonusWater > 0 && (
+                      {showBonusColumn && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-green-600 uppercase tracking-wider w-24 text-center">Usar Bônus</th>
                       )}
                       <th className="w-8" />
