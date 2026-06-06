@@ -2,19 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
+import { maskPhone, stripPhone } from '../utils/format';
 import type { ClientResponseDTO, ClientRequestBody, ClientType, ClientStatus } from '../types';
-
-function maskPhone(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
-function stripPhone(masked: string): string {
-  return masked.replace(/\D/g, '');
-}
 
 interface NewClientModalProps {
   open: boolean;
@@ -48,7 +37,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
           name: client.name,
           phone: maskPhone(client.phone ?? ''),
           address: client.address ?? '',
-          notes: '',
+          notes: client.notes ?? '',
           clientType: client.clientType,
           clientStatus: client.clientStatus,
         });
@@ -76,7 +65,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
       const phoneDigits = stripPhone(form.phone);
       if (phoneDigits) body.phone = phoneDigits;
       if (form.address.trim()) body.address = form.address.trim();
-      if (form.notes.trim().length >= 5) body.notes = form.notes.trim();
+      if (form.notes.trim()) body.notes = form.notes.trim();
 
       if (isEdit) {
         await http.put(`/clients/${client.id}`, body);

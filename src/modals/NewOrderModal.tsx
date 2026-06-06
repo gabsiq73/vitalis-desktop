@@ -755,6 +755,30 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                         </div>
                       );
                     })()}
+                    {(() => {
+                      const ptPerItem = sysConfig?.pointsPerWaterItem ?? 1;
+                      const ptPerFree = sysConfig?.pointsPerFreeWater ?? 10;
+                      const paidWaterQty = items.reduce((sum, item) => {
+                        if (!item.productId || item.useBonus) return sum;
+                        const p = getProduct(item.productId);
+                        return p?.type === 'WATER' ? sum + item.quantity : sum;
+                      }, 0);
+                      if (paidWaterQty === 0) return null;
+                      const earned = paidWaterQty * ptPerItem;
+                      const newTotal = selectedClient.fidelityPoints - bonusesUsedInOrder() * ptPerFree + earned;
+                      const newBonus = Math.floor(newTotal / ptPerFree);
+                      return (
+                        <div className="flex items-center gap-2 p-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700 text-[12px] font-semibold">
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>trending_up</span>
+                          <span>Este pedido vai gerar <b>+{earned} pt</b></span>
+                          {newBonus > selectedClient.pendingBonusWater && (
+                            <span className="ml-auto text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-[11px]">
+                              atingirá {newBonus} bônus
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <p className="text-[13px] text-slate-500">Selecione um cliente para ver fidelidade</p>

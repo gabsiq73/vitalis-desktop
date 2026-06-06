@@ -24,6 +24,7 @@ import {
   getInitials,
   getOrderStatusBadge,
   getPaymentStatusBadge,
+  maskPhone,
 } from '../utils/format';
 
 type TabId = 'pedidos' | 'pagamentos' | 'precos' | 'fidelidade' | 'vasilhames';
@@ -231,13 +232,19 @@ export function ClientDetailPage() {
                   {client.phone && (
                     <span className="flex items-center gap-1 text-[12px] text-slate-500">
                       <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>call</span>
-                      {client.phone}
+                      {maskPhone(client.phone)}
                     </span>
                   )}
                   {client.address && (
                     <span className="flex items-center gap-1 text-[12px] text-slate-500">
                       <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>location_on</span>
                       {client.address}
+                    </span>
+                  )}
+                  {client.notes && (
+                    <span className="flex items-center gap-1 text-[12px] text-slate-500 italic max-w-xs">
+                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '14px' }}>sticky_note_2</span>
+                      {client.notes}
                     </span>
                   )}
                 </div>
@@ -648,44 +655,100 @@ export function ClientDetailPage() {
                   )}
                 </div>
 
-                {/* Progresso */}
-                <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-5">
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-4">Progresso para próxima água bônus</p>
+                {/* Progresso + Histórico */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-4">Próximo galão bônus</p>
+                    {(() => {
+                      const goal = sysConfig?.pointsPerFreeWater ?? 10;
+                      const remainder = client.fidelityPoints % goal;
+                      const pct = goal > 0 ? (remainder / goal) * 100 : 0;
+                      const remaining = goal - remainder;
+                      return (
+                        <div className="mb-3">
+                          <div className="flex justify-between text-[12px] text-slate-500 mb-1.5">
+                            <span>{remainder.toLocaleString('pt-BR')} pts acumulados</span>
+                            <span>Meta: {goal.toLocaleString('pt-BR')} pts</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                            <div className="bg-amber-400 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            {remaining.toLocaleString('pt-BR')} pontos para o próximo galão bônus
+                          </p>
+                        </div>
+                      );
+                    })()}
+                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-slate-500">Total de pontos</span>
+                        <span className="font-bold text-amber-500">{client.fidelityPoints.toLocaleString('pt-BR')} pts</span>
+                      </div>
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-slate-500">Pontos por galão de água</span>
+                        <span className="font-bold text-slate-600">{sysConfig?.pointsPerWaterItem ?? '—'} pts/un</span>
+                      </div>
+                      {client.pendingBonusWater > 0 && (
+                        <div className="flex justify-between text-[13px]">
+                          <span className="text-slate-500">Bônus disponível</span>
+                          <span className="font-bold text-amber-600">{client.pendingBonusWater} galão(ões)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Histórico de pontos derivado dos pedidos */}
                   {(() => {
                     const goal = sysConfig?.pointsPerFreeWater ?? 10;
-                    const pct = Math.min((client.fidelityPoints / goal) * 100, 100);
-                    const remaining = Math.max(0, goal - client.fidelityPoints);
+                    const pointsPerItem = sysConfig?.pointsPerWaterItem ?? 1;
+                    type PointEvent = { date: string; label: string; delta: number; orderId: string };
+                    const events: PointEvent[] = [];
+                    orders.forEach((order) => {
+                      order.items.forEach((item) => {
+                        if (item.unitPrice === 0 && item.subTotal === 0) {
+                          events.push({
+                            date: order.createDate,
+                            label: `Resgate: ${item.quantity}× ${item.productName}`,
+                            delta: -(item.quantity * goal),
+                            orderId: order.id,
+                          });
+                        } else if (order.status === 'DELIVERED' && item.unitPrice > 0) {
+                          const earned = item.quantity * pointsPerItem;
+                          events.push({
+                            date: order.createDate,
+                            label: `Entrega: ${item.quantity}× ${item.productName} (+${earned} pt)`,
+                            delta: earned,
+                            orderId: order.id,
+                          });
+                        }
+                      });
+                    });
+                    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    if (events.length === 0) return (
+                      <div className="bg-white border border-slate-200 rounded-xl p-5">
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Histórico de Pontos</p>
+                        <p className="text-[13px] text-slate-400 text-center py-4">Nenhuma movimentação registrada.</p>
+                      </div>
+                    );
                     return (
-                      <div className="mb-3">
-                        <div className="flex justify-between text-[12px] text-slate-500 mb-1.5">
-                          <span>{client.fidelityPoints.toLocaleString('pt-BR')} pts acumulados</span>
-                          <span>Meta: {goal.toLocaleString('pt-BR')} pts</span>
+                      <div className="bg-white border border-slate-200 rounded-xl p-5">
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Histórico de Pontos</p>
+                        <div className="space-y-2 max-h-52 overflow-y-auto">
+                          {events.map((ev, i) => (
+                            <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                              <div>
+                                <p className="text-[13px] font-medium text-slate-700">{ev.label}</p>
+                                <p className="text-[11px] text-slate-400">{formatDateTime(ev.date)}</p>
+                              </div>
+                              <span className={`text-[13px] font-black ${ev.delta > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                {ev.delta > 0 ? `+${ev.delta}` : ev.delta} pts
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                          <div className="bg-amber-400 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          {remaining.toLocaleString('pt-BR')} pontos restantes para ganhar 1 galão
-                        </p>
                       </div>
                     );
                   })()}
-                  <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
-                    <div className="flex justify-between text-[13px]">
-                      <span className="text-slate-500">Saldo de pontos</span>
-                      <span className="font-bold text-amber-500">{client.fidelityPoints.toLocaleString('pt-BR')} pts</span>
-                    </div>
-                    <div className="flex justify-between text-[13px]">
-                      <span className="text-slate-500">Pontos por galão de água</span>
-                      <span className="font-bold text-slate-600">{sysConfig?.pointsPerWaterItem ?? '—'} pts/un</span>
-                    </div>
-                    {client.pendingBonusWater > 0 && (
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-slate-500">Bônus disponível</span>
-                        <span className="font-bold text-amber-600">{client.pendingBonusWater} galão(ões)</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             )}

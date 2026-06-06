@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import type { ClientResponseDTO, SpringPage } from '../types';
-import { formatBRL, getInitials } from '../utils/format';
+import { formatBRL, getInitials, maskPhone } from '../utils/format';
 
 const PAGE_SIZE = 20;
 
@@ -213,7 +213,7 @@ export function DebtorsPage() {
                         </td>
 
                         <td className="px-5 py-3.5 text-[13px] text-slate-500 tabular-nums">
-                          {client.phone ?? '—'}
+                          {client.phone ? maskPhone(client.phone) : '—'}
                         </td>
 
                         <td className="px-5 py-3.5">

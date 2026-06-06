@@ -18,6 +18,7 @@ export interface ClientResponseDTO {
   name: string;
   phone?: string;
   address?: string;
+  notes?: string;
   balance: number;
   fidelityPoints: number;
   pendingBonusWater: number;

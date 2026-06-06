@@ -6,7 +6,7 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import type { ClientResponseDTO, SpringPage } from '../types';
-import { formatBRL, getInitials } from '../utils/format';
+import { formatBRL, getInitials, maskPhone } from '../utils/format';
 
 const PAGE_SIZE = 20;
 
@@ -329,7 +329,7 @@ export function ClientsPage() {
                         </td>
 
                         <td className="px-5 py-3.5 text-[13px] text-slate-500 tabular-nums">
-                          {client.phone ?? '—'}
+                          {client.phone ? maskPhone(client.phone) : '—'}
                         </td>
 
                         <td className="px-5 py-3.5">
