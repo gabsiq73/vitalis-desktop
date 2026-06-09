@@ -9,6 +9,7 @@ import { hasOrderDraft } from '../utils/orderDraft';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { OrderResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
@@ -19,7 +20,6 @@ import {
   getPaymentStatusBadge,
 } from '../utils/format';
 
-const PAGE_SIZE = 20;
 
 const STATUS_CHIPS = [
   {
@@ -108,6 +108,7 @@ export function OrdersPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const [sort, setSort] = useState<SortState | null>(null);
+  const [pageSize, setPageSize] = useState(20);
 
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
@@ -160,7 +161,7 @@ export function OrdersPage() {
   function fetchOrders() {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
+    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
     if (statusFilter === 'SCHEDULED') {
       params.status = 'PENDING';
       params.deliveryAfter = scheduledThreshold();
@@ -187,7 +188,7 @@ export function OrdersPage() {
   useEffect(() => {
     fetchOrders();
     fetchCounts();
-  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
     setStatusFilter(key);
@@ -368,6 +369,10 @@ export function OrdersPage() {
               Limpar
             </button>
           )}
+
+          <div className="ml-auto">
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
+          </div>
         </div>
 
         {/* Table */}
@@ -539,7 +544,7 @@ export function OrdersPage() {
           {totalElements > 0 && (
             <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
               <span className="text-[12px] text-slate-500">
-                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {Math.min(currentPage * pageSize + 1, totalElements)}–{Math.min((currentPage + 1) * pageSize, totalElements)}
                 {' '}<span className="text-slate-400">de</span>{' '}
                 <span className="font-semibold text-slate-700">{totalElements}</span> pedidos
               </span>

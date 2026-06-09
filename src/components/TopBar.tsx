@@ -22,6 +22,13 @@ const TYPE_COLOR: Record<NotificationType, string> = {
   info:    'text-blue-500',
 };
 
+const TYPE_ROW_BG: Record<NotificationType, string> = {
+  error:   'bg-red-50/80',
+  warning: 'bg-amber-50/80',
+  success: '',
+  info:    '',
+};
+
 function formatTime(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
@@ -100,8 +107,8 @@ export function TopBar({ title, subtitle }: TopBarProps) {
           {open && (
             <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-slate-200 rounded-xl shadow-card-hover z-50 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-slate-700">Notificações do Dia</p>
-                <span className="text-[11px] text-slate-400">{notifications.length} total</span>
+                <p className="text-[13px] font-semibold text-slate-700">Últimas notificações</p>
+                <span className="text-[11px] text-slate-400">{notifications.length > 5 ? `${notifications.length} total` : `${notifications.length} total`}</span>
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
@@ -110,8 +117,8 @@ export function TopBar({ title, subtitle }: TopBarProps) {
                     <p className="text-sm">Nenhuma notificação</p>
                   </div>
                 ) : (
-                  notifications.map(n => (
-                    <div key={n.id} className="flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0">
+                  notifications.slice(0, 5).map(n => (
+                    <div key={n.id} className={`flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0 ${TYPE_ROW_BG[n.type]}`}>
                       <span className={`material-symbols-outlined flex-shrink-0 mt-0.5 ${TYPE_COLOR[n.type]}`} style={{ fontSize: '16px' }}>
                         {TYPE_ICON[n.type]}
                       </span>
@@ -121,6 +128,11 @@ export function TopBar({ title, subtitle }: TopBarProps) {
                       </div>
                     </div>
                   ))
+                )}
+                {notifications.length > 5 && (
+                  <p className="px-4 py-2 text-[11px] text-slate-400 text-center border-t border-slate-50">
+                    +{notifications.length - 5} notificação(ões) mais antigas
+                  </p>
                 )}
               </div>
             </div>

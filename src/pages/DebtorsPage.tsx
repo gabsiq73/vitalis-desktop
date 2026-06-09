@@ -4,11 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
 import { applySortInMemory } from '../utils/sort';
 
-const PAGE_SIZE = 20;
 
 export function DebtorsPage() {
   const { http } = useAuth();
@@ -20,6 +20,7 @@ export function DebtorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<SortState | null>({ field: 'debt', dir: 'desc' });
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     if (!http) return;
@@ -60,8 +61,8 @@ export function DebtorsPage() {
   }, [searchQuery, sort, debtors]);
 
   const totalDebt = debtors.reduce((sum, c) => sum + c.debt, 0);
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   return (
     <>
@@ -133,6 +134,9 @@ export function DebtorsPage() {
 
           <div className="h-6 w-px bg-slate-200" />
 
+          <div className="ml-auto">
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
+          </div>
         </div>
 
         {/* Table */}
@@ -242,7 +246,7 @@ export function DebtorsPage() {
           {filtered.length > 0 && (
             <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
               <span className="text-[12px] text-slate-500">
-                {Math.min(currentPage * PAGE_SIZE + 1, filtered.length)}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)}
+                {Math.min(currentPage * pageSize + 1, filtered.length)}–{Math.min((currentPage + 1) * pageSize, filtered.length)}
                 {' '}<span className="text-slate-400">de</span>{' '}
                 <span className="font-semibold text-slate-700">{filtered.length}</span> devedores
               </span>

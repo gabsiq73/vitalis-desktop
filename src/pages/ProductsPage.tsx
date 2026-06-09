@@ -16,8 +16,8 @@ import type {
 import { formatBRL } from '../utils/format';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 
-const PAGE_SIZE = 20;
 
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string; bg: string }> = {
   GAS:   { icon: 'propane_tank', label: 'Gás GLP',  color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -179,6 +179,7 @@ export function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(20);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProductResponseDTO | undefined>(undefined);
@@ -188,7 +189,7 @@ export function ProductsPage() {
   const fetchProducts = useCallback(() => {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE, sort: sort ? `${sort.field},${sort.dir}` : 'name,asc' };
+    const params: Record<string, string | number> = { page: currentPage, size: pageSize, sort: sort ? `${sort.field},${sort.dir}` : 'name,asc' };
     http.get<SpringPage<ProductResponseDTO>>('/products', { params })
       .then(res => {
         setProducts(res.data.content);
@@ -197,7 +198,7 @@ export function ProductsPage() {
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [http, currentPage, sort]);
+  }, [http, currentPage, sort, pageSize]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -306,13 +307,16 @@ export function ProductsPage() {
               />
             </div>
 
-            <button
-              onClick={() => { setEditing(undefined); setShowForm(true); }}
-              className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-semibold shadow-sm shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>add</span>
-              Novo Produto
-            </button>
+            <div className="ml-auto flex items-center gap-4">
+              <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
+              <button
+                onClick={() => { setEditing(undefined); setShowForm(true); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-semibold shadow-sm shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>add</span>
+                Novo Produto
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -412,7 +416,7 @@ export function ProductsPage() {
           {totalPages > 1 && (
             <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
               <span className="text-[12px] text-slate-500">
-                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {Math.min(currentPage * pageSize + 1, totalElements)}–{Math.min((currentPage + 1) * pageSize, totalElements)}
                 {' '}<span className="text-slate-400">de</span>{' '}
                 <span className="font-semibold text-slate-700">{totalElements}</span> produtos
               </span>

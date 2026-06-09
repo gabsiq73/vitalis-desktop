@@ -7,10 +7,10 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
 
-const PAGE_SIZE = 20;
 
 const TYPE_CHIPS = [
   {
@@ -62,6 +62,7 @@ export function ClientsPage() {
   const [statsLoading, setStatsLoading] = useState(true);
 
   const [sort, setSort] = useState<SortState | null>(null);
+  const [pageSize, setPageSize] = useState(20);
 
   const [showNewClient, setShowNewClient] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);
@@ -76,7 +77,7 @@ export function ClientsPage() {
   async function fetchClients() {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
+    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
     if (debouncedSearch) params.name = debouncedSearch;
     if (typeFilter) params.type = typeFilter;
     if (sort) params.sort = `${sort.field},${sort.dir}`;
@@ -119,7 +120,7 @@ export function ClientsPage() {
 
   useEffect(() => {
     fetchClients();
-  }, [http, currentPage, debouncedSearch, typeFilter, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, debouncedSearch, typeFilter, sort, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchStats();
@@ -267,6 +268,10 @@ export function ClientsPage() {
               Limpar
             </button>
           )}
+
+          <div className="ml-auto">
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
+          </div>
         </div>
 
         {/* Table */}
@@ -423,7 +428,7 @@ export function ClientsPage() {
           {totalElements > 0 && (
             <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
               <span className="text-[12px] text-slate-500">
-                {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–{Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                {Math.min(currentPage * pageSize + 1, totalElements)}–{Math.min((currentPage + 1) * pageSize, totalElements)}
                 {' '}<span className="text-slate-400">de</span>{' '}
                 <span className="font-semibold text-slate-700">{totalElements}</span> clientes
               </span>

@@ -5,11 +5,11 @@ import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import { applySortInMemory } from '../utils/sort';
 import type { GasSupplierResponseDTO, GasSupplierRequestDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
 
-const PAGE_SIZE = 20;
 
 const AVATAR_COLORS = [
   'bg-primary/10 text-primary',
@@ -106,6 +106,7 @@ export function SuppliersPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [pageSize, setPageSize] = useState(20);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<GasSupplierResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export function SuppliersPage() {
   function fetchSuppliers() {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
+    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
     http
       .get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params })
       .then((res) => {
@@ -125,7 +126,7 @@ export function SuppliersPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchSuppliers(); }, [http, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchSuppliers(); }, [http, currentPage, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [sort, setSort] = useState<SortState | null>(null);
   const filtered = applySortInMemory(
@@ -199,6 +200,9 @@ export function SuppliersPage() {
           <span className="text-sm text-on-surface-variant">
             {totalElements} fornecedor{totalElements !== 1 ? 'es' : ''} cadastrado{totalElements !== 1 ? 's' : ''}
           </span>
+          <div className="ml-auto">
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
+          </div>
         </section>
 
         <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
@@ -283,8 +287,8 @@ export function SuppliersPage() {
               <p className="text-sm text-on-surface-variant">
                 Mostrando{' '}
                 <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                  {Math.min(currentPage * pageSize + 1, totalElements)}–
+                  {Math.min((currentPage + 1) * pageSize, totalElements)}
                 </span>{' '}
                 de <span className="font-bold text-on-surface">{totalElements}</span> fornecedores
               </p>

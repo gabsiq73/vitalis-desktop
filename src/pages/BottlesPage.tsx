@@ -7,10 +7,9 @@ import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
 import { NewLoanModal } from '../modals/NewLoanModal';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { LoanedBottleResponseDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
-
-const PAGE_SIZE = 20;
 
 function daysSince(dateStr?: string): number | null {
   if (!dateStr) return null;
@@ -42,6 +41,7 @@ export function BottlesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
+  const [pageSize, setPageSize] = useState(20);
 
   const [showNewLoan, setShowNewLoan] = useState(false);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function BottlesPage() {
   function fetchBottles() {
     if (!http) return;
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE };
+    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
     if (statusFilter) params.status = statusFilter;
     http
       .get<SpringPage<LoanedBottleResponseDTO>>('/bottles', { params })
@@ -63,7 +63,7 @@ export function BottlesPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchBottles(); }, [http, currentPage, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchBottles(); }, [http, currentPage, statusFilter, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusFilter(s: string) {
     setStatusFilter(s);
@@ -175,6 +175,9 @@ export function BottlesPage() {
                 {opt.label}
               </button>
             ))}
+          </div>
+          <div className="ml-auto">
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
           </div>
         </section>
 
@@ -296,8 +299,8 @@ export function BottlesPage() {
               <p className="text-sm text-on-surface-variant">
                 Mostrando{' '}
                 <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, totalElements)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, totalElements)}
+                  {Math.min(currentPage * pageSize + 1, totalElements)}–
+                  {Math.min((currentPage + 1) * pageSize, totalElements)}
                 </span>{' '}
                 de <span className="font-bold text-on-surface">{totalElements}</span> registros
               </p>

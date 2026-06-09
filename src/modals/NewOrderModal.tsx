@@ -90,6 +90,13 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const paymentAmountAutoSync = useRef(true);
 
+  const [loanEnabled, setLoanEnabled] = useState(false);
+  const [loanProductId, setLoanProductId] = useState('');
+  const [loanQuantity, setLoanQuantity] = useState(1);
+
+  const isDirty = useRef(false);
+  const hasInitialized = useRef(false);
+
   const [showAddPoints, setShowAddPoints] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +106,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       setError(null);
       setClientPrices([]);
       paymentAmountAutoSync.current = true;
+      hasInitialized.current = false;
+      isDirty.current = false;
+      setLoanEnabled(false);
+      setLoanProductId('');
+      setLoanQuantity(1);
 
       if (editOrder) {
         // Edit mode: pre-populate from existing order
@@ -141,6 +153,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setPaymentMethod(draft.paymentMethod ?? 'PIX');
           setRegisterPayment(draft.registerPayment ?? true);
           setPaymentAmount(draft.paymentAmount ?? '');
+          setLoanEnabled(draft.loanEnabled ?? false);
+          setLoanProductId(draft.loanProductId ?? '');
+          setLoanQuantity(draft.loanQuantity ?? 1);
         } else {
           setItems([emptyItem()]);
           setIsDelivery(true);
@@ -161,6 +176,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       }
     }
   }, [open, defaultClient, editOrder]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!hasInitialized.current) { hasInitialized.current = true; return; }
+    isDirty.current = true;
+  }, [items, selectedClient, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, loanEnabled, loanProductId, loanQuantity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!http || !open) return;
@@ -363,6 +384,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             });
           }
         }
+
+        if (loanEnabled && loanProductId && loanQuantity > 0) {
+          try {
+            await http.post('/bottles', { productId: loanProductId, clientId, quantity: loanQuantity, loanDate: null });
+          } catch {
+            try { await http.delete(`/orders/${newOrderId}`); } catch { /* best-effort rollback */ }
+            setError('Falha ao registrar o empréstimo. O pedido foi cancelado automaticamente.');
+            return;
+          }
+        }
       }
 
       clearOrderDraft();
@@ -381,8 +412,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     'w-full border border-slate-200 rounded bg-white text-[13px] py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all text-slate-700';
 
   function saveDraftAndClose() {
-    if (!isEditMode) {
-      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount };
+    if (!isEditMode && isDirty.current) {
+      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, loanEnabled, loanProductId, loanQuantity };
       try { localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft)); } catch { /* noop */ }
     }
     onClose();
@@ -631,7 +662,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       const product = getProduct(item.productId);
                       const isGas = product?.type === 'GAS';
                       const unitPrice = getItemUnitPrice(item);
-                      const customPrice = item.productId ? getClientCustomPrice(item.productId) : null;
                       return (
                         <tr key={idx} className="hover:bg-slate-50/60">
                           <td className="px-3 py-2">
@@ -878,6 +908,59 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 )}
               </div>
             </div>
+
+            {/* ── Empréstimo de Vasilhame (apenas criação, cliente identificado) ── */}
+            {!isEditMode && selectedClient && !isAvulso && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>water_drop</span>
+                    <span className="font-semibold text-[13px] text-slate-700">Empréstimo de Vasilhame</span>
+                    <span className="text-[11px] text-slate-400 font-medium">(opcional)</span>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="text-[12px] text-slate-500 font-medium">Registrar empréstimo</span>
+                    <div
+                      onClick={() => setLoanEnabled((v) => !v)}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${loanEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${loanEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </div>
+                  </label>
+                </div>
+                <div className={`p-4 transition-all ${loanEnabled ? '' : 'opacity-50 pointer-events-none'}`}>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Garrafão *
+                      </label>
+                      <select
+                        value={loanProductId}
+                        onChange={(e) => setLoanProductId(e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="">Selecionar garrafão...</option>
+                        {products.filter((p) => p.type === 'WATER').map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Quantidade *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={loanQuantity}
+                        onChange={(e) => setLoanQuantity(parseInt(e.target.value) || 1)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── Pagamento (apenas no modo criação) ── */}
             {!isEditMode && <div className="border border-slate-200 rounded-xl overflow-hidden">

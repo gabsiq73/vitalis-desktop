@@ -5,9 +5,8 @@ import { Modal } from '../components/Modal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
+import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
-
-const PAGE_SIZE = 20;
 
 function getStockStatusBadge(status: string): { label: string; className: string; dot: string } {
   const s = status.toUpperCase();
@@ -125,6 +124,7 @@ export function StockPage() {
   const [gasProductIds, setGasProductIds] = useState<Set<string>>(new Set());
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [adjustTarget, setAdjustTarget] = useState<StockResponseDTO | null>(null);
 
   async function fetchStock() {
@@ -132,7 +132,7 @@ export function StockPage() {
     setLoading(true);
     try {
       const [stockRes, productsRes] = await Promise.allSettled([
-        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { page: currentPage, size: PAGE_SIZE } }),
+        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { page: currentPage, size: pageSize } }),
         http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200, page: 0 } }),
       ]);
       if (productsRes.status === 'fulfilled') {
@@ -152,7 +152,7 @@ export function StockPage() {
     }
   }
 
-  useEffect(() => { fetchStock(); }, [http, currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchStock(); }, [http, currentPage, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAdjust(productId: string, quantity: number) {
     await http!.patch(`/stocks/products/${productId}`, quantity, {
@@ -239,6 +239,7 @@ export function StockPage() {
         <section className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
             <h3 className="text-h3 text-on-surface">Listagem de Produtos</h3>
+            <PageSizeSelector value={pageSize} onChange={(s) => { setPageSize(s); setCurrentPage(0); }} />
           </div>
 
           <div className="overflow-x-auto">
@@ -321,8 +322,8 @@ export function StockPage() {
               <p className="text-sm text-on-surface-variant">
                 Mostrando{' '}
                 <span className="font-bold text-on-surface">
-                  {Math.min(currentPage * PAGE_SIZE + 1, waterItems.length)}–
-                  {Math.min((currentPage + 1) * PAGE_SIZE, waterItems.length)}
+                  {Math.min(currentPage * pageSize + 1, waterItems.length)}–
+                  {Math.min((currentPage + 1) * pageSize, waterItems.length)}
                 </span>{' '}
                 de <span className="font-bold text-on-surface">{waterItems.length}</span> produtos
               </p>
