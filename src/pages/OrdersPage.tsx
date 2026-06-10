@@ -121,7 +121,7 @@ export function OrdersPage() {
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{ order: OrderResponseDTO; top: number; right: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ order: OrderResponseDTO; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!statusMenu) return;
@@ -422,10 +422,8 @@ export function OrdersPage() {
                       <tr
                         key={order.id}
                         className="hover:bg-slate-50/70 transition-colors cursor-pointer"
-                        onMouseEnter={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setTooltip({ order, top: rect.top + rect.height / 2, right: window.innerWidth - rect.right + 8 });
-                        }}
+                        onMouseEnter={(e) => setTooltip({ order, x: e.clientX, y: e.clientY })}
+                        onMouseMove={(e) => setTooltip((t) => t ? { order, x: e.clientX, y: e.clientY } : null)}
                         onMouseLeave={() => setTooltip(null)}
                         onClick={() => navigate(`/orders/${order.id}`)}
                       >
@@ -455,6 +453,13 @@ export function OrdersPage() {
                             })}
                             {order.items.length > 2 && (
                               <span className="text-[10px] text-slate-400">+{order.items.length - 2} mais</span>
+                            )}
+                            {(order.loanedBottlesCount ?? 0) > 0 && (
+                              <span className="text-[11px] text-blue-600 leading-tight flex items-center gap-0.5 mt-0.5">
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>propane_tank</span>
+                                <span className="font-bold">×{order.loanedBottlesCount}</span>
+                                <span className="text-blue-400">emp.</span>
+                              </span>
                             )}
                           </div>
                         </td>
@@ -661,9 +666,7 @@ export function OrdersPage() {
         const payBadge = getPaymentStatusBadge(o.paymentStatus);
         return (
           <div
-            onMouseEnter={() => setTooltip(tooltip)}
-            onMouseLeave={() => setTooltip(null)}
-            style={{ position: 'fixed', top: tooltip.top, right: tooltip.right, transform: 'translateY(-50%)', zIndex: 9998 }}
+            style={{ position: 'fixed', top: tooltip.y + 16, left: tooltip.x + 16, zIndex: 9998 }}
             className="bg-white border border-slate-200 rounded-xl shadow-card-hover w-64 overflow-hidden pointer-events-none"
           >
             <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">

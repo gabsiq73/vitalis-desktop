@@ -29,7 +29,7 @@ interface ItemForm {
   supplierId: string;
   gasCostPrice: string;
   receivedByUs: boolean;
-  bottleExpiration: string;
+  bottleExpirations: string[];
   useBonus: boolean;
 }
 
@@ -47,7 +47,7 @@ const emptyItem = (): ItemForm => ({
   supplierId: '',
   gasCostPrice: '',
   receivedByUs: false,
-  bottleExpiration: '',
+  bottleExpirations: [],
   useBonus: false,
 });
 
@@ -85,7 +85,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   const [clientPrices, setClientPrices] = useState<ClientPriceResponseDTO[]>([]);
 
-  const [registerPayment, setRegisterPayment] = useState(true);
+  const [registerPayment, setRegisterPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const paymentAmountAutoSync = useRef(true);
@@ -116,7 +116,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         // Edit mode: pre-populate from existing order
         setIsAvulso(false);
         setAvulsoName('');
-        setRegisterPayment(true);
+        setRegisterPayment(false);
         setPaymentAmount('');
         setPaymentMethod('PIX');
         setIsDelivery(editOrder.isDelivery ?? true);
@@ -133,7 +133,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           supplierId: i.supplierId ?? '',
           gasCostPrice: i.gasCostPrice?.toString() ?? '',
           receivedByUs: i.receivedByUs ?? false,
-          bottleExpiration: i.bottleExpiration ?? '',
+          bottleExpirations: i.bottleExpiration ? [i.bottleExpiration] : Array(i.quantity).fill(''),
           useBonus: i.unitPrice === 0,
         })));
         setSelectedClient(null);
@@ -151,7 +151,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setIsDelivery(draft.isDelivery ?? true);
           setDeliveryDate(draft.deliveryDate ?? nowDatetimeLocal());
           setPaymentMethod(draft.paymentMethod ?? 'PIX');
-          setRegisterPayment(draft.registerPayment ?? true);
+          setRegisterPayment(draft.registerPayment ?? false);
           setPaymentAmount(draft.paymentAmount ?? '');
           setLoanEnabled(draft.loanEnabled ?? false);
           setLoanProductId(draft.loanProductId ?? '');
@@ -162,7 +162,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setDeliveryDate(nowDatetimeLocal());
           setIsAvulso(false);
           setAvulsoName('');
-          setRegisterPayment(true);
+          setRegisterPayment(false);
           setPaymentAmount('');
           setPaymentMethod('PIX');
           if (defaultClient) {
@@ -237,7 +237,35 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function addItem() { setItems((p) => [...p, emptyItem()]); }
   function removeItem(idx: number) { setItems((p) => p.filter((_, i) => i !== idx)); }
   function updateItem<K extends keyof ItemForm>(idx: number, key: K, value: ItemForm[K]) {
-    setItems((p) => p.map((item, i) => (i === idx ? { ...item, [key]: value } : item)));
+    setItems((p) => p.map((item, i) => {
+      if (i !== idx) return item;
+      const updated = { ...item, [key]: value };
+      if (key === 'quantity') {
+        const prod = getProduct(item.productId);
+        if (prod?.type === 'WATER') {
+          const newQty = value as number;
+          const exps = item.bottleExpirations.slice(0, newQty);
+          while (exps.length < newQty) exps.push('');
+          return { ...updated, bottleExpirations: exps };
+        }
+      }
+      if (key === 'productId') {
+        const prod = getProduct(value as string);
+        if (prod?.type === 'WATER') {
+          return { ...updated, bottleExpirations: Array(item.quantity).fill('') };
+        }
+        return { ...updated, bottleExpirations: [] };
+      }
+      return updated;
+    }));
+  }
+  function updateBottleExpiration(itemIdx: number, bottleIdx: number, value: string) {
+    setItems((p) => p.map((item, i) => {
+      if (i !== itemIdx) return item;
+      const exps = [...item.bottleExpirations];
+      exps[bottleIdx] = value;
+      return { ...item, bottleExpirations: exps };
+    }));
   }
 
   function handleBonusToggle(idx: number, item: ItemForm, available: number) {
@@ -249,7 +277,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     if (available <= 0) return;
     // Always add a separate bonus row (qty=1) after the paid row
     setItems((prev) => {
-      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true };
+      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true, bottleExpirations: [''] };
       return [...prev.slice(0, idx + 1), bonusRow, ...prev.slice(idx + 1)];
     });
   }
@@ -357,17 +385,26 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       return;
     }
 
-    const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
+    const orderItems: OrderItemRequestBody[] = validItems.flatMap((item) => {
       const p = getProduct(item.productId);
+      const isWater = p?.type === 'WATER';
+      const hasAnyExpiration = isWater && item.bottleExpirations.some((e) => e);
+      if (hasAnyExpiration) {
+        return Array.from({ length: item.quantity }, (_, i) => {
+          const b: OrderItemRequestBody = { productId: item.productId, quantity: 1 };
+          if (item.useBonus) b.unitPrice = 0;
+          if (item.bottleExpirations[i]) b.bottleExpiration = item.bottleExpirations[i];
+          return b;
+        });
+      }
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
-      if (item.useBonus && p?.type === 'WATER') base.unitPrice = 0;
-      if (item.bottleExpiration) base.bottleExpiration = item.bottleExpiration;
+      if (item.useBonus && isWater) base.unitPrice = 0;
       if (p?.type === 'GAS') {
         if (item.supplierId) base.supplierId = item.supplierId;
         if (item.gasCostPrice) base.gasCostPrice = parseFloat(item.gasCostPrice);
         base.receivedByUs = item.receivedByUs;
       }
-      return base;
+      return [base];
     });
 
     const body: OrderRequestBody = {
@@ -699,12 +736,22 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                             />
                           </td>
                           <td className="px-3 py-2">
-                            <input
-                              type="date"
-                              value={item.bottleExpiration}
-                              onChange={(e) => updateItem(idx, 'bottleExpiration', e.target.value)}
-                              className={cellInputClass}
-                            />
+                            {product?.type === 'WATER' ? (
+                              <div className="flex flex-col gap-1">
+                                {Array.from({ length: item.quantity }).map((_, bi) => (
+                                  <input
+                                    key={bi}
+                                    type="date"
+                                    value={item.bottleExpirations[bi] ?? ''}
+                                    onChange={(e) => updateBottleExpiration(idx, bi, e.target.value)}
+                                    className={cellInputClass}
+                                    title={item.quantity > 1 ? `Vasilhame ${bi + 1}` : undefined}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[13px] text-slate-400 px-1">—</span>
+                            )}
                           </td>
                           {hasGasItem && (
                             <td className="px-3 py-2">
@@ -923,7 +970,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             {/* ── Empréstimo de Vasilhame (apenas criação, cliente identificado) ── */}
             {!isEditMode && selectedClient && !isAvulso && (
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 ${loanEnabled ? 'border-b border-slate-200' : ''}`}>
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>water_drop</span>
                     <span className="font-semibold text-[13px] text-slate-700">Empréstimo de Vasilhame</span>
@@ -939,43 +986,45 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                     </div>
                   </label>
                 </div>
-                <div className={`p-4 transition-all ${loanEnabled ? '' : 'opacity-50 pointer-events-none'}`}>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                        Garrafão *
-                      </label>
-                      <select
-                        value={loanProductId}
-                        onChange={(e) => setLoanProductId(e.target.value)}
-                        className={inputClass}
-                      >
-                        <option value="">Selecionar garrafão...</option>
-                        {products.filter((p) => p.type === 'WATER').map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                        Quantidade *
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={loanQuantity}
-                        onChange={(e) => setLoanQuantity(parseInt(e.target.value) || 1)}
-                        className={inputClass}
-                      />
+                {loanEnabled && (
+                  <div className="p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Garrafão *
+                        </label>
+                        <select
+                          value={loanProductId}
+                          onChange={(e) => setLoanProductId(e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">Selecionar garrafão...</option>
+                          {products.filter((p) => p.type === 'WATER').map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Quantidade *
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={loanQuantity}
+                          onChange={(e) => setLoanQuantity(parseInt(e.target.value) || 1)}
+                          className={inputClass}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
             {/* ── Pagamento (apenas no modo criação) ── */}
             {!isEditMode && <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+              <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 ${registerPayment ? 'border-b border-slate-200' : ''}`}>
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>payments</span>
                   <span className="font-semibold text-[13px] text-slate-700">Pagamento</span>
@@ -992,7 +1041,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 </label>
               </div>
 
-              <div className={`p-4 transition-all ${registerPayment ? '' : 'opacity-50 pointer-events-none'}`}>
+              {registerPayment && <div className="p-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -1040,7 +1089,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>}
 
           </div>

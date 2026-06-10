@@ -64,6 +64,7 @@ export interface OrderResponseDTO {
   totalValue: number;
   createDate: string;
   isDelivery?: boolean;
+  loanedBottlesCount?: number;
 }
 
 export interface StockResponseDTO {
