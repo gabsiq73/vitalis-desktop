@@ -179,7 +179,7 @@ export function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProductResponseDTO | undefined>(undefined);

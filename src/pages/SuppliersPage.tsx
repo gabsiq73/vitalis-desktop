@@ -106,7 +106,7 @@ export function SuppliersPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<GasSupplierResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);

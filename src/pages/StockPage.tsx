@@ -124,7 +124,7 @@ export function StockPage() {
   const [gasProductIds, setGasProductIds] = useState<Set<string>>(new Set());
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
   const [adjustTarget, setAdjustTarget] = useState<StockResponseDTO | null>(null);
 
   async function fetchStock() {

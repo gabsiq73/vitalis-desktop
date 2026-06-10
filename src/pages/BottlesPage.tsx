@@ -41,7 +41,7 @@ export function BottlesPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
 
   const [showNewLoan, setShowNewLoan] = useState(false);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);

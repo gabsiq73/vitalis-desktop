@@ -62,7 +62,7 @@ export function ClientsPage() {
   const [statsLoading, setStatsLoading] = useState(true);
 
   const [sort, setSort] = useState<SortState | null>(null);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
 
   const [showNewClient, setShowNewClient] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientResponseDTO | undefined>(undefined);

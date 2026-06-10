@@ -20,7 +20,7 @@ export function DebtorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<SortState | null>({ field: 'debt', dir: 'desc' });
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(15);
 
   useEffect(() => {
     if (!http) return;

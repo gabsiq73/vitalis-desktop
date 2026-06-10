@@ -321,6 +321,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       return;
     }
 
+    if (loanEnabled && loanProductId && loanQuantity > 0) {
+      const totalWaterQty = validItems.reduce((sum, item) => {
+        const p = getProduct(item.productId);
+        return sum + (p?.type === 'WATER' ? item.quantity : 0);
+      }, 0);
+      if (loanQuantity > totalWaterQty) {
+        setError(`A quantidade do empréstimo (${loanQuantity}) não pode ser maior que o total de galões de água no pedido (${totalWaterQty}).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -387,7 +398,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
         if (loanEnabled && loanProductId && loanQuantity > 0) {
           try {
-            await http.post('/bottles', { productId: loanProductId, clientId, quantity: loanQuantity, loanDate: null });
+            await http.post('/bottles', { productId: loanProductId, clientId, quantity: loanQuantity, loanDate: null, orderId: newOrderId });
           } catch {
             try { await http.delete(`/orders/${newOrderId}`); } catch { /* best-effort rollback */ }
             setError('Falha ao registrar o empréstimo. O pedido foi cancelado automaticamente.');

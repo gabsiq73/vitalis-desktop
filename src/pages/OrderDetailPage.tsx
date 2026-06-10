@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
-import type { OrderResponseDTO, PaymentResponseDTO, OrderBalanceDTO } from '../types';
+import type { OrderResponseDTO, PaymentResponseDTO, OrderBalanceDTO, LoanedBottleResponseDTO } from '../types';
 import {
   formatBRL,
   formatOrderId,
@@ -36,14 +37,17 @@ export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { http } = useAuth();
+  const { notify } = useNotification();
 
   const [order, setOrder] = useState<OrderResponseDTO | null>(null);
   const [payments, setPayments] = useState<PaymentResponseDTO[]>([]);
   const [balance, setBalance] = useState<OrderBalanceDTO | null>(null);
+  const [loans, setLoans] = useState<LoanedBottleResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showEditOrder, setShowEditOrder] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchAll = useCallback(() => {
     if (!http || !id) return;
@@ -52,11 +56,13 @@ export function OrderDetailPage() {
       http.get<OrderResponseDTO>(`/orders/${id}`),
       http.get<PaymentResponseDTO[]>(`/payments/orders/${id}`),
       http.get<OrderBalanceDTO>(`/payments/orders/${id}/balance`),
+      http.get<LoanedBottleResponseDTO[]>(`/bottles/order/${id}`).catch(() => ({ data: [] as LoanedBottleResponseDTO[] })),
     ])
-      .then(([orderRes, paymentsRes, balanceRes]) => {
+      .then(([orderRes, paymentsRes, balanceRes, loansRes]) => {
         setOrder(orderRes.data);
         setPayments(paymentsRes.data);
         setBalance(balanceRes.data);
+        setLoans(loansRes.data);
       })
       .catch(() => navigate('/orders'))
       .finally(() => setLoading(false));
@@ -67,15 +73,23 @@ export function OrderDetailPage() {
   async function handleChangeStatus(status: string) {
     if (actionLoading) return;
     setActionLoading(true);
+    setActionError(null);
     try {
       if (status === 'DELIVERED') {
         await http!.patch(`/orders/${id}/confirm-delivery`);
+        notify('Entrega confirmada com sucesso.', 'success');
       } else if (status === 'CANCELLED') {
         await http!.delete(`/orders/${id}`);
+        notify('Pedido cancelado.', 'warning');
+        navigate('/orders');
+        return;
       } else {
         await http!.patch(`/orders/${id}/status`, null, { params: { status } });
+        notify('Status do pedido atualizado.', 'info');
       }
       fetchAll();
+    } catch {
+      setActionError('Falha ao atualizar o status. Tente novamente.');
     } finally {
       setActionLoading(false);
     }
@@ -413,6 +427,11 @@ export function OrderDetailPage() {
             {!isCancelled && !isDelivered && (
               <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
                 <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Alterar Status</h3>
+                {actionError && (
+                  <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-100 text-[12px] text-red-700 font-medium">
+                    {actionError}
+                  </div>
+                )}
                 <div className="space-y-2">
                   {STATUS_ACTIONS.filter((a) => a.value !== 'PENDING' || order.status !== 'DELIVERED').map((opt) => {
                     const isCurrent = order.status === opt.value;
@@ -427,6 +446,33 @@ export function OrderDetailPage() {
                         <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>{opt.icon}</span>
                         {actionLoading ? 'Atualizando...' : `Mover para ${opt.label}`}
                       </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Bottle loans */}
+            {loans.length > 0 && (
+              <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>water_drop</span>
+                  <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Vasilhames Emprestados</h3>
+                </div>
+                <div className="space-y-2">
+                  {loans.map((loan) => {
+                    const isReturned = loan.status?.toUpperCase() === 'RETURNED';
+                    return (
+                      <div key={loan.id} className="flex items-center justify-between py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '16px' }}>propane_tank</span>
+                          <span className="text-[13px] text-slate-700 font-medium">{loan.productName}</span>
+                          <span className="text-[12px] text-slate-500">×{loan.quantity}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isReturned ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {isReturned ? 'Devolvido' : 'Pendente'}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>

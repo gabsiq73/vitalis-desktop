@@ -84,6 +84,7 @@ export interface LoanedBottleResponseDTO {
   loanDate?: string;
   returnDate?: string;
   status: string;
+  orderId?: string;
 }
 
 export interface PaymentResponseDTO {
@@ -137,7 +138,8 @@ export interface LoanedBottleRequestDTO {
   productId: string;
   clientId: string;
   quantity: number;
-  loanDate: string;
+  loanDate: string | null;
+  orderId?: string;
 }
 
 export type UserRole = 'ADMIN' | 'SELLER';
