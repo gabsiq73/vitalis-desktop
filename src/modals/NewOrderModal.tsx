@@ -424,12 +424,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         if (registerPayment && paymentAmount) {
           const amount = parseFloat(paymentAmount);
           if (!isNaN(amount) && amount > 0) {
-            await http.post('/payments', {
-              paymentDate: nowPaymentDate(),
-              amount,
-              orderId: newOrderId,
-              paymentMethod,
-            });
+            try {
+              await http.post('/payments', {
+                paymentDate: nowPaymentDate(),
+                amount,
+                orderId: newOrderId,
+                paymentMethod,
+              });
+            } catch (paymentErr) {
+              try { await http.delete(`/orders/${newOrderId}`); } catch { /* best-effort rollback */ }
+              throw paymentErr;
+            }
           }
         }
 
@@ -499,7 +504,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         <form onSubmit={handleSubmit} className="flex flex-col max-h-[82vh]">
 
           {/* Scrollable body */}
-          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+          <div className="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
 
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">

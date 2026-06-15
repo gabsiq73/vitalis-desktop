@@ -9,7 +9,7 @@ export interface SpringPage<T> {
 export type ClientType = 'RETAIL' | 'RESELLER' | 'AVULSO';
 export type ClientStatus = 'PAID' | 'OVERDUE';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID';
+export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS';
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
 

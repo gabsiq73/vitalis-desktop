@@ -89,6 +89,7 @@ export function getPaymentStatusBadge(status: string): { label: string; classNam
     PENDING: { label: 'Aguardando', className: 'bg-orange-100 text-orange-700' },
     PARTIAL: { label: 'Parcial', className: 'bg-yellow-100 text-yellow-700' },
     PAID: { label: 'Pago', className: 'bg-green-100 text-green-700' },
+    CANCELLED: { label: 'Cancelado', className: 'bg-red-100 text-red-700' },
   };
   return map[status.toUpperCase()] ?? { label: status, className: 'bg-gray-100 text-gray-600' };
 }
