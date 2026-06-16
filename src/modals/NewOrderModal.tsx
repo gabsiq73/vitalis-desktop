@@ -395,6 +395,23 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         const orderRes = await http.post<{ id: string }[]>('/orders', body);
         const newOrderId = orderRes.data[0]?.id;
 
+        const autoGasAmount = validItems.reduce((sum, item) => {
+          if (!item.receivedByUs) return sum;
+          const p = getProduct(item.productId);
+          if (p?.type !== 'GAS') return sum;
+          return sum + getItemUnitPrice(item) * item.quantity;
+        }, 0);
+        if (autoGasAmount > 0) {
+          try {
+            await http.post('/payments', {
+              paymentDate: nowPaymentDate(),
+              amount: autoGasAmount,
+              orderId: newOrderId,
+              paymentMethod: 'DINHEIRO',
+            });
+          } catch { /* non-fatal: order saved, payment can be registered manually */ }
+        }
+
         if (registerPayment && paymentAmount) {
           const amount = parseFloat(paymentAmount);
           if (!isNaN(amount) && amount > 0) {
@@ -529,9 +546,19 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       }
                     }}
                     placeholder={isAvulso ? 'Nome do cliente (opcional)' : 'Buscar cliente...'}
-                    className={`${inputClass} pl-9 pr-28`}
+                    className={`${inputClass} pl-9 ${selectedClient && !isAvulso ? 'pr-36' : 'pr-28'}`}
                     autoComplete="off"
                   />
+                  {selectedClient && !isAvulso && (
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedClient(null); setClientSearch(''); setShowDropdown(false); }}
+                      className="absolute right-[88px] top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all z-10"
+                      tabIndex={-1}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

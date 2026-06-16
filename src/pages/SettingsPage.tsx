@@ -425,7 +425,7 @@ export function SettingsPage() {
 
     let totalSuccess = 0;
     const allErrors: string[] = [];
-    for (const entity of (['clients','products','stock','suppliers'] as DataKey[])) {
+    for (const entity of (['suppliers','clients','products','stock'] as DataKey[])) {
       const rows = combinedData[entity];
       if (!rows?.length) continue;
       const { success, errors } = await importSection(entity, rows, prodNameToId, prodNameToStock, 0);
