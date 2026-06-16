@@ -286,6 +286,7 @@ export function SettingsPage() {
   }
 
   // import state
+  const [importMode, setImportMode] = useState<'single' | 'all'>('single');
   const [importEntity, setImportEntity] = useState<DataKey>('clients');
   const [parsedRows, setParsedRows] = useState<Record<string, string>[] | null>(null);
   const [combinedData, setCombinedData] = useState<Partial<Record<DataKey, Record<string, string>[]>> | null>(null);
@@ -302,7 +303,7 @@ export function SettingsPage() {
     reader.onload = ev => {
       const text = ev.target?.result as string;
       setImportResult(null);
-      if (isCombinedCSV(text)) {
+      if (importMode === 'all' || isCombinedCSV(text)) {
         const sections = parseCombinedCSV(text);
         setCombinedData(Object.keys(sections).length ? sections : null);
         setParsedRows(null);
@@ -322,6 +323,11 @@ export function SettingsPage() {
     setImportResult(null);
     setImportProgress(0);
     if (fileRef.current) fileRef.current.value = '';
+  }
+
+  function switchImportMode(mode: 'single' | 'all') {
+    setImportMode(mode);
+    clearImport();
   }
 
   async function importSection(
@@ -603,31 +609,68 @@ export function SettingsPage() {
               </div>
               <div className="p-5 space-y-4">
 
-                {/* Entity selector */}
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Tipo de dado</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {DATA_OPTS.map(opt => (
-                      <button key={opt.key} onClick={() => { setImportEntity(opt.key); clearImport(); }}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-medium transition-all ${importEntity === opt.key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{opt.icon}</span>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                {/* Mode selector */}
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                  <button onClick={() => switchImportMode('single')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[12px] font-semibold transition-all ${importMode === 'single' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>table_rows</span>
+                    Entidade única
+                  </button>
+                  <button onClick={() => switchImportMode('all')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[12px] font-semibold transition-all ${importMode === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>layers</span>
+                    Importar Tudo
+                  </button>
                 </div>
 
-                {/* Format hint + template download */}
-                <div className="bg-slate-50 rounded-lg p-3 flex items-start gap-2">
-                  <span className="material-symbols-outlined text-slate-400 flex-shrink-0" style={{ fontSize: '16px' }}>info</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-slate-500">{TIPO_HINTS[importEntity]}</p>
-                    <button onClick={() => triggerDownload(`modelo_${importEntity}.csv`, makeCSV(TEMPLATES[importEntity].headers, TEMPLATES[importEntity].rows))}
-                      className="text-[11px] font-semibold text-blue-600 hover:underline mt-0.5">
-                      Baixar modelo CSV
-                    </button>
+                {/* Single mode: entity selector + hint */}
+                {importMode === 'single' && (
+                  <>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Tipo de dado</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {DATA_OPTS.map(opt => (
+                          <button key={opt.key} onClick={() => { setImportEntity(opt.key); clearImport(); }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-medium transition-all ${importEntity === opt.key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{opt.icon}</span>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3 flex items-start gap-2">
+                      <span className="material-symbols-outlined text-slate-400 flex-shrink-0" style={{ fontSize: '16px' }}>info</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-slate-500">{TIPO_HINTS[importEntity]}</p>
+                        <button onClick={() => triggerDownload(`modelo_${importEntity}.csv`, makeCSV(TEMPLATES[importEntity].headers, TEMPLATES[importEntity].rows))}
+                          className="text-[11px] font-semibold text-blue-600 hover:underline mt-0.5">
+                          Baixar modelo CSV
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* All mode: info box */}
+                {importMode === 'all' && (
+                  <div className="bg-violet-50 rounded-lg p-3 flex items-start gap-2">
+                    <span className="material-symbols-outlined text-violet-500 flex-shrink-0" style={{ fontSize: '16px' }}>info</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-violet-700">Envie o arquivo <strong>vitalis_completo.csv</strong> gerado pelo botão "Exportar Tudo". O sistema importará Clientes, Produtos, Estoque e Fornecedores de uma vez.</p>
+                      <button onClick={() => {
+                        const combined = [
+                          '[CLIENTES]', makeCSV(TEMPLATES.clients.headers, TEMPLATES.clients.rows),
+                          '', '[PRODUTOS]', makeCSV(TEMPLATES.products.headers, TEMPLATES.products.rows),
+                          '', '[ESTOQUE]', makeCSV(TEMPLATES.stock.headers, TEMPLATES.stock.rows),
+                          '', '[FORNECEDORES]', makeCSV(TEMPLATES.suppliers.headers, TEMPLATES.suppliers.rows),
+                        ].join('\n');
+                        triggerDownload('modelo_completo.csv', combined);
+                      }} className="text-[11px] font-semibold text-violet-600 hover:underline mt-0.5">
+                        Baixar modelo completo
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* File drop zone */}
                 <div>
