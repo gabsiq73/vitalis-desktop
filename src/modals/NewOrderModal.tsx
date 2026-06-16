@@ -360,6 +360,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       }
     }
 
+    if (!isEditMode && registerPayment && paymentMethod === 'SALDO' && paymentAmount) {
+      const amount = parseFloat(paymentAmount);
+      if (!isNaN(amount) && amount > 0) {
+        const availableBalance = selectedClient?.balance ?? 0;
+        if (availableBalance < amount) {
+          setError(`Saldo insuficiente. Disponível: ${formatBRL(availableBalance)}.`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -432,7 +443,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 paymentMethod,
               });
             } catch (paymentErr) {
-              try { await http.delete(`/orders/${newOrderId}`); } catch { /* best-effort rollback */ }
+              try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
               throw paymentErr;
             }
           }
@@ -442,7 +453,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           try {
             await http.post('/bottles', { productId: loanProductId, clientId, quantity: loanQuantity, loanDate: null, orderId: newOrderId });
           } catch {
-            try { await http.delete(`/orders/${newOrderId}`); } catch { /* best-effort rollback */ }
+            try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
             setError('Falha ao registrar o empréstimo. O pedido foi cancelado automaticamente.');
             return;
           }
