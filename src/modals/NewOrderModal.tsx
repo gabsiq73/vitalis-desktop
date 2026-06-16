@@ -501,7 +501,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   return (
     <>
       <Modal open={open} onClose={isEditMode ? onClose : saveDraftAndClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
-        <form onSubmit={handleSubmit} className="flex flex-col max-h-[82vh]">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 
           {/* Scrollable body */}
           <div className="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
