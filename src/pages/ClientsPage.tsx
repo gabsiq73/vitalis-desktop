@@ -395,21 +395,18 @@ export function ClientsPage() {
                           <div className="flex items-center justify-end gap-0.5">
                             <button
                               onClick={() => navigate(`/clients/${client.id}`)}
-                              title="Ver detalhes"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all"
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
                             <button
                               onClick={() => openEdit(client)}
-                              title="Editar"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                             </button>
                             <button
                               onClick={() => setDeleteTarget(client.id)}
-                              title="Excluir"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>

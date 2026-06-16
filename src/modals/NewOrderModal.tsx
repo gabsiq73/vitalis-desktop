@@ -29,7 +29,6 @@ interface ItemForm {
   supplierId: string;
   gasCostPrice: string;
   receivedByUs: boolean;
-  bottleExpirations: string[];
   useBonus: boolean;
 }
 
@@ -47,7 +46,6 @@ const emptyItem = (): ItemForm => ({
   supplierId: '',
   gasCostPrice: '',
   receivedByUs: false,
-  bottleExpirations: [],
   useBonus: false,
 });
 
@@ -133,7 +131,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           supplierId: i.supplierId ?? '',
           gasCostPrice: i.gasCostPrice?.toString() ?? '',
           receivedByUs: i.receivedByUs ?? false,
-          bottleExpirations: i.bottleExpiration ? [i.bottleExpiration] : Array(i.quantity).fill(''),
           useBonus: i.unitPrice === 0,
         })));
         setSelectedClient(null);
@@ -240,34 +237,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     setItems((p) => p.map((item, i) => {
       if (i !== idx) return item;
       const updated = { ...item, [key]: value };
-      if (key === 'quantity') {
-        const prod = getProduct(item.productId);
-        if (prod?.type === 'WATER') {
-          const newQty = value as number;
-          const exps = item.bottleExpirations.slice(0, newQty);
-          while (exps.length < newQty) exps.push('');
-          return { ...updated, bottleExpirations: exps };
-        }
-      }
-      if (key === 'productId') {
-        const prod = getProduct(value as string);
-        if (prod?.type === 'WATER') {
-          return { ...updated, bottleExpirations: Array(item.quantity).fill('') };
-        }
-        return { ...updated, bottleExpirations: [] };
-      }
       return updated;
     }));
   }
-  function updateBottleExpiration(itemIdx: number, bottleIdx: number, value: string) {
-    setItems((p) => p.map((item, i) => {
-      if (i !== itemIdx) return item;
-      const exps = [...item.bottleExpirations];
-      exps[bottleIdx] = value;
-      return { ...item, bottleExpirations: exps };
-    }));
-  }
-
   function handleBonusToggle(idx: number, item: ItemForm, available: number) {
     if (item.useBonus) {
       // Remove the bonus row entirely
@@ -277,7 +249,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     if (available <= 0) return;
     // Always add a separate bonus row (qty=1) after the paid row
     setItems((prev) => {
-      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true, bottleExpirations: [''] };
+      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true };
       return [...prev.slice(0, idx + 1), bonusRow, ...prev.slice(idx + 1)];
     });
   }
@@ -396,18 +368,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       return;
     }
 
-    const orderItems: OrderItemRequestBody[] = validItems.flatMap((item) => {
+    const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
       const isWater = p?.type === 'WATER';
-      const hasAnyExpiration = isWater && item.bottleExpirations.some((e) => e);
-      if (hasAnyExpiration) {
-        return Array.from({ length: item.quantity }, (_, i) => {
-          const b: OrderItemRequestBody = { productId: item.productId, quantity: 1 };
-          if (item.useBonus) b.unitPrice = 0;
-          if (item.bottleExpirations[i]) b.bottleExpiration = item.bottleExpirations[i];
-          return b;
-        });
-      }
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
       if (item.useBonus && isWater) base.unitPrice = 0;
       if (p?.type === 'GAS') {
@@ -415,7 +378,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         if (item.gasCostPrice) base.gasCostPrice = parseFloat(item.gasCostPrice);
         base.receivedByUs = item.receivedByUs;
       }
-      return [base];
+      return base;
     });
 
     const body: OrderRequestBody = {
@@ -707,7 +670,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Produto</th>
                       <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-16 text-center">Qtd</th>
-                      <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-36">Val. Vasilhame</th>
                       {hasGasItem && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-36">Fornecedor</th>
                       )}
@@ -750,24 +712,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
                               className={cellInputClass + ' text-center'}
                             />
-                          </td>
-                          <td className="px-3 py-2">
-                            {product?.type === 'WATER' ? (
-                              <div className="flex flex-col gap-1">
-                                {Array.from({ length: item.quantity }).map((_, bi) => (
-                                  <input
-                                    key={bi}
-                                    type="date"
-                                    value={item.bottleExpirations[bi] ?? ''}
-                                    onChange={(e) => updateBottleExpiration(idx, bi, e.target.value)}
-                                    className={cellInputClass}
-                                    title={item.quantity > 1 ? `Vasilhame ${bi + 1}` : undefined}
-                                  />
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-[13px] text-slate-400 px-1">—</span>
-                            )}
                           </td>
                           {hasGasItem && (
                             <td className="px-3 py-2">
