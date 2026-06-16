@@ -7,6 +7,8 @@ import type {
   ProductResponseDTO, StockResponseDTO, GasSupplierResponseDTO, UserResponseDTO,
 } from '../types';
 
+type DataKey = 'clients' | 'products' | 'stock' | 'suppliers';
+
 // ── CSV utilities ──────────────────────────────────────────────────────────────
 
 function escField(v: unknown): string {
@@ -28,31 +30,62 @@ function triggerDownload(filename: string, csv: string): void {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-function parseCSVText(text: string): Record<string, string>[] {
-  const norm = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = norm.trim().split('\n').filter(l => l.trim());
+const splitRow = (line: string): string[] => {
+  const fields: string[] = [];
+  let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  fields.push(cur.trim());
+  return fields;
+};
+
+function parseCSVLines(lines: string[]): Record<string, string>[] {
   if (lines.length < 2) return [];
-
-  const splitRow = (line: string): string[] => {
-    const fields: string[] = [];
-    let cur = ''; let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (c === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
-      else cur += c;
-    }
-    fields.push(cur.trim());
-    return fields;
-  };
-
   const headers = splitRow(lines[0]).map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
-  return lines.slice(1).map(line => {
+  return lines.slice(1).filter(l => l.trim()).map(line => {
     const vals = splitRow(line);
     return Object.fromEntries(headers.map((h, i) => [h, vals[i]?.trim() ?? '']));
   });
+}
+
+function parseCSVText(text: string): Record<string, string>[] {
+  const norm = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = norm.trim().split('\n').filter(l => l.trim());
+  return parseCSVLines(lines);
+}
+
+const SECTION_MARKERS: Record<string, DataKey> = {
+  '[CLIENTES]': 'clients', '[PRODUTOS]': 'products',
+  '[ESTOQUE]': 'stock', '[FORNECEDORES]': 'suppliers',
+};
+
+function isCombinedCSV(text: string): boolean {
+  return Object.keys(SECTION_MARKERS).some(m => text.toUpperCase().includes(m));
+}
+
+function parseCombinedCSV(text: string): Partial<Record<DataKey, Record<string, string>[]>> {
+  const norm = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const result: Partial<Record<DataKey, Record<string, string>[]>> = {};
+  let currentKey: DataKey | null = null;
+  let buf: string[] = [];
+
+  const flush = () => {
+    if (currentKey && buf.length) result[currentKey] = parseCSVLines(buf);
+  };
+
+  for (const line of norm.split('\n')) {
+    const marker = SECTION_MARKERS[line.trim().toUpperCase()];
+    if (marker) { flush(); currentKey = marker; buf = []; }
+    else if (line.trim()) buf.push(line);
+  }
+  flush();
+  return result;
 }
 
 // ── Counter (unchanged) ────────────────────────────────────────────────────────
@@ -73,8 +106,6 @@ function Counter({ value, onChange, min = 0, step = 1 }: {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-
-type DataKey = 'clients' | 'products' | 'stock' | 'suppliers';
 
 const DATA_OPTS: { key: DataKey; label: string; icon: string }[] = [
   { key: 'clients',   label: 'Clientes',      icon: 'group' },
@@ -218,9 +249,46 @@ export function SettingsPage() {
     } finally { setExporting(false); }
   }
 
+  const [exportingAll, setExportingAll] = useState(false);
+
+  async function handleExportAll() {
+    if (!http) return;
+    setExportingAll(true);
+    try {
+      const [clients, products, stocks, suppliers] = await Promise.all([
+        fetchAll<ClientResponseDTO>('/clients'),
+        fetchAll<ProductResponseDTO>('/products'),
+        fetchAll<StockResponseDTO>('/stocks'),
+        fetchAll<GasSupplierResponseDTO>('/suppliers'),
+      ]);
+      const parts: string[] = [
+        '[CLIENTES]',
+        makeCSV(['nome','telefone','endereco','notas','tipo','saldo','pontos_fidelidade'],
+          clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance, c.fidelityPoints])),
+        '',
+        '[PRODUTOS]',
+        makeCSV(['nome','preco_base','preco_revendedor','tipo','ativo'],
+          products.map(p => [p.name, p.basePrice, p.resellerPrice ?? '', p.type, p.isActive])),
+        '',
+        '[ESTOQUE]',
+        makeCSV(['produto','quantidade_atual','estoque_minimo'],
+          stocks.map(s => [s.productName, s.quantityInStock, s.minimumStock])),
+        '',
+        '[FORNECEDORES]',
+        makeCSV(['nome','notas'],
+          suppliers.map(s => [s.name, s.notes ?? ''])),
+      ];
+      triggerDownload('vitalis_completo.csv', parts.join('\n'));
+      notify('Exportação completa concluída!', 'success');
+    } catch {
+      notify('Erro ao exportar dados.', 'error');
+    } finally { setExportingAll(false); }
+  }
+
   // import state
   const [importEntity, setImportEntity] = useState<DataKey>('clients');
   const [parsedRows, setParsedRows] = useState<Record<string, string>[] | null>(null);
+  const [combinedData, setCombinedData] = useState<Partial<Record<DataKey, Record<string, string>[]>> | null>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importTotal, setImportTotal] = useState(0);
@@ -232,9 +300,17 @@ export function SettingsPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const rows = parseCSVText(ev.target?.result as string);
-      setParsedRows(rows.length ? rows : null);
+      const text = ev.target?.result as string;
       setImportResult(null);
+      if (isCombinedCSV(text)) {
+        const sections = parseCombinedCSV(text);
+        setCombinedData(Object.keys(sections).length ? sections : null);
+        setParsedRows(null);
+      } else {
+        const rows = parseCSVText(text);
+        setParsedRows(rows.length ? rows : null);
+        setCombinedData(null);
+      }
     };
     reader.readAsText(file, 'UTF-8');
     e.target.value = '';
@@ -242,90 +318,119 @@ export function SettingsPage() {
 
   function clearImport() {
     setParsedRows(null);
+    setCombinedData(null);
     setImportResult(null);
     setImportProgress(0);
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  async function handleImport() {
-    if (!http || !parsedRows?.length) return;
-    setImporting(true);
-    setImportProgress(0);
-    setImportTotal(parsedRows.length);
-    setImportResult(null);
-
+  async function importSection(
+    entity: DataKey,
+    rows: Record<string, string>[],
+    prodNameToId: Record<string, string>,
+    prodNameToStock: Record<string, number>,
+    sectionOffset: number,
+  ): Promise<{ success: number; errors: string[] }> {
     let success = 0;
     const errors: string[] = [];
-
-    let prodNameToId: Record<string, string> = {};
-    let prodNameToStock: Record<string, number> = {};
-
-    if (importEntity === 'stock') {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const lbl = `[${DATA_OPTS.find(o => o.key === entity)?.label}] Linha ${sectionOffset + i + 2}`;
       try {
-        const prods = await fetchAll<ProductResponseDTO>('/products');
-        prods.forEach(p => { prodNameToId[p.name] = p.id; });
-        const stocks = await fetchAll<StockResponseDTO>('/stocks');
-        stocks.forEach(s => { prodNameToStock[s.productName] = s.quantityInStock; });
-      } catch {
-        notify('Erro ao carregar produtos/estoque.', 'error');
-        setImporting(false);
-        return;
-      }
-    }
-
-    for (let i = 0; i < parsedRows.length; i++) {
-      const row = parsedRows[i];
-      const lbl = `Linha ${i + 2}`;
-      try {
-        if (importEntity === 'clients') {
+        if (entity === 'clients') {
           const name = row.nome?.trim();
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
           const tipo = row.tipo?.trim().toUpperCase();
-          await http.post('/clients', {
-            name,
-            phone: row.telefone?.trim() || '',
-            address: row.endereco?.trim() || '',
-            notes: row.notas?.trim() || '',
+          await http!.post('/clients', {
+            name, phone: row.telefone?.trim() || '',
+            address: row.endereco?.trim() || '', notes: row.notas?.trim() || '',
             clientType: ['RETAIL','RESELLER','AVULSO'].includes(tipo) ? tipo : 'RETAIL',
             clientStatus: 'PAID',
           });
           success++;
-        } else if (importEntity === 'products') {
+        } else if (entity === 'products') {
           const name = row.nome?.trim();
           const basePrice = parseFloat(row.preco_base ?? '');
           const tipo = row.tipo?.trim().toUpperCase();
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
           if (isNaN(basePrice)) { errors.push(`${lbl}: 'preco_base' inválido`); continue; }
           if (!['WATER','GAS'].includes(tipo)) { errors.push(`${lbl}: 'tipo' deve ser WATER ou GAS`); continue; }
-          await http.post('/products', { name, basePrice, type: tipo });
+          await http!.post('/products', { name, basePrice, type: tipo });
           success++;
-        } else if (importEntity === 'stock') {
+        } else if (entity === 'stock') {
           const prodName = row.produto?.trim();
-          const qty = parseInt(row.quantidade ?? '');
+          const qty = parseInt(row.quantidade ?? row.quantidade_atual ?? '');
           if (!prodName) { errors.push(`${lbl}: 'produto' obrigatório`); continue; }
           if (isNaN(qty) || qty < 0) { errors.push(`${lbl}: 'quantidade' inválida`); continue; }
           const prodId = prodNameToId[prodName];
           if (!prodId) { errors.push(`${lbl}: produto '${prodName}' não encontrado`); continue; }
-          if (prodNameToStock[prodName] === undefined) { errors.push(`${lbl}: '${prodName}' sem controle de estoque (GÁS?)`); continue; }
+          if (prodNameToStock[prodName] === undefined) { errors.push(`${lbl}: '${prodName}' sem controle de estoque`); continue; }
           const delta = qty - prodNameToStock[prodName];
-          if (delta !== 0) await http.patch(`/stocks/products/${prodId}`, delta);
+          if (delta !== 0) await http!.patch(`/stocks/products/${prodId}`, delta);
           success++;
-        } else if (importEntity === 'suppliers') {
+        } else if (entity === 'suppliers') {
           const name = row.nome?.trim();
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
-          await http.post('/suppliers', { name, notes: row.notas?.trim() || undefined });
+          await http!.post('/suppliers', { name, notes: row.notas?.trim() || undefined });
           success++;
         }
-      } catch {
-        errors.push(`${lbl}: erro ao salvar`);
-      }
-      setImportProgress(i + 1);
+      } catch { errors.push(`${lbl}: erro ao salvar`); }
+      setImportProgress(p => p + 1);
+    }
+    return { success, errors };
+  }
+
+  async function handleImport() {
+    if (!http || !parsedRows?.length) return;
+    setImporting(true); setImportProgress(0);
+    setImportTotal(parsedRows.length); setImportResult(null);
+
+    let prodNameToId: Record<string, string> = {};
+    let prodNameToStock: Record<string, number> = {};
+    if (importEntity === 'stock') {
+      try {
+        (await fetchAll<ProductResponseDTO>('/products')).forEach(p => { prodNameToId[p.name] = p.id; });
+        (await fetchAll<StockResponseDTO>('/stocks')).forEach(s => { prodNameToStock[s.productName] = s.quantityInStock; });
+      } catch { notify('Erro ao carregar produtos/estoque.', 'error'); setImporting(false); return; }
     }
 
+    const { success, errors } = await importSection(importEntity, parsedRows, prodNameToId, prodNameToStock, 0);
     setImportResult({ success, errors });
     setImporting(false);
     if (success > 0) notify(`${success} registro(s) importado(s)!`, 'success');
     if (errors.length > 0) notify(`${errors.length} erro(s) na importação.`, 'error');
+  }
+
+  async function handleImportAll() {
+    if (!http || !combinedData) return;
+    setImporting(true); setImportProgress(0); setImportResult(null);
+
+    const total = Object.values(combinedData).reduce((s, rows) => s + (rows?.length ?? 0), 0);
+    setImportTotal(total);
+
+    let prodNameToId: Record<string, string> = {};
+    let prodNameToStock: Record<string, number> = {};
+    if (combinedData.stock?.length) {
+      try {
+        (await fetchAll<ProductResponseDTO>('/products')).forEach(p => { prodNameToId[p.name] = p.id; });
+        (await fetchAll<StockResponseDTO>('/stocks')).forEach(s => { prodNameToStock[s.productName] = s.quantityInStock; });
+      } catch { notify('Erro ao carregar produtos/estoque.', 'error'); setImporting(false); return; }
+    }
+
+    let totalSuccess = 0;
+    const allErrors: string[] = [];
+    for (const entity of (['clients','products','stock','suppliers'] as DataKey[])) {
+      const rows = combinedData[entity];
+      if (!rows?.length) continue;
+      const { success, errors } = await importSection(entity, rows, prodNameToId, prodNameToStock, 0);
+      totalSuccess += success;
+      allErrors.push(...errors);
+    }
+
+    setImportResult({ success: totalSuccess, errors: allErrors });
+    setImporting(false);
+    if (totalSuccess > 0) notify(`${totalSuccess} registro(s) importado(s)!`, 'success');
+    if (allErrors.length > 0) notify(`${allErrors.length} erro(s) na importação.`, 'error');
   }
 
   // config layout data (unchanged)
@@ -470,10 +575,22 @@ export function SettingsPage() {
                     </label>
                   ))}
                 </div>
-                <button onClick={handleExport} disabled={exporting || !DATA_OPTS.some(o => exportSel[o.key])}
+                <button onClick={handleExport} disabled={exporting || exportingAll || !DATA_OPTS.some(o => exportSel[o.key])}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold text-sm hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 mt-2">
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
-                  {exporting ? 'Exportando...' : 'Exportar Selecionados'}
+                  {exporting ? 'Exportando...' : 'Exportar Selecionados (arquivos separados)'}
+                </button>
+
+                <div className="flex items-center gap-3 my-1">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-[11px] text-slate-400 font-medium">ou</span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+
+                <button onClick={handleExportAll} disabled={exporting || exportingAll}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-700 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>layers</span>
+                  {exportingAll ? 'Exportando...' : 'Exportar Tudo em Um Arquivo'}
                 </button>
               </div>
             </div>
@@ -519,15 +636,39 @@ export function SettingsPage() {
                     className="w-full border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all group">
                     <span className="material-symbols-outlined text-slate-400 group-hover:text-blue-400 transition-colors" style={{ fontSize: '32px' }}>upload_file</span>
                     <p className="text-[13px] font-medium text-slate-600 mt-2">
-                      {parsedRows ? `${parsedRows.length} linha(s) lidas` : 'Clique para selecionar arquivo CSV'}
+                      {combinedData
+                        ? `Arquivo combinado · ${Object.values(combinedData).reduce((s, r) => s + (r?.length ?? 0), 0)} linha(s) no total`
+                        : parsedRows
+                          ? `${parsedRows.length} linha(s) lidas`
+                          : 'Clique para selecionar arquivo CSV'}
                     </p>
-                    {parsedRows && (
+                    {(parsedRows || combinedData) && (
                       <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Arquivo carregado · clique para trocar</p>
                     )}
                   </button>
                 </div>
 
-                {/* Preview */}
+                {/* Combined file summary */}
+                {combinedData && (
+                  <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="material-symbols-outlined text-violet-600" style={{ fontSize: '15px' }}>layers</span>
+                      <p className="text-[12px] font-semibold text-violet-700">Arquivo combinado detectado</p>
+                    </div>
+                    {DATA_OPTS.map(opt => {
+                      const rows = combinedData[opt.key];
+                      return rows && rows.length > 0 ? (
+                        <div key={opt.key} className="flex items-center gap-2 text-[12px]">
+                          <span className="material-symbols-outlined text-emerald-500" style={{ fontSize: '14px' }}>check_circle</span>
+                          <span className="text-slate-700 font-medium">{opt.label}:</span>
+                          <span className="text-slate-500">{rows.length} linha(s)</span>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+
+                {/* Preview (single entity) */}
                 {parsedRows && parsedRows.length > 0 && (() => {
                   const headers = Object.keys(parsedRows[0]);
                   const preview = parsedRows.slice(0, 5);
@@ -575,12 +716,19 @@ export function SettingsPage() {
                 )}
 
                 {/* Import button */}
-                <button onClick={handleImport}
-                  disabled={importing || !parsedRows?.length}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload</span>
-                  {importing ? 'Importando...' : `Importar ${parsedRows?.length ?? 0} Linha(s)`}
-                </button>
+                {combinedData ? (
+                  <button onClick={handleImportAll} disabled={importing}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 text-white rounded-lg font-semibold text-sm hover:bg-violet-700 active:scale-95 transition-all disabled:opacity-50">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>layers</span>
+                    {importing ? 'Importando...' : `Importar Tudo (${Object.values(combinedData).reduce((s, r) => s + (r?.length ?? 0), 0)} linhas)`}
+                  </button>
+                ) : (
+                  <button onClick={handleImport} disabled={importing || !parsedRows?.length}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload</span>
+                    {importing ? 'Importando...' : `Importar ${parsedRows?.length ?? 0} Linha(s)`}
+                  </button>
+                )}
 
                 {/* Result */}
                 {importResult && (
