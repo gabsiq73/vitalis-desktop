@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
+import { useScrollToError } from '../hooks/useScrollToError';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function ConfirmModal({
   onClose,
 }: ConfirmModalProps) {
   const [loading, setLoading] = useState(false);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   async function handleConfirm() {
     setLoading(true);
@@ -39,7 +41,7 @@ export function ConfirmModal({
       <div className="p-6">
         <p className="text-body-lg text-on-surface-variant mb-4">{message}</p>
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">
+          <div ref={errorRef} className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">
             {error}
           </div>
         )}

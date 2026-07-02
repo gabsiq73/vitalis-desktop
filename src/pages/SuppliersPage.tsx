@@ -7,6 +7,7 @@ import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { PageSizeSelector } from '../components/PageSizeSelector';
 import { applySortInMemory } from '../utils/sort';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type { GasSupplierResponseDTO, GasSupplierRequestDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
 
@@ -34,6 +35,7 @@ function SupplierForm({ initial, onSubmit, onClose }: SupplierFormProps) {
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,7 +77,7 @@ function SupplierForm({ initial, onSubmit, onClose }: SupplierFormProps) {
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
-      {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p ref={errorRef} className="text-sm text-error">{error}</p>}
       <div className="flex gap-3 justify-end pt-2">
         <button
           type="button"

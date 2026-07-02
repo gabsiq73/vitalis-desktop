@@ -6,6 +6,7 @@ import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
 import { PageSizeSelector } from '../components/PageSizeSelector';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 
 function getStockStatusBadge(status: string): { label: string; className: string; dot: string } {
@@ -29,6 +30,7 @@ function AdjustModal({ item, onConfirm, onClose }: AdjustModalProps) {
   const [quantity, setQuantity] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   async function handleConfirm() {
     if (quantity === 0) { setError('Informe um valor diferente de zero.'); return; }
@@ -95,7 +97,7 @@ function AdjustModal({ item, onConfirm, onClose }: AdjustModalProps) {
         </div>
       )}
 
-      {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p ref={errorRef} className="text-sm text-error">{error}</p>}
 
       <div className="flex gap-3 justify-end pt-2">
         <button

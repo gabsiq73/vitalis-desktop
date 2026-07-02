@@ -5,6 +5,7 @@ import { parseApiError } from '../utils/parseApiError';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ProductResponseDTO,
   ProductRequestDTO,
@@ -41,6 +42,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
   const [suppliers, setSuppliers] = useState<GasSupplierResponseDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   useEffect(() => {
     if (http) {
@@ -153,7 +155,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+      {error && <p ref={errorRef} className="text-sm text-red-600 font-medium">{error}</p>}
 
       <div className="flex gap-3 justify-end pt-1">
         <button type="button" onClick={onClose} disabled={loading} className="px-5 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">

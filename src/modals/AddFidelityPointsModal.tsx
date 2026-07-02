@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useScrollToError } from '../hooks/useScrollToError';
 
 interface AddFidelityPointsModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ export function AddFidelityPointsModal({
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   useEffect(() => {
     if (open) {
@@ -82,7 +84,7 @@ export function AddFidelityPointsModal({
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
+          <div ref={errorRef} className="flex items-center gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
             <span className="material-symbols-outlined text-error" style={{ fontSize: '18px' }}>
               error
             </span>

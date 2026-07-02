@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useScrollToError } from '../hooks/useScrollToError';
 
 const REMEMBER_KEY = 'vitalis_remember_user';
 
@@ -14,6 +15,7 @@ export function LoginPage() {
   const [rememberUser, setRememberUser] = useState(() => !!localStorage.getItem(REMEMBER_KEY));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,7 +67,7 @@ export function LoginPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               {error && (
-                <div className="flex items-center gap-2 p-4 bg-error-container text-on-error-container rounded-lg border border-error/20">
+                <div ref={errorRef} className="flex items-center gap-2 p-4 bg-error-container text-on-error-container rounded-lg border border-error/20">
                   <span className="material-symbols-outlined text-error">error</span>
                   <span className="text-label-sm">
                     Credenciais inválidas. Verifique os dados e tente novamente.

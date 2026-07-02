@@ -6,6 +6,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type { UserResponseDTO, UserRequestDTO, UserUpdateDTO, UserRole } from '../types';
 import { getInitials } from '../utils/format';
 
@@ -29,6 +30,7 @@ function UserForm({ initial, onSubmit, onClose }: UserFormProps) {
   const [userRole, setUserRole] = useState<UserRole>(initial?.userRole ?? 'SELLER');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -163,7 +165,7 @@ function UserForm({ initial, onSubmit, onClose }: UserFormProps) {
         </div>
       </div>
 
-      {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p ref={errorRef} className="text-sm text-error">{error}</p>}
 
       <div className="flex gap-3 justify-end pt-2">
         <button

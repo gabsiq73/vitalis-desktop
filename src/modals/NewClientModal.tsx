@@ -3,6 +3,7 @@ import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
 import { maskPhone, stripPhone } from '../utils/format';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type { ClientResponseDTO, ClientRequestBody, ClientType, ClientStatus } from '../types';
 
 interface NewClientModalProps {
@@ -28,6 +29,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
   const [form, setForm] = useState<ClientRequestBody>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   useEffect(() => {
     if (open) {
@@ -97,7 +99,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
+          <div ref={errorRef} className="flex items-start gap-2 p-3 bg-error-container text-on-error-container rounded-lg">
             <span className="material-symbols-outlined text-error flex-shrink-0" style={{ fontSize: '18px' }}>
               error
             </span>

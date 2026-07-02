@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type { ClientResponseDTO, ProductResponseDTO, LoanedBottleRequestDTO, SpringPage } from '../types';
 
 interface NewLoanModalProps {
@@ -21,6 +22,7 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
   const [loanDate, setLoanDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   useEffect(() => {
     if (!open || !http) return;
@@ -134,7 +136,7 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
           Ao registrar este empréstimo, o histórico do cliente será atualizado automaticamente.
         </div>
 
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p ref={errorRef} className="text-sm text-error">{error}</p>}
 
         <div className="flex gap-3 justify-end pt-2">
           <button

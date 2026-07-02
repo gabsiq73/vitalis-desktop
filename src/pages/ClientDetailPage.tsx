@@ -6,6 +6,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ClientResponseDTO,
   OrderResponseDTO,
@@ -78,6 +79,7 @@ export function ClientDetailPage() {
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkSuccess, setBulkSuccess] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const bulkErrorRef = useScrollToError<HTMLDivElement>(bulkError);
 
   const [outstandingDebt, setOutstandingDebt] = useState<number>(0);
   const [sysConfig, setSysConfig] = useState<SystemConfigDTO | null>(null);
@@ -86,6 +88,7 @@ export function ClientDetailPage() {
   const [priceForm, setPriceForm] = useState<{ productId: string; customPrice: string }>({ productId: '', customPrice: '' });
   const [priceSubmitting, setPriceSubmitting] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
+  const priceErrorRef = useScrollToError<HTMLParagraphElement>(priceError);
 
   function fetchClient() {
     if (!http || !id) return;
@@ -527,7 +530,7 @@ export function ClientDetailPage() {
                       </div>
                     )}
                     {bulkError && (
-                      <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg border border-red-100">
+                      <div ref={bulkErrorRef} className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg border border-red-100">
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>error</span>
                         <span className="text-[12px]">{bulkError}</span>
                       </div>
@@ -615,7 +618,7 @@ export function ClientDetailPage() {
                         onChange={(e) => setPriceForm((f) => ({ ...f, customPrice: e.target.value }))}
                         placeholder="0,00" className={inputClass} />
                     </div>
-                    {priceError && <p className="text-[12px] text-red-500">{priceError}</p>}
+                    {priceError && <p ref={priceErrorRef} className="text-[12px] text-red-500">{priceError}</p>}
                     <button disabled={priceSubmitting || !priceForm.productId || !priceForm.customPrice}
                       onClick={async () => {
                         const price = parseFloat(priceForm.customPrice);
