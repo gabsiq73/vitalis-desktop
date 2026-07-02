@@ -174,6 +174,12 @@ export function OrderDetailPage() {
                     </>
                   )}
                 </div>
+                {order.notes && (
+                  <div className="flex items-start gap-1.5 mt-2 text-[13px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 max-w-md">
+                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '15px' }}>sticky_note_2</span>
+                    <span className="whitespace-pre-wrap">{order.notes}</span>
+                  </div>
+                )}
               </div>
             </div>
 

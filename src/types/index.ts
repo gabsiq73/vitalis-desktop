@@ -65,6 +65,7 @@ export interface OrderResponseDTO {
   createDate: string;
   isDelivery?: boolean;
   loanedBottlesCount?: number;
+  notes?: string;
 }
 
 export interface StockResponseDTO {
@@ -264,4 +265,5 @@ export interface OrderRequestBody {
   items: OrderItemRequestBody[];
   isDelivery: boolean;
   deliveryDate?: string;
+  notes?: string;
 }

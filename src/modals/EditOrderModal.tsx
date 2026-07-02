@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
 import type { OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
+import { useScrollToError } from '../hooks/useScrollToError';
 
 interface EditOrderModalProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
 
   const [deliveryDate, setDeliveryDate] = useState(localDatetimeOf(order.deliveryDate));
   const [isDelivery, setIsDelivery] = useState(order.isDelivery ?? true);
+  const [notes, setNotes] = useState(order.notes ?? '');
 
   // Items state — only editable when PENDING
   const [items, setItems] = useState(
@@ -45,11 +47,13 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   useEffect(() => {
     if (!open) return;
     setDeliveryDate(localDatetimeOf(order.deliveryDate));
     setIsDelivery(order.isDelivery ?? true);
+    setNotes(order.notes ?? '');
     setItems(order.items.map((i) => ({
       productId: i.productId,
       quantity: i.quantity,
@@ -106,6 +110,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         clientId: order.clientId,
         deliveryDate: deliveryDate ? `${deliveryDate}:00` : undefined,
         isDelivery,
+        notes: notes.trim() || undefined,
         items: isShipped
           ? order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
           : validItems.map((i) => ({
@@ -133,7 +138,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
+            <div ref={errorRef} className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>error</span>
               <span className="text-[13px] font-medium">{error}</span>
             </div>
@@ -187,6 +192,20 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
             </div>
           </div>
 
+          {/* Notes */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Observações <span className="normal-case text-slate-400 font-normal">(opcional, anotações internas)</span>
+            </label>
+            <textarea
+              className={inputCls + ' resize-none'}
+              placeholder="Ex: entregar no portão dos fundos"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
           {/* Items (PENDING only) */}
           {!isShipped && (
             <div>
@@ -232,11 +251,16 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                         </td>
                         <td className="px-3 py-2">
                           <input
-                            type="number"
-                            min={1}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             required
-                            value={item.quantity}
-                            onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                            value={item.quantity === 0 ? '' : item.quantity}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              updateItem(idx, 'quantity', digits === '' ? 0 : parseInt(digits, 10));
+                            }}
+                            onBlur={() => { if (!item.quantity) updateItem(idx, 'quantity', 1); }}
                             className="w-full border border-slate-200 rounded bg-white text-[13px] py-1.5 px-2 text-center focus:outline-none focus:ring-1 focus:ring-primary/20"
                           />
                         </td>

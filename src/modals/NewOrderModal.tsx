@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
 import { ORDER_DRAFT_KEY, clearOrderDraft } from '../utils/orderDraft';
 import { AddFidelityPointsModal } from './AddFidelityPointsModal';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ClientResponseDTO,
   ProductResponseDTO,
@@ -86,7 +87,15 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const [registerPayment, setRegisterPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+  const [cashReceived, setCashReceived] = useState('');
   const paymentAmountAutoSync = useRef(true);
+
+  const [combinePayment, setCombinePayment] = useState(false);
+  const [paymentAmount2, setPaymentAmount2] = useState('');
+  const [paymentMethod2, setPaymentMethod2] = useState<PaymentMethod>('DINHEIRO');
+  const [cashReceived2, setCashReceived2] = useState('');
+
+  const [notes, setNotes] = useState('');
 
   const [loanEnabled, setLoanEnabled] = useState(false);
   const [loanProductId, setLoanProductId] = useState('');
@@ -98,6 +107,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const [showAddPoints, setShowAddPoints] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useScrollToError<HTMLDivElement>(error);
 
   useEffect(() => {
     if (open) {
@@ -109,6 +119,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       setLoanEnabled(false);
       setLoanProductId('');
       setLoanQuantity(1);
+      setCashReceived('');
+      setCashReceived2('');
+      setCombinePayment(false);
+      setPaymentAmount2('');
+      setPaymentMethod2('DINHEIRO');
 
       if (editOrder) {
         // Edit mode: pre-populate from existing order
@@ -117,6 +132,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         setRegisterPayment(false);
         setPaymentAmount('');
         setPaymentMethod('PIX');
+        setNotes(editOrder.notes ?? '');
         setIsDelivery(editOrder.isDelivery ?? true);
         setDeliveryDate(editOrder.deliveryDate
           ? (() => {
@@ -150,6 +166,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setPaymentMethod(draft.paymentMethod ?? 'PIX');
           setRegisterPayment(draft.registerPayment ?? false);
           setPaymentAmount(draft.paymentAmount ?? '');
+          setCombinePayment(draft.combinePayment ?? false);
+          setPaymentAmount2(draft.paymentAmount2 ?? '');
+          setPaymentMethod2(draft.paymentMethod2 ?? 'DINHEIRO');
+          setNotes(draft.notes ?? '');
           setLoanEnabled(draft.loanEnabled ?? false);
           setLoanProductId(draft.loanProductId ?? '');
           setLoanQuantity(draft.loanQuantity ?? 1);
@@ -162,6 +182,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setRegisterPayment(false);
           setPaymentAmount('');
           setPaymentMethod('PIX');
+          setNotes('');
           if (defaultClient) {
             setSelectedClient(defaultClient);
             setClientSearch(defaultClient.name);
@@ -178,7 +199,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     if (!open) return;
     if (!hasInitialized.current) { hasInitialized.current = true; return; }
     isDirty.current = true;
-  }, [items, selectedClient, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, loanEnabled, loanProductId, loanQuantity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [items, selectedClient, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, combinePayment, paymentMethod2, paymentAmount2, notes, loanEnabled, loanProductId, loanQuantity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!http || !open) return;
@@ -332,11 +353,23 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       }
     }
 
-    if (!isEditMode && registerPayment && paymentMethod === 'SALDO' && paymentAmount) {
-      const amount = parseFloat(paymentAmount);
-      if (!isNaN(amount) && amount > 0) {
+    if (!isEditMode && registerPayment && combinePayment && paymentMethod === paymentMethod2) {
+      setError('Escolha dois meios de pagamento diferentes.');
+      return;
+    }
+
+    if (!isEditMode && registerPayment && combinePayment && (!paymentAmount2 || parseFloat(paymentAmount2) <= 0)) {
+      setError('Informe o valor do segundo meio de pagamento.');
+      return;
+    }
+
+    if (!isEditMode && registerPayment) {
+      const saldoAmount =
+        (paymentMethod === 'SALDO' ? parseFloat(paymentAmount || '0') : 0) +
+        (combinePayment && paymentMethod2 === 'SALDO' ? parseFloat(paymentAmount2 || '0') : 0);
+      if (saldoAmount > 0) {
         const availableBalance = selectedClient?.balance ?? 0;
-        if (availableBalance < amount) {
+        if (availableBalance < saldoAmount) {
           setError(`Saldo insuficiente. Disponível: ${formatBRL(availableBalance)}.`);
           return;
         }
@@ -386,6 +419,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       items: orderItems,
       isDelivery,
       deliveryDate: deliveryDate ? `${deliveryDate}:00` : undefined,
+      notes: notes.trim() || undefined,
     };
 
     try {
@@ -415,9 +449,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         if (registerPayment && paymentAmount) {
           const amount = parseFloat(paymentAmount);
           if (!isNaN(amount) && amount > 0) {
+            const paymentDate = nowPaymentDate();
             try {
               await http.post('/payments', {
-                paymentDate: nowPaymentDate(),
+                paymentDate,
                 amount,
                 orderId: newOrderId,
                 paymentMethod,
@@ -425,6 +460,23 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             } catch (paymentErr) {
               try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
               throw paymentErr;
+            }
+
+            if (combinePayment && paymentAmount2) {
+              const amount2 = parseFloat(paymentAmount2);
+              if (!isNaN(amount2) && amount2 > 0) {
+                try {
+                  await http.post('/payments', {
+                    paymentDate,
+                    amount: amount2,
+                    orderId: newOrderId,
+                    paymentMethod: paymentMethod2,
+                  });
+                } catch (paymentErr) {
+                  try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
+                  throw paymentErr;
+                }
+              }
             }
           }
         }
@@ -457,7 +509,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   function saveDraftAndClose() {
     if (!isEditMode && isDirty.current) {
-      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, loanEnabled, loanProductId, loanQuantity };
+      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, combinePayment, paymentMethod2, paymentAmount2, notes, loanEnabled, loanProductId, loanQuantity };
       try { localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft)); } catch { /* noop */ }
     }
     onClose();
@@ -466,6 +518,42 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function handleCancel() {
     clearOrderDraft();
     onClose();
+  }
+
+  function selectPaymentMethod(value: PaymentMethod) {
+    setPaymentMethod(value);
+    if (combinePayment && value === paymentMethod2) {
+      setPaymentMethod2(PAYMENT_METHODS.find((m) => m.value !== value)!.value);
+    }
+  }
+
+  function selectPaymentMethod2(value: PaymentMethod) {
+    setPaymentMethod2(value);
+    if (value === paymentMethod) {
+      setPaymentMethod(PAYMENT_METHODS.find((m) => m.value !== value)!.value);
+    }
+  }
+
+  function addSecondPayment() {
+    paymentAmountAutoSync.current = false;
+    if (currentTotal > 0) {
+      const half = Math.round((currentTotal / 2) * 100) / 100;
+      setPaymentAmount(half.toFixed(2));
+      setPaymentAmount2((currentTotal - half).toFixed(2));
+    }
+    if (paymentMethod2 === paymentMethod) {
+      setPaymentMethod2(PAYMENT_METHODS.find((m) => m.value !== paymentMethod)!.value);
+    }
+    setCombinePayment(true);
+  }
+
+  function removeSecondPayment() {
+    setCombinePayment(false);
+    setPaymentAmount2('');
+    setPaymentMethod2('DINHEIRO');
+    setCashReceived2('');
+    paymentAmountAutoSync.current = true;
+    setPaymentAmount(currentTotal > 0 ? currentTotal.toFixed(2) : '');
   }
 
   const isOverdue = selectedClient && selectedClient.balance < 0;
@@ -498,7 +586,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           <div className="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
 
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
+              <div ref={errorRef} className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>error</span>
                 <span className="text-[13px] font-medium">{error}</span>
               </div>
@@ -732,11 +820,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           </td>
                           <td className="px-3 py-2">
                             <input
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               required
-                              min={1}
-                              value={item.quantity}
-                              onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                              value={item.quantity === 0 ? '' : item.quantity}
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, '');
+                                updateItem(idx, 'quantity', digits === '' ? 0 : parseInt(digits, 10));
+                              }}
+                              onBlur={() => { if (!item.quantity) updateItem(idx, 'quantity', 1); }}
                               className={cellInputClass + ' text-center'}
                             />
                           </td>
@@ -954,6 +1047,20 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
               </div>
             </div>
 
+            {/* ── Observações ── */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Observações <span className="normal-case text-slate-400 font-normal">(opcional, anotações internas)</span>
+              </label>
+              <textarea
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-[13px] bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none text-slate-700"
+                placeholder="Ex: entregar no portão dos fundos"
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
             {/* ── Empréstimo de Vasilhame (apenas criação, cliente identificado) ── */}
             {!isEditMode && selectedClient && !isAvulso && (
               <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -1028,54 +1135,198 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 </label>
               </div>
 
-              {registerPayment && <div className="p-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                      Valor (R$)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={paymentAmount}
-                      onChange={(e) => {
-                        paymentAmountAutoSync.current = false;
-                        setPaymentAmount(e.target.value);
-                      }}
-                      placeholder="0,00"
-                      className={inputClass}
-                    />
-                    {currentTotal > 0 && paymentAmount && parseFloat(paymentAmount) < currentTotal && (
-                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>info</span>
-                        Pagamento parcial — restam {formatBRL(currentTotal - parseFloat(paymentAmount))}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                      Forma de Pagamento
-                    </label>
-                    <div className="flex gap-2">
-                      {PAYMENT_METHODS.map((m) => (
-                        <button
-                          key={m.value}
-                          type="button"
-                          onClick={() => setPaymentMethod(m.value)}
-                          className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all ${
-                            paymentMethod === m.value
-                              ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
-                              : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
-                          {m.label}
-                        </button>
-                      ))}
+              {registerPayment && <div className="p-4 space-y-4">
+                {/* Progress strip — same Total/Alocado/Restante pattern used when registering a payment on an existing order */}
+                {currentTotal > 0 && (() => {
+                  const allocated = (parseFloat(paymentAmount) || 0) + (combinePayment ? (parseFloat(paymentAmount2) || 0) : 0);
+                  const remaining = currentTotal - allocated;
+                  return (
+                    <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Total do pedido</p>
+                        <p className="text-[13px] font-bold text-slate-700">{formatBRL(currentTotal)}</p>
+                      </div>
+                      <div className="text-center border-x border-slate-200">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Alocado</p>
+                        <p className="text-[13px] font-bold text-green-600">{formatBRL(allocated)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Restante</p>
+                        <p className={`text-[13px] font-bold ${remaining > 0.004 ? 'text-orange-500' : 'text-slate-400'}`}>{formatBRL(Math.max(remaining, 0))}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 1º meio de pagamento */}
+                <div className="space-y-3">
+                  {combinePayment && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">1º meio de pagamento</p>}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Valor (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={paymentAmount}
+                        onChange={(e) => {
+                          paymentAmountAutoSync.current = false;
+                          setPaymentAmount(e.target.value);
+                        }}
+                        placeholder="0,00"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Forma de Pagamento
+                      </label>
+                      <div className="flex gap-2">
+                        {PAYMENT_METHODS.map((m) => (
+                          <button
+                            key={m.value}
+                            type="button"
+                            disabled={combinePayment && m.value === paymentMethod2}
+                            onClick={() => selectPaymentMethod(m.value)}
+                            className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                              paymentMethod === m.value
+                                ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                  {paymentMethod === 'DINHEIRO' && (
+                    <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
+                      <label className="block text-[11px] font-semibold text-emerald-700 uppercase tracking-wider mb-1.5">
+                        Valor recebido em dinheiro
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cashReceived}
+                        onChange={(e) => setCashReceived(e.target.value)}
+                        placeholder="0,00"
+                        className={inputClass}
+                      />
+                      {cashReceived && parseFloat(cashReceived) > (parseFloat(paymentAmount) || 0) && (
+                        <p className="mt-1.5 text-[12px] text-emerald-700 font-bold flex items-center gap-1">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>payments</span>
+                          Troco: {formatBRL(parseFloat(cashReceived) - (parseFloat(paymentAmount) || 0))}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* 2º meio de pagamento */}
+                {combinePayment && (
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">2º meio de pagamento</p>
+                      <button
+                        type="button"
+                        onClick={removeSecondPayment}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                        Remover
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Valor (R$)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={paymentAmount2}
+                          onChange={(e) => setPaymentAmount2(e.target.value)}
+                          placeholder="0,00"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Forma de Pagamento
+                        </label>
+                        <div className="flex gap-2">
+                          {PAYMENT_METHODS.map((m) => (
+                            <button
+                              key={m.value}
+                              type="button"
+                              disabled={m.value === paymentMethod}
+                              onClick={() => selectPaymentMethod2(m.value)}
+                              className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                                paymentMethod2 === m.value
+                                  ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                  : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {paymentMethod2 === 'DINHEIRO' && (
+                      <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
+                        <label className="block text-[11px] font-semibold text-emerald-700 uppercase tracking-wider mb-1.5">
+                          Valor recebido em dinheiro
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={cashReceived2}
+                          onChange={(e) => setCashReceived2(e.target.value)}
+                          placeholder="0,00"
+                          className={inputClass}
+                        />
+                        {cashReceived2 && parseFloat(cashReceived2) > (parseFloat(paymentAmount2) || 0) && (
+                          <p className="mt-1.5 text-[12px] text-emerald-700 font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>payments</span>
+                            Troco: {formatBRL(parseFloat(cashReceived2) - (parseFloat(paymentAmount2) || 0))}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Add 2nd payment method — split-tender pattern, one line at a time */}
+                {!combinePayment && (
+                  <button
+                    type="button"
+                    onClick={addSecondPayment}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-slate-300 rounded-lg text-[12px] font-semibold text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_circle</span>
+                    Dividir em 2 meios de pagamento
+                  </button>
+                )}
+
+                {(() => {
+                  const totalEntered = (parseFloat(paymentAmount) || 0) + (combinePayment ? (parseFloat(paymentAmount2) || 0) : 0);
+                  if (currentTotal <= 0 || totalEntered <= 0 || totalEntered >= currentTotal - 0.004) return null;
+                  return (
+                    <p className="text-[11px] text-amber-600 flex items-center gap-1">
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>info</span>
+                      Pagamento parcial — o pedido ficará com {formatBRL(currentTotal - totalEntered)} em aberto
+                    </p>
+                  );
+                })()}
               </div>}
             </div>}
 
