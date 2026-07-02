@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../contexts/NotificationContext';
 import { TopBar } from '../components/TopBar';
+import { parseApiError } from '../utils/parseApiError';
+import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   SystemConfigDTO, SpringPage, ClientResponseDTO,
   ProductResponseDTO, StockResponseDTO, GasSupplierResponseDTO, UserResponseDTO,
@@ -118,8 +120,8 @@ const TEMPLATES: Record<DataKey, { headers: string[]; rows: unknown[][] }> = {
   clients:   { headers: ['nome','telefone','endereco','notas','tipo'],
                rows: [['João Silva','11999999999','Rua das Flores 123','cliente antigo','RETAIL'],
                       ['Maria Costa','11988888888','Av. Principal 456','','RESELLER']] },
-  products:  { headers: ['nome','preco_base','tipo'],
-               rows: [['Água 20L','12.00','WATER'],['Gás 13kg','120.00','GAS']] },
+  products:  { headers: ['nome','preco_base','preco_custo','tipo'],
+               rows: [['Água 20L','12.00','','WATER'],['Gás 13kg','120.00','80.00','GAS']] },
   stock:     { headers: ['produto','quantidade'],
                rows: [['Água 20L','50']] },
   suppliers: { headers: ['nome','notas'],
@@ -128,7 +130,7 @@ const TEMPLATES: Record<DataKey, { headers: string[]; rows: unknown[][] }> = {
 
 const TIPO_HINTS: Record<DataKey, string> = {
   clients:   'tipo: RETAIL, RESELLER ou AVULSO',
-  products:  'tipo: WATER ou GAS · preco_base: número decimal (ex: 12.50)',
+  products:  'tipo: WATER ou GAS · preco_base: número decimal (ex: 12.50) · preco_custo: obrigatório para tipo GAS',
   stock:     'produto: nome exato do produto cadastrado · define a quantidade absoluta',
   suppliers: 'nome é obrigatório · notas é opcional',
 };
@@ -154,6 +156,7 @@ export function SettingsPage() {
   const [cfgLoading, setCfgLoading] = useState(true);
   const [cfgSaving, setCfgSaving] = useState(false);
   const [cfgError, setCfgError] = useState('');
+  const cfgErrorRef = useScrollToError<HTMLDivElement>(cfgError);
   const [pointsPerItem, setPointsPerItem] = useState('1');
   const [pointsPerWater, setPointsPerWater] = useState('10');
   const [discountCents, setDiscountCents] = useState('50');
@@ -223,8 +226,8 @@ export function SettingsPage() {
       if (exportSel.products) {
         const d = await fetchAll<ProductResponseDTO>('/products');
         triggerDownload('produtos.csv', makeCSV(
-          ['nome','preco_base','preco_revendedor','tipo','ativo'],
-          d.map(p => [p.name, p.basePrice, p.resellerPrice ?? '', p.type, p.isActive])
+          ['nome','preco_base','preco_custo','preco_revendedor','tipo','ativo'],
+          d.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', p.type, p.isActive])
         ));
         await delay(400);
       }
@@ -267,8 +270,8 @@ export function SettingsPage() {
           clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance, c.fidelityPoints])),
         '',
         '[PRODUTOS]',
-        makeCSV(['nome','preco_base','preco_revendedor','tipo','ativo'],
-          products.map(p => [p.name, p.basePrice, p.resellerPrice ?? '', p.type, p.isActive])),
+        makeCSV(['nome','preco_base','preco_custo','preco_revendedor','tipo','ativo'],
+          products.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', p.type, p.isActive])),
         '',
         '[ESTOQUE]',
         makeCSV(['produto','quantidade_atual','estoque_minimo'],
@@ -294,6 +297,7 @@ export function SettingsPage() {
   const [importProgress, setImportProgress] = useState(0);
   const [importTotal, setImportTotal] = useState(0);
   const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
+  const importResultRef = useScrollToError<HTMLDivElement>(importResult?.errors);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -361,7 +365,13 @@ export function SettingsPage() {
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
           if (isNaN(basePrice)) { errors.push(`${lbl}: 'preco_base' inválido`); continue; }
           if (!['WATER','GAS'].includes(tipo)) { errors.push(`${lbl}: 'tipo' deve ser WATER ou GAS`); continue; }
-          await http!.post('/products', { name, basePrice, type: tipo });
+          const lastCostPrice = row.preco_custo ? parseFloat(row.preco_custo) : undefined;
+          if (tipo === 'GAS' && (lastCostPrice === undefined || isNaN(lastCostPrice))) {
+            errors.push(`${lbl}: 'preco_custo' é obrigatório para produtos do tipo GAS`); continue;
+          }
+          const created = await http!.post<ProductResponseDTO>('/products', { name, basePrice, type: tipo, lastCostPrice });
+          prodNameToId[name] = created.data.id;
+          if (tipo !== 'GAS') prodNameToStock[name] = 0;
           success++;
         } else if (entity === 'stock') {
           const prodName = row.produto?.trim();
@@ -380,7 +390,7 @@ export function SettingsPage() {
           await http!.post('/suppliers', { name, notes: row.notas?.trim() || undefined });
           success++;
         }
-      } catch { errors.push(`${lbl}: erro ao salvar`); }
+      } catch (err) { errors.push(`${lbl}: ${parseApiError(err)}`); }
       setImportProgress(p => p + 1);
     }
     return { success, errors };
@@ -490,7 +500,7 @@ export function SettingsPage() {
         {activeTab === 'config' && (
           <>
             {cfgError && (
-              <div className="flex items-center gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div ref={cfgErrorRef} className="flex items-center gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <span className="material-symbols-outlined text-red-500" style={{ fontSize: '20px' }}>error</span>
                 <span className="text-sm font-medium text-red-700">{cfgError}</span>
               </div>
@@ -783,7 +793,7 @@ export function SettingsPage() {
                       </div>
                     )}
                     {importResult.errors.length > 0 && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                      <div ref={importResultRef} className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
                         <p className="text-[12px] font-semibold text-red-700">{importResult.errors.length} erro(s):</p>
                         <div className="max-h-32 overflow-y-auto space-y-0.5">
                           {importResult.errors.map((e, i) => (
