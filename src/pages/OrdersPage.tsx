@@ -121,7 +121,6 @@ export function OrdersPage() {
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{ order: OrderResponseDTO; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!statusMenu) return;
@@ -422,9 +421,6 @@ export function OrdersPage() {
                       <tr
                         key={order.id}
                         className="hover:bg-slate-50/70 transition-colors cursor-pointer"
-                        onMouseEnter={(e) => setTooltip({ order, x: e.clientX, y: e.clientY })}
-                        onMouseMove={(e) => setTooltip((t) => t ? { order, x: e.clientX, y: e.clientY } : null)}
-                        onMouseLeave={() => setTooltip(null)}
                         onClick={() => navigate(`/orders/${order.id}`)}
                       >
                         <td className="px-5 py-3.5 font-mono font-semibold text-[13px] text-primary">
@@ -660,49 +656,6 @@ export function OrdersPage() {
         );
       })()}
 
-      {tooltip && (() => {
-        const o = tooltip.order;
-        const isScheduled = o.status === 'PENDING' && o.deliveryDate && new Date(o.deliveryDate) > new Date();
-        const payBadge = getPaymentStatusBadge(o.paymentStatus);
-        return (
-          <div
-            style={{ position: 'fixed', top: tooltip.y + 16, left: tooltip.x + 16, zIndex: 9998 }}
-            className="bg-white border border-slate-200 rounded-xl shadow-card-hover w-64 overflow-hidden pointer-events-none"
-          >
-            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{o.clientName}</p>
-              <p className="text-[12px] font-semibold text-slate-700 mt-0.5">{formatOrderId(o.id)}</p>
-            </div>
-            <div className="px-4 py-3 space-y-2">
-              {isScheduled && (
-                <div className="flex items-center gap-2 text-[12px] text-violet-700 bg-violet-50 rounded-lg px-2.5 py-1.5">
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>event</span>
-                  <span className="font-semibold">
-                    Agendado: {new Date(o.deliveryDate!).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-500">Pagamento:</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${payBadge.className}`}>{payBadge.label}</span>
-              </div>
-              <div>
-                <p className="text-[11px] text-slate-500 mb-1">Itens:</p>
-                {o.items.map((item) => (
-                  <p key={item.id} className="text-[12px] text-slate-700 flex items-center gap-1">
-                    <span className="font-bold">×{item.quantity}</span> {item.productName}
-                    {item.unitPrice === 0 && <span className="text-[9px] font-black text-green-600 bg-green-100 px-1 rounded-full">BÔNUS</span>}
-                  </p>
-                ))}
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                <span className="text-[11px] text-slate-500">Total</span>
-                <span className="text-[13px] font-black text-slate-800">{formatBRL(o.totalValue)}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </>
   );
 }
