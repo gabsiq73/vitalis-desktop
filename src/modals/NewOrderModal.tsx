@@ -14,6 +14,7 @@ import type {
   OrderItemRequestBody,
   OrderRequestBody,
   PaymentMethod,
+  GasPaymentMethod,
   SystemConfigDTO,
 } from '../types';
 import { formatBRL } from '../utils/format';
@@ -30,6 +31,7 @@ interface ItemForm {
   supplierId: string;
   gasCostPrice: string;
   receivedByUs: boolean;
+  gasPaymentMethod: GasPaymentMethod | null;
   useBonus: boolean;
 }
 
@@ -47,6 +49,7 @@ const emptyItem = (): ItemForm => ({
   supplierId: '',
   gasCostPrice: '',
   receivedByUs: false,
+  gasPaymentMethod: null,
   useBonus: false,
 });
 
@@ -147,6 +150,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           supplierId: i.supplierId ?? '',
           gasCostPrice: i.gasCostPrice?.toString() ?? '',
           receivedByUs: i.receivedByUs ?? false,
+          gasPaymentMethod: null,
           useBonus: i.unitPrice === 0,
         })));
         setSelectedClient(null);
@@ -342,6 +346,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       return;
     }
 
+    if (validItems.some((item) => getProduct(item.productId)?.type === 'GAS' && item.receivedByUs && !item.gasPaymentMethod)) {
+      setError('Selecione PIX ou Dinheiro para o gás recebido por nós.');
+      return;
+    }
+    const gasMethods = new Set(validItems.filter((item) => getProduct(item.productId)?.type === 'GAS' && item.receivedByUs).map((item) => item.gasPaymentMethod));
+    if (gasMethods.size > 1) {
+      setError('Use o mesmo método de pagamento para os itens de gás do pedido.');
+      return;
+    }
+
     if (loanEnabled && loanProductId && loanQuantity > 0) {
       const totalWaterQty = validItems.reduce((sum, item) => {
         const p = getProduct(item.productId);
@@ -388,8 +402,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         const params = avulsoName.trim() ? { name: avulsoName.trim() } : undefined;
         const res = await http.post<ClientResponseDTO>('/clients/avulso', null, { params });
         clientId = res.data.id;
-      } catch {
-        setError('Erro ao criar cliente avulso. Tente novamente.');
+      } catch (err: unknown) {
+        setError(parseApiError(err));
         setSubmitting(false);
         return;
       }
@@ -410,6 +424,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         if (item.supplierId) base.supplierId = item.supplierId;
         if (item.gasCostPrice) base.gasCostPrice = parseFloat(item.gasCostPrice);
         base.receivedByUs = item.receivedByUs;
+        if (item.receivedByUs && item.gasPaymentMethod) base.gasPaymentMethod = item.gasPaymentMethod;
       }
       return base;
     });
@@ -428,23 +443,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       } else {
         const orderRes = await http.post<{ id: string }[]>('/orders', body);
         const newOrderId = orderRes.data[0]?.id;
-
-        const autoGasAmount = validItems.reduce((sum, item) => {
-          if (!item.receivedByUs) return sum;
-          const p = getProduct(item.productId);
-          if (p?.type !== 'GAS') return sum;
-          return sum + getItemUnitPrice(item) * item.quantity;
-        }, 0);
-        if (autoGasAmount > 0) {
-          try {
-            await http.post('/payments', {
-              paymentDate: nowPaymentDate(),
-              amount: autoGasAmount,
-              orderId: newOrderId,
-              paymentMethod: 'DINHEIRO',
-            });
-          } catch { /* non-fatal: order saved, payment can be registered manually */ }
-        }
 
         if (registerPayment && paymentAmount) {
           const amount = parseFloat(paymentAmount);
@@ -790,7 +788,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       )}
                       <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-28">Preço Unit.</th>
                       {hasGasItem && (
-                        <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-24 text-center">Recebido</th>
+                        <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-36 text-center">Recebido</th>
                       )}
                       {showBonusColumn && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-green-600 uppercase tracking-wider w-24 text-center">Usar Bônus</th>
@@ -889,12 +887,34 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           {hasGasItem && (
                             <td className="px-3 py-2 text-center">
                               {isGas ? (
-                                <input
-                                  type="checkbox"
-                                  checked={item.receivedByUs}
-                                  onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
-                                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
-                                />
+                                <div className="space-y-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.receivedByUs}
+                                    onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
+                                    aria-label="Recebido por nós"
+                                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+                                  />
+                                  {item.receivedByUs && (
+                                    <div className="flex gap-1">
+                                      {PAYMENT_METHODS.filter((m) => m.value !== 'SALDO').map((m) => (
+                                        <button
+                                          key={m.value}
+                                          type="button"
+                                          onClick={() => updateItem(idx, 'gasPaymentMethod', m.value as GasPaymentMethod)}
+                                          className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                                            item.gasPaymentMethod === m.value
+                                              ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                              : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                          }`}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
+                                          {m.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="text-slate-400 text-[13px]">—</span>
                               )}
