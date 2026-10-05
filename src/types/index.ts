@@ -243,11 +243,41 @@ export interface DailyReportDTO {
   totalGasSold: number;
 }
 
+export type CashMovementType = 'ENTRY' | 'ADJUSTMENT' | 'WITHDRAWAL';
+export type CashMovementDirection = 'IN' | 'OUT';
+
+export interface CashMovementResponseDTO {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  direction: CashMovementDirection;
+  occurredAt: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface GasSettlementMovementDTO {
+  id: string;
+  supplierName: string;
+  type: SettlementType;
+  direction: CashMovementDirection;
+  amount: number;
+  settledDate: string;
+}
+
 export interface FinancialReportDTO {
   totalInvoiced: number;
   totalReceived: number;
   gasGrossProfit: number;
   getBalance: number;
+  totalEntries: number;
+  totalAdjustments: number;
+  totalWithdrawals: number;
+  finalBalance: number;
+  cashMovements: CashMovementResponseDTO[];
+  gasSettlementsIn: number;
+  gasSettlementsOut: number;
+  gasSettlementMovements: GasSettlementMovementDTO[];
 }
 
 export interface OrderItemRequestBody {

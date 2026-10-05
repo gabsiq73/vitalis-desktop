@@ -64,7 +64,7 @@ export function CashRegisterPage() {
 
   const faturado   = financial?.totalInvoiced ?? 0;
   const recebido   = financial?.totalReceived ?? 0;
-  const saldoCaixa = financial?.getBalance ?? 0;
+  const saldoCaixa = financial?.finalBalance ?? 0;
   const pix        = operational?.totalPix ?? 0;
   const dinheiro   = operational?.totalCash ?? 0;
   const saldoUsado = operational?.totalBalanceUsed ?? 0;
