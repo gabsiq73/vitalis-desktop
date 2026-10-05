@@ -1,4 +1,5 @@
-import { useNotification, type NotificationType } from '../contexts/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
+import type { NotificationType } from '../contexts/notification';
 
 const TOAST_STYLES: Record<NotificationType, { bg: string; border: string; icon: string; iconColor: string; textColor: string }> = {
   success: { bg: 'bg-white', border: 'border-green-200', icon: 'check_circle', iconColor: 'text-green-500', textColor: 'text-slate-700' },

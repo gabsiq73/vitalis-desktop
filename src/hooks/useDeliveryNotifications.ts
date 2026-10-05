@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from './useAuth';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from './useNotification';
 import type { OrderResponseDTO, SpringPage } from '../types';
 
 export function useDeliveryNotifications() {
@@ -12,6 +12,7 @@ export function useDeliveryNotifications() {
     if (!http) return;
 
     let cancelled = false;
+    const timers = timersByKey.current;
 
     async function scheduleNotifications() {
       try {
@@ -36,12 +37,12 @@ export function useDeliveryNotifications() {
             const shortId = o.id.slice(-6).toUpperCase();
 
             const enqueue = (key: string, delay: number, message: string, type: 'warning' | 'error') => {
-              if (delay > 0 && !timersByKey.current.has(key)) {
+              if (delay > 0 && !timers.has(key)) {
                 const t = setTimeout(() => {
-                  timersByKey.current.delete(key);
+                  timers.delete(key);
                   notify(message, type);
                 }, delay);
-                timersByKey.current.set(key, t);
+                timers.set(key, t);
               }
             };
 
@@ -72,8 +73,8 @@ export function useDeliveryNotifications() {
     return () => {
       cancelled = true;
       clearInterval(interval);
-      timersByKey.current.forEach(clearTimeout);
-      timersByKey.current.clear();
+      timers.forEach(clearTimeout);
+      timers.clear();
     };
-  }, [http]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, notify]);
 }

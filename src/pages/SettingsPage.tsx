@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { parseApiError } from '../utils/parseApiError';
 import { useScrollToError } from '../hooks/useScrollToError';
@@ -24,7 +24,7 @@ function makeCSV(headers: string[], rows: unknown[][]): string {
 }
 
 function triggerDownload(filename: string, csv: string): void {
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
@@ -57,7 +57,7 @@ function parseCSVLines(lines: string[]): Record<string, string>[] {
 }
 
 function parseCSVText(text: string): Record<string, string>[] {
-  const norm = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const norm = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const lines = norm.trim().split('\n').filter(l => l.trim());
   return parseCSVLines(lines);
 }
@@ -72,7 +72,7 @@ function isCombinedCSV(text: string): boolean {
 }
 
 function parseCombinedCSV(text: string): Partial<Record<DataKey, Record<string, string>[]>> {
-  const norm = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const norm = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const result: Partial<Record<DataKey, Record<string, string>[]>> = {};
   let currentKey: DataKey | null = null;
   let buf: string[] = [];
@@ -199,10 +199,11 @@ export function SettingsPage() {
     if (!http) return [];
     const all: T[] = [];
     let page = 0;
-    while (true) {
+    let hasMore = true;
+    while (hasMore) {
       const r = await http.get<SpringPage<T>>(url, { params: { page, size: 500 } });
       all.push(...r.data.content);
-      if (page >= r.data.totalPages - 1) break;
+      hasMore = page < r.data.totalPages - 1;
       page++;
     }
     return all;
@@ -401,8 +402,8 @@ export function SettingsPage() {
     setImporting(true); setImportProgress(0);
     setImportTotal(parsedRows.length); setImportResult(null);
 
-    let prodNameToId: Record<string, string> = {};
-    let prodNameToStock: Record<string, number> = {};
+    const prodNameToId: Record<string, string> = {};
+    const prodNameToStock: Record<string, number> = {};
     if (importEntity === 'stock') {
       try {
         (await fetchAll<ProductResponseDTO>('/products')).forEach(p => { prodNameToId[p.name] = p.id; });
@@ -424,8 +425,8 @@ export function SettingsPage() {
     const total = Object.values(combinedData).reduce((s, rows) => s + (rows?.length ?? 0), 0);
     setImportTotal(total);
 
-    let prodNameToId: Record<string, string> = {};
-    let prodNameToStock: Record<string, number> = {};
+    const prodNameToId: Record<string, string> = {};
+    const prodNameToStock: Record<string, number> = {};
     if (combinedData.stock?.length) {
       try {
         (await fetchAll<ProductResponseDTO>('/products')).forEach(p => { prodNameToId[p.name] = p.id; });

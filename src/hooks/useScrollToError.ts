@@ -13,7 +13,6 @@ export function useScrollToError<T extends HTMLElement = HTMLDivElement>(trigger
     if (hasContent) {
       ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasContent]);
 
   return ref;

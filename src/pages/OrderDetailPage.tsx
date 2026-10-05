@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';

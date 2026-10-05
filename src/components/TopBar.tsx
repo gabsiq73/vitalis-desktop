@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useNotification, type NotificationType } from '../contexts/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
+import type { NotificationType } from '../contexts/notification';
 
 interface TopBarProps {
   title?: string;

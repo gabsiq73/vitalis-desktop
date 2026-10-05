@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 import { parseApiError } from '../utils/parseApiError';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
