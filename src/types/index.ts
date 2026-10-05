@@ -12,6 +12,7 @@ export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS';
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
+export type GasPaymentMethod = Extract<PaymentMethod, 'PIX' | 'DINHEIRO'>;
 
 export interface ClientResponseDTO {
   id: string;
@@ -50,7 +51,8 @@ export interface OrderItemResponseDTO {
   supplierId?: string;
   supplierName?: string;
   gasCostPrice?: number;
-  receivedByUs?: boolean;
+  receivedByUs?: boolean | null;
+  gasPaymentMethod?: GasPaymentMethod | null;
 }
 
 export interface OrderResponseDTO {
@@ -176,6 +178,7 @@ export interface UserUpdateDTO {
 export interface ProductRequestDTO {
   name: string;
   basePrice: number;
+  resellerPrice?: number;
   lastCostPrice?: number;
   type: ProductType;
   defaultSupplierId?: string;
@@ -184,6 +187,7 @@ export interface ProductRequestDTO {
 export interface ProductUpdateDTO {
   name?: string;
   basePrice?: number;
+  resellerPrice?: number;
   type?: ProductType;
   lastCostPrice?: number;
   defaultSupplierId?: string;
@@ -286,6 +290,7 @@ export interface OrderItemRequestBody {
   unitPrice?: number;
   gasCostPrice?: number;
   receivedByUs?: boolean;
+  gasPaymentMethod?: GasPaymentMethod;
   bottleExpiration?: string;
   supplierId?: string;
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
-import type { OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
+import type { GasPaymentMethod, OrderItemRequestBody, OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 import { useScrollToError } from '../hooks/useScrollToError';
 
@@ -11,6 +11,39 @@ interface EditOrderModalProps {
   order: OrderResponseDTO;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+interface EditItem {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  productName: string;
+  isBonus: boolean;
+  supplierId: string;
+  gasCostPrice: number | undefined;
+  receivedByUs: boolean | null | undefined;
+  gasPaymentMethod: GasPaymentMethod | null;
+  gasFinancialChanged: boolean;
+}
+
+const gasMethods: { value: GasPaymentMethod; label: string; icon: string }[] = [
+  { value: 'PIX', label: 'PIX', icon: 'qr_code_2' },
+  { value: 'DINHEIRO', label: 'Dinheiro', icon: 'payments' },
+];
+
+function toEditItem(i: OrderResponseDTO['items'][number]): EditItem {
+  return {
+    productId: i.productId,
+    quantity: i.quantity,
+    unitPrice: i.unitPrice,
+    productName: i.productName,
+    isBonus: i.unitPrice === 0,
+    supplierId: i.supplierId ?? '',
+    gasCostPrice: i.gasCostPrice,
+    receivedByUs: i.receivedByUs,
+    gasPaymentMethod: i.gasPaymentMethod ?? null,
+    gasFinancialChanged: false,
+  };
 }
 
 function localDatetimeOf(isoStr?: string | null): string {
@@ -28,21 +61,14 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
   const { http } = useAuth();
 
   const isShipped = order.status === 'SHIPPED';
+  const isItemsReadOnly = order.status === 'DELIVERED' || order.status === 'CANCELLED';
 
   const [deliveryDate, setDeliveryDate] = useState(localDatetimeOf(order.deliveryDate));
   const [isDelivery, setIsDelivery] = useState(order.isDelivery ?? true);
   const [notes, setNotes] = useState(order.notes ?? '');
 
   // Items state — only editable when PENDING
-  const [items, setItems] = useState(
-    order.items.map((i) => ({
-      productId: i.productId,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      productName: i.productName,
-      isBonus: i.unitPrice === 0,
-    }))
-  );
+  const [items, setItems] = useState<EditItem[]>(order.items.map(toEditItem));
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -54,13 +80,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
     setDeliveryDate(localDatetimeOf(order.deliveryDate));
     setIsDelivery(order.isDelivery ?? true);
     setNotes(order.notes ?? '');
-    setItems(order.items.map((i) => ({
-      productId: i.productId,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      productName: i.productName,
-      isBonus: i.unitPrice === 0,
-    })));
+    setItems(order.items.map(toEditItem));
     setError(null);
   }, [open, order]);
 
@@ -72,21 +92,21 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
   }, [http, open, isShipped]);
 
   function addItem() {
-    setItems((prev) => [...prev, { productId: '', quantity: 1, unitPrice: 0, productName: '', isBonus: false }]);
+    setItems((prev) => [...prev, { productId: '', quantity: 1, unitPrice: 0, productName: '', isBonus: false, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true }]);
   }
 
   function removeItem(idx: number) {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function updateItem(idx: number, field: string, value: string | number) {
+  function updateItem<K extends keyof EditItem>(idx: number, field: K, value: EditItem[K]) {
     setItems((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
       if (field === 'productId') {
         const p = products.find((p) => p.id === value);
-        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0 };
+        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true };
       }
-      return { ...item, [field]: value };
+      return { ...item, [field]: value, ...((field === 'receivedByUs' || field === 'gasPaymentMethod') ? { gasFinancialChanged: true } : {}) };
     }));
   }
 
@@ -96,9 +116,18 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
     e.preventDefault();
     if (!http) return;
 
-    const validItems = isShipped ? order.items : items.filter((i) => i.productId && i.quantity > 0);
+    const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (!isShipped && validItems.length === 0) {
       setError('O pedido precisa ter pelo menos um item.');
+      return;
+    }
+    if (validItems.some((i) => i.receivedByUs === true && !i.gasPaymentMethod && i.gasFinancialChanged)) {
+      setError('Selecione PIX ou Dinheiro para o gás recebido por nós.');
+      return;
+    }
+    const selectedGasMethods = new Set(validItems.filter((i) => i.receivedByUs && i.gasPaymentMethod).map((i) => i.gasPaymentMethod));
+    if (selectedGasMethods.size > 1) {
+      setError('Use o mesmo método de pagamento para os itens de gás do pedido.');
       return;
     }
 
@@ -111,13 +140,15 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         deliveryDate: deliveryDate ? `${deliveryDate}:00` : undefined,
         isDelivery,
         notes: notes.trim() || undefined,
-        items: isShipped
-          ? order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
-          : validItems.map((i) => ({
-              productId: i.productId,
-              quantity: i.quantity,
-              unitPrice: i.isBonus ? 0 : undefined,
-            })),
+        items: validItems.map((i): OrderItemRequestBody => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          ...(!isShipped && i.isBonus ? { unitPrice: 0 } : {}),
+          ...(i.supplierId ? { supplierId: i.supplierId } : {}),
+          ...(i.gasCostPrice != null ? { gasCostPrice: i.gasCostPrice } : {}),
+          ...(i.receivedByUs != null ? { receivedByUs: i.receivedByUs } : {}),
+          ...(i.receivedByUs && i.gasPaymentMethod ? { gasPaymentMethod: i.gasPaymentMethod } : {}),
+        })),
       };
 
       await http.put(`/orders/${order.id}`, body);
@@ -147,9 +178,38 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
           {isShipped && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-lg border border-amber-200">
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>info</span>
-              <span className="text-[13px]">Pedido em trânsito — apenas a data de entrega pode ser alterada.</span>
+              <span className="text-[13px]">Pedido em trânsito — apenas a data de entrega e o método do gás recebido podem ser alterados.</span>
             </div>
           )}
+          {isShipped && items.map((item, idx) => (item.supplierId || item.gasCostPrice != null || item.receivedByUs != null || item.gasPaymentMethod != null) && (
+            <div key={idx}>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Pagamento do gás recebido — {item.productName}
+              </label>
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-600 mb-2">
+                <input type="checkbox" checked={item.receivedByUs === true} disabled={isItemsReadOnly} onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed" />
+                Recebido por nós
+              </label>
+              {item.receivedByUs === true && <div className="flex gap-2">
+                {gasMethods.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    disabled={isItemsReadOnly}
+                    onClick={() => updateItem(idx, 'gasPaymentMethod', m.value)}
+                    className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                      item.gasPaymentMethod === m.value
+                        ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                        : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
+                    {m.label}
+                  </button>
+                ))}
+              </div>}
+            </div>
+          ))}
 
           {/* Date + delivery type */}
           <div className="grid grid-cols-2 gap-4">
@@ -215,6 +275,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                 </label>
                 <button
                   type="button"
+                  disabled={isItemsReadOnly}
                   onClick={addItem}
                   className="flex items-center gap-1 text-primary font-semibold text-[13px] hover:underline"
                 >
@@ -239,6 +300,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                         <td className="px-3 py-2">
                           <select
                             required
+                            disabled={isItemsReadOnly}
                             value={item.productId}
                             onChange={(e) => updateItem(idx, 'productId', e.target.value)}
                             className="w-full border border-slate-200 rounded bg-white text-[13px] py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all text-slate-700"
@@ -248,10 +310,45 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                               <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
+                          {(item.receivedByUs || products.find((p) => p.id === item.productId)?.type === 'GAS') && (
+                            <div className="mt-2 space-y-2">
+                              <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={item.receivedByUs === true}
+                                  disabled={isItemsReadOnly}
+                                  onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
+                                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+                                />
+                                Recebido por nós
+                              </label>
+                              {item.receivedByUs && (
+                                <div className="flex gap-2">
+                                  {gasMethods.map((m) => (
+                                    <button
+                                      key={m.value}
+                                      type="button"
+                                      disabled={isItemsReadOnly}
+                                      onClick={() => updateItem(idx, 'gasPaymentMethod', m.value)}
+                                      className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                                        item.gasPaymentMethod === m.value
+                                          ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20'
+                                          : 'border-slate-200 text-slate-600 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{m.icon}</span>
+                                      {m.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <input
                             type="text"
+                            disabled={isItemsReadOnly}
                             inputMode="numeric"
                             pattern="[0-9]*"
                             required
@@ -274,6 +371,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                           {items.length > 1 && (
                             <button
                               type="button"
+                              disabled={isItemsReadOnly}
                               onClick={() => removeItem(idx)}
                               className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                             >
