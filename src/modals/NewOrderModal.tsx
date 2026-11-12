@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, type FormEvent, useCallback } from 'react'
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
-import { ORDER_DRAFT_KEY, clearOrderDraft } from '../utils/orderDraft';
-import { AddFidelityPointsModal } from './AddFidelityPointsModal';
+import { ORDER_DRAFT_KEY, clearOrderDraft, restoreOrderDraftItems } from '../utils/orderDraft';
 import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ClientResponseDTO,
@@ -32,7 +31,7 @@ interface ItemForm {
   gasCostPrice: string;
   receivedByUs: boolean;
   gasPaymentMethod: GasPaymentMethod | null;
-  useBonus: boolean;
+  unitPrice?: number;
 }
 
 interface NewOrderModalProps {
@@ -50,7 +49,6 @@ const emptyItem = (): ItemForm => ({
   gasCostPrice: '',
   receivedByUs: false,
   gasPaymentMethod: null,
-  useBonus: false,
 });
 
 function nowDatetimeLocal() {
@@ -107,14 +105,15 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const isDirty = useRef(false);
   const hasInitialized = useRef(false);
 
-  const [showAddPoints, setShowAddPoints] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [draftNeedsReview, setDraftNeedsReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useScrollToError<HTMLDivElement>(error);
 
   useEffect(() => {
     if (open) {
       setError(null);
+      setDraftNeedsReview(false);
       setClientPrices([]);
       paymentAmountAutoSync.current = true;
       hasInitialized.current = false;
@@ -151,7 +150,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           gasCostPrice: i.gasCostPrice?.toString() ?? '',
           receivedByUs: i.receivedByUs ?? false,
           gasPaymentMethod: null,
-          useBonus: i.unitPrice === 0,
+          unitPrice: i.unitPrice,
         })));
         setSelectedClient(null);
         setClientSearch(editOrder.clientName);
@@ -160,7 +159,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         const rawDraft = localStorage.getItem(ORDER_DRAFT_KEY);
         const draft = rawDraft ? (() => { try { return JSON.parse(rawDraft); } catch { return null; } })() : null;
         if (draft) {
-          setItems(draft.items ?? [emptyItem()]);
+          const restored = restoreOrderDraftItems<ItemForm>(draft.items ?? [emptyItem()]);
+          setItems(restored.items);
+          const needsReview = restored.needsReview || draft.requiresReview === true;
+          setDraftNeedsReview(needsReview);
           setSelectedClient(draft.selectedClient ?? null);
           setClientSearch(draft.clientSearch ?? '');
           setIsAvulso(draft.isAvulso ?? false);
@@ -168,9 +170,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
           setIsDelivery(draft.isDelivery ?? true);
           setDeliveryDate(draft.deliveryDate ?? nowDatetimeLocal());
           setPaymentMethod(draft.paymentMethod ?? 'PIX');
-          setRegisterPayment(draft.registerPayment ?? false);
-          setPaymentAmount(draft.paymentAmount ?? '');
-          setCombinePayment(draft.combinePayment ?? false);
+          setRegisterPayment(!needsReview && (draft.registerPayment ?? false));
+          setPaymentAmount(needsReview ? '' : (draft.paymentAmount ?? ''));
+          setCombinePayment(!needsReview && (draft.combinePayment ?? false));
           setPaymentAmount2(draft.paymentAmount2 ?? '');
           setPaymentMethod2(draft.paymentMethod2 ?? 'DINHEIRO');
           setNotes(draft.notes ?? '');
@@ -261,24 +263,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function updateItem<K extends keyof ItemForm>(idx: number, key: K, value: ItemForm[K]) {
     setItems((p) => p.map((item, i) => {
       if (i !== idx) return item;
-      const updated = { ...item, [key]: value };
+      const updated = { ...item, [key]: value, ...((key === 'productId' || (key === 'quantity' && item.unitPrice === 0)) ? { unitPrice: undefined } : {}) };
       return updated;
     }));
   }
-  function handleBonusToggle(idx: number, item: ItemForm, available: number) {
-    if (item.useBonus) {
-      // Remove the bonus row entirely
-      removeItem(idx);
-      return;
-    }
-    if (available <= 0) return;
-    // Always add a separate bonus row (qty=1) after the paid row
-    setItems((prev) => {
-      const bonusRow: ItemForm = { ...prev[idx], quantity: 1, useBonus: true };
-      return [...prev.slice(0, idx + 1), bonusRow, ...prev.slice(idx + 1)];
-    });
-  }
-
   function getProduct(id: string): ProductResponseDTO | undefined {
     return products.find((p) => p.id === id);
   }
@@ -297,7 +285,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     // Reseller price (applied server-side; shown client-side for preview)
     if (selectedClient?.clientType === 'RESELLER' && p.resellerPrice) return p.resellerPrice;
     if (!isDelivery && selectedClient?.clientType === 'RETAIL') {
-      return Math.max(0, p.basePrice - 0.5);
+      return Math.max(0, p.basePrice - (sysConfig?.pickupDiscountCents ?? 50) / 100);
     }
     return p.basePrice;
   }
@@ -313,17 +301,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   function buildTotal(): number {
     return items.reduce((sum, item) => {
-      if (!item.productId || item.useBonus) return sum;
+      if (!item.productId) return sum;
       return sum + getItemUnitPrice(item) * item.quantity;
-    }, 0);
-  }
-
-  function bonusesUsedInOrder(): number {
-    return items.reduce((sum, item) => {
-      if (!item.productId || !item.useBonus) return sum;
-      const p = getProduct(item.productId);
-      if (p?.type !== 'WATER') return sum;
-      return sum + item.quantity;
     }, 0);
   }
 
@@ -417,9 +396,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
     const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
-      const isWater = p?.type === 'WATER';
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
-      if (item.useBonus && isWater) base.unitPrice = 0;
+      if (isEditMode && item.unitPrice !== undefined) base.unitPrice = item.unitPrice;
       if (p?.type === 'GAS') {
         if (item.supplierId) base.supplierId = item.supplierId;
         if (item.gasCostPrice) base.gasCostPrice = parseFloat(item.gasCostPrice);
@@ -507,7 +485,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   function saveDraftAndClose() {
     if (!isEditMode && isDirty.current) {
-      const draft = { items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, combinePayment, paymentMethod2, paymentAmount2, notes, loanEnabled, loanProductId, loanQuantity };
+      const draft = { requiresReview: draftNeedsReview, items, selectedClient, clientSearch, isAvulso, avulsoName, isDelivery, deliveryDate, paymentMethod, registerPayment, paymentAmount, combinePayment, paymentMethod2, paymentAmount2, notes, loanEnabled, loanProductId, loanQuantity };
       try { localStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft)); } catch { /* noop */ }
     }
     onClose();
@@ -557,23 +535,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const isOverdue = selectedClient && selectedClient.balance < 0;
   const isRetail = selectedClient?.clientType === 'RETAIL';
   const hasGasItem = items.some((item) => getProduct(item.productId)?.type === 'GAS');
-
-  // Projected available bonuses: existing + what this order will earn
-  const ptPerItem = sysConfig?.pointsPerWaterItem ?? 1;
-  const ptPerFree = sysConfig?.pointsPerFreeWater ?? 10;
-  const paidWaterQtyInOrder = selectedClient
-    ? items.reduce((sum, item) => {
-        if (!item.productId || item.useBonus) return sum;
-        const p = getProduct(item.productId);
-        return p?.type === 'WATER' ? sum + item.quantity : sum;
-      }, 0)
-    : 0;
-  const projectedRawPoints = (selectedClient?.fidelityPoints ?? 0) + paidWaterQtyInOrder * ptPerItem;
-  const projectedBonusWater = selectedClient ? Math.floor(projectedRawPoints / ptPerFree) : 0;
-  const showBonusColumn =
-    selectedClient?.clientType !== 'RESELLER' &&
-    selectedClient != null &&
-    (selectedClient.pendingBonusWater > 0 || projectedBonusWater > 0 || bonusesUsedInOrder() > 0);
 
   return (
     <>
@@ -756,11 +717,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
               {!isDelivery && isRetail && (
                 <span className="ml-auto text-[12px] text-primary font-bold flex items-center gap-1">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>local_offer</span>
-                  Desconto R$ 0,50/galão (varejo)
+                  Desconto {formatBRL((sysConfig?.pickupDiscountCents ?? 50) / 100)}/galão (varejo)
                 </span>
               )}
             </div>
 
+            {draftNeedsReview && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[13px]">
+                <p>Este rascunho foi criado antes da descontinuação do programa de fidelidade. Os itens usam os preços atuais. Revise as quantidades e os totais.</p>
+                <button type="button" onClick={() => setDraftNeedsReview(false)} className="mt-2 font-bold underline">Revisei os itens e os totais</button>
+              </div>
+            )}
             {/* ── Itens do Pedido ── */}
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -790,9 +757,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       {hasGasItem && (
                         <th className="px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-36 text-center">Recebido</th>
                       )}
-                      {showBonusColumn && (
-                        <th className="px-3 py-2.5 text-[11px] font-semibold text-green-600 uppercase tracking-wider w-24 text-center">Usar Bônus</th>
-                      )}
+
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -862,11 +827,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               />
                             ) : (
                               <div className="px-1">
-                                {item.useBonus ? (
-                                  <span className="text-[12px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                                    BÔNUS
-                                  </span>
-                                ) : (() => {
+                                {(() => {
                                     const src = getPriceSource(item);
                                     const colorMap: Record<string, string> = { custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
                                     const badgeMap: Record<string, string | null> = { custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
@@ -920,34 +881,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               )}
                             </td>
                           )}
-                          {showBonusColumn && (() => {
-                            const isWater = getProduct(item.productId)?.type === 'WATER';
-                            const netAvailable = projectedBonusWater - bonusesUsedInOrder() + (item.useBonus ? item.quantity : 0);
-                            const canToggle = isWater && !!item.productId && (item.useBonus || netAvailable >= 1);
-                            return (
-                              <td className="px-3 py-2 text-center">
-                                {isWater && item.productId ? (
-                                  <button
-                                    type="button"
-                                    disabled={!canToggle}
-                                    onClick={() => handleBonusToggle(idx, item, netAvailable)}
-                                    title={item.useBonus ? 'Remover bônus' : canToggle ? 'Usar bônus (galão grátis)' : 'Bônus insuficiente'}
-                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                                      item.useBonus
-                                        ? 'bg-green-500 text-white border-green-500'
-                                        : canToggle
-                                        ? 'bg-white border-green-400 text-green-700 hover:bg-green-50'
-                                        : 'bg-white border-slate-200 text-slate-300 cursor-not-allowed'
-                                    }`}
-                                  >
-                                    {item.useBonus ? '✓ Bônus' : 'Resgatar'}
-                                  </button>
-                                ) : (
-                                  <span className="text-slate-300 text-[13px]">—</span>
-                                )}
-                              </td>
-                            );
-                          })()}
+
                           <td className="px-2 py-2">
                             {items.length > 1 && (
                               <button
@@ -967,70 +901,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
               </div>
             </div>
 
-            {/* ── Fidelidade + Resumo ── */}
-            <div className={`grid gap-4 ${selectedClient?.clientType !== 'RESELLER' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {/* Fidelidade — oculta para Revendedor */}
-              {selectedClient?.clientType !== 'RESELLER' && <div className={`rounded-xl p-4 border ${selectedClient ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-amber-500" style={{ fontSize: '18px' }}>workspace_premium</span>
-                  <span className="font-semibold text-[13px] text-slate-700">Fidelidade do Cliente</span>
-                </div>
-                {selectedClient ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xl font-black text-amber-600">
-                          {selectedClient.fidelityPoints.toLocaleString('pt-BR')} pts
-                        </p>
-                        <p className="text-[11px] text-amber-700/70 mt-0.5">
-                          +{sysConfig?.pointsPerWaterItem ?? '?'} pt por galão de água
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddPoints(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-lg text-[12px] font-bold hover:brightness-110 transition-all"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_circle</span>
-                        Dar Pontos
-                      </button>
-                    </div>
-                    {(() => {
-                      const total = projectedBonusWater;
-                      const used = bonusesUsedInOrder();
-                      const remaining = total - used;
-                      if (total === 0) return null;
-                      return (
-                        <div className={`flex items-center gap-2 p-2 rounded-lg border text-[12px] font-semibold ${
-                          used > 0 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'
-                        }`}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>redeem</span>
-                          {total} galão(ões) bônus disponível{paidWaterQtyInOrder > 0 && selectedClient.pendingBonusWater < total ? ' (inclui projetados)' : ''}
-                          {used > 0 && <span className="ml-auto">{used} resgatado(s) · {remaining} restante(s)</span>}
-                        </div>
-                      );
-                    })()}
-                    {paidWaterQtyInOrder > 0 && (() => {
-                      const earned = paidWaterQtyInOrder * ptPerItem;
-                      const gainedNewBonuses = projectedBonusWater > selectedClient.pendingBonusWater;
-                      return (
-                        <div className="flex items-center gap-2 p-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700 text-[12px] font-semibold">
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>trending_up</span>
-                          <span>Este pedido vai gerar <b>+{earned} pt</b></span>
-                          {gainedNewBonuses && (
-                            <span className="ml-auto text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-[11px]">
-                              atingirá {projectedBonusWater} bônus
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <p className="text-[13px] text-slate-500">Selecione um cliente para ver fidelidade</p>
-                )}
-              </div>}
-
+            <div className="grid grid-cols-1 gap-4">
               {/* Resumo do pedido */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -1047,12 +918,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                         <div key={idx} className="flex justify-between items-center text-[13px]">
                           <span className="text-slate-500">
                             {p.name} × {item.quantity}
-                            {item.useBonus && <span className="ml-1.5 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-200">BÔNUS</span>}
+
                           </span>
-                          <span className={`font-semibold ${item.useBonus ? 'text-green-600 line-through decoration-1' : 'text-slate-700'}`}>
-                            {item.useBonus ? formatBRL(price * item.quantity) : formatBRL(price * item.quantity)}
+                          <span className="font-semibold text-slate-700">
+                            {formatBRL(price * item.quantity)}
                           </span>
-                          {item.useBonus && <span className="font-bold text-green-600 ml-1">R$ 0,00</span>}
+
                         </div>
                       );
                     })}
@@ -1384,22 +1255,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
         </form>
       </Modal>
 
-      {selectedClient && (
-        <AddFidelityPointsModal
-          open={showAddPoints}
-          onClose={() => setShowAddPoints(false)}
-          onSuccess={() => {
-            setShowAddPoints(false);
-            if (http && selectedClient) {
-              http.get<import('../types').ClientResponseDTO>(`/clients/${selectedClient.id}`)
-                .then((r) => setSelectedClient(r.data))
-                .catch(() => {});
-            }
-          }}
-          clientId={selectedClient.id}
-          clientName={selectedClient.name}
-        />
-      )}
+
     </>
   );
 }

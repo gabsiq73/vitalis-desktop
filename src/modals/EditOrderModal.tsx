@@ -18,7 +18,6 @@ interface EditItem {
   quantity: number;
   unitPrice: number;
   productName: string;
-  isBonus: boolean;
   supplierId: string;
   gasCostPrice: number | undefined;
   receivedByUs: boolean | null | undefined;
@@ -37,7 +36,6 @@ function toEditItem(i: OrderResponseDTO['items'][number]): EditItem {
     quantity: i.quantity,
     unitPrice: i.unitPrice,
     productName: i.productName,
-    isBonus: i.unitPrice === 0,
     supplierId: i.supplierId ?? '',
     gasCostPrice: i.gasCostPrice,
     receivedByUs: i.receivedByUs,
@@ -92,7 +90,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
   }, [http, open, isShipped]);
 
   function addItem() {
-    setItems((prev) => [...prev, { productId: '', quantity: 1, unitPrice: 0, productName: '', isBonus: false, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true }]);
+    setItems((prev) => [...prev, { productId: '', quantity: 1, unitPrice: 0, productName: '', supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true }]);
   }
 
   function removeItem(idx: number) {
@@ -110,7 +108,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
     }));
   }
 
-  const total = items.reduce((sum, i) => sum + (i.isBonus ? 0 : i.unitPrice * i.quantity), 0);
+  const total = items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -143,7 +141,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         items: validItems.map((i): OrderItemRequestBody => ({
           productId: i.productId,
           quantity: i.quantity,
-          ...(!isShipped && i.isBonus ? { unitPrice: 0 } : {}),
+          unitPrice: i.unitPrice,
           ...(i.supplierId ? { supplierId: i.supplierId } : {}),
           ...(i.gasCostPrice != null ? { gasCostPrice: i.gasCostPrice } : {}),
           ...(i.receivedByUs != null ? { receivedByUs: i.receivedByUs } : {}),
@@ -362,10 +360,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {item.isBonus
-                            ? <span className="text-[11px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">BÔNUS</span>
-                            : <span className="text-[13px] font-semibold text-slate-700">{item.productId ? formatBRL(item.unitPrice * item.quantity) : '—'}</span>
-                          }
+                          <span className="text-[13px] font-semibold text-slate-700">{item.productId ? formatBRL(item.unitPrice * item.quantity) : '—'}</span>
                         </td>
                         <td className="px-2 py-2">
                           {items.length > 1 && (

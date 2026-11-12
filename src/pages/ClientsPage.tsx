@@ -285,7 +285,6 @@ export function ClientsPage() {
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Tipo" field="clientType" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider"><SortableHeader label="Status" field="clientStatus" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right"><SortableHeader label="Saldo" field="balance" sort={sort} onSort={setSort} defaultDir="desc" /></th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Fidelidade</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Pedidos</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                 </tr>
@@ -368,22 +367,7 @@ export function ClientsPage() {
                           </span>
                         </td>
 
-                        <td className="px-5 py-3.5 text-center">
-                          {client.fidelityPoints > 0 || client.pendingBonusWater > 0 ? (
-                            <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-[12px] font-bold text-amber-600">
-                                {client.fidelityPoints.toLocaleString('pt-BR')} pts
-                              </span>
-                              {client.pendingBonusWater > 0 && (
-                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
-                                  +{client.pendingBonusWater} galão
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-[12px] text-slate-300">—</span>
-                          )}
-                        </td>
+
 
                         <td className="px-5 py-3.5 text-center">
                           <span className="text-[13px] font-semibold text-slate-700">

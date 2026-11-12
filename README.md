@@ -12,7 +12,7 @@ Ele foi desenhado para o uso diário do depósito, não como aplicação web pú
 - Produtos, estoque, fornecedores e vasilhames.
 - Acertos de gás, Caixa do Dia, relatórios e usuários.
 
-> Pontos e brindes de fidelidade ainda aparecem no código por legado, mas estão planejados para remoção. Não use esse fluxo como base para novas telas.
+> O programa de fidelidade foi descontinuado. Saldo de crédito financeiro e pagamentos com SALDO continuam disponíveis.
 
 ## Stack
 
@@ -83,5 +83,18 @@ O app usa `HashRouter` para funcionar no Electron carregado a partir de arquivo.
 - Acertos de gás são movimentações financeiras com fornecedores, não estoque local.
 
 ## Projeto backend
+
+O contrato coordenado da descontinuação remove `fidelityPoints` e
+`pendingBonusWater` de clientes e `pointsPerWaterItem`/`pointsPerFreeWater` de
+configuração. `/config` mantém `pickupDiscountCents`. Atualize backend e desktop
+juntos, seguindo o procedimento para bancos existentes no `DOCUMENTATION.md`
+do backend. A aplicação não chama mais a rota de adição de pontos.
+
+Rascunhos antigos têm seus marcadores de resgate descartados e exigem que o
+operador revise itens e totais antes de enviar. Histórico mostra os valores
+gravados, inclusive R$ 0,00. Preços especiais, revenda, desconto de retirada,
+crédito financeiro e SALDO permanecem disponíveis.
+
+Teste dirigido do rascunho: `node --experimental-strip-types --test tests/orderDraft.test.mjs`.
 
 Banco e instruções da API estão no repositório [vitalis](https://github.com/gabsiq73/vitalis).
