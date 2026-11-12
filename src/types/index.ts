@@ -295,9 +295,15 @@ export interface OrderItemRequestBody {
   supplierId?: string;
 }
 
+export interface InitialPaymentRequestBody {
+  amount: number;
+  paymentMethod: PaymentMethod;
+}
+
 export interface OrderRequestBody {
   clientId: string;
   items: OrderItemRequestBody[];
+  initialPayments?: InitialPaymentRequestBody[];
   isDelivery: boolean;
   deliveryDate?: string;
   notes?: string;
