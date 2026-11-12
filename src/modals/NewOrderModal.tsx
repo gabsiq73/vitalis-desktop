@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent, useCallback } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../hooks/useNotification';
 import { parseApiError } from '../utils/parseApiError';
 import { ORDER_DRAFT_KEY, clearOrderDraft } from '../utils/orderDraft';
 import { AddFidelityPointsModal } from './AddFidelityPointsModal';
@@ -13,6 +14,8 @@ import type {
   SpringPage,
   OrderItemRequestBody,
   OrderRequestBody,
+  OrderResponseDTO,
+  InitialPaymentRequestBody,
   PaymentMethod,
   GasPaymentMethod,
   SystemConfigDTO,
@@ -59,15 +62,10 @@ function nowDatetimeLocal() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
-function nowPaymentDate() {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-}
-
 export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrder }: NewOrderModalProps) {
   const isEditMode = !!editOrder;
   const { http } = useAuth();
+  const { notify } = useNotification();
 
   const [isAvulso, setIsAvulso] = useState(false);
   const [avulsoName, setAvulsoName] = useState('');
@@ -328,13 +326,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   }
 
   const currentTotal = buildTotal();
+  const payableTotal = items.reduce((sum, item) => {
+    if (!item.productId || item.useBonus || getProduct(item.productId)?.type === 'GAS') return sum;
+    return sum + getItemUnitPrice(item) * item.quantity;
+  }, 0);
 
   // Auto-sync payment amount with total when not manually edited
   useEffect(() => {
     if (paymentAmountAutoSync.current && registerPayment) {
-      setPaymentAmount(currentTotal > 0 ? currentTotal.toFixed(2) : '');
+      setPaymentAmount(payableTotal > 0 ? payableTotal.toFixed(2) : '');
     }
-  }, [currentTotal, registerPayment]);
+  }, [payableTotal, registerPayment]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -367,12 +369,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       }
     }
 
+    if (!isEditMode && registerPayment && (!Number.isFinite(parseFloat(paymentAmount)) || parseFloat(paymentAmount) <= 0)) {
+      setError('Informe um valor positivo para o pagamento.');
+      return;
+    }
+
     if (!isEditMode && registerPayment && combinePayment && paymentMethod === paymentMethod2) {
       setError('Escolha dois meios de pagamento diferentes.');
       return;
     }
 
-    if (!isEditMode && registerPayment && combinePayment && (!paymentAmount2 || parseFloat(paymentAmount2) <= 0)) {
+    if (!isEditMode && registerPayment && combinePayment && (!Number.isFinite(parseFloat(paymentAmount2)) || parseFloat(paymentAmount2) <= 0)) {
       setError('Informe o valor do segundo meio de pagamento.');
       return;
     }
@@ -429,62 +436,44 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       return base;
     });
 
+    const initialPayments: InitialPaymentRequestBody[] = [];
+    // O gás recebido no depósito já gera pagamento automático no backend.
+    // Incluí-lo na lista permite ao servidor deduzir esse recebimento por método.
+    for (const item of validItems) {
+      if (getProduct(item.productId)?.type === 'GAS' && item.receivedByUs && item.gasPaymentMethod) {
+        initialPayments.push({ amount: getItemUnitPrice(item) * item.quantity, paymentMethod: item.gasPaymentMethod });
+      }
+    }
+    if (registerPayment) {
+      initialPayments.push({ amount: parseFloat(paymentAmount), paymentMethod });
+      if (combinePayment) initialPayments.push({ amount: parseFloat(paymentAmount2), paymentMethod: paymentMethod2 });
+    }
+
     const body: OrderRequestBody = {
       clientId,
       items: orderItems,
       isDelivery,
       deliveryDate: deliveryDate ? `${deliveryDate}:00` : undefined,
       notes: notes.trim() || undefined,
+      ...(!isEditMode && initialPayments.length > 0 ? { initialPayments } : {}),
     };
 
     try {
       if (isEditMode) {
         await http.put(`/orders/${editOrder!.id}`, body);
       } else {
-        const orderRes = await http.post<{ id: string }[]>('/orders', body);
-        const newOrderId = orderRes.data[0]?.id;
-
-        if (registerPayment && paymentAmount) {
-          const amount = parseFloat(paymentAmount);
-          if (!isNaN(amount) && amount > 0) {
-            const paymentDate = nowPaymentDate();
-            try {
-              await http.post('/payments', {
-                paymentDate,
-                amount,
-                orderId: newOrderId,
-                paymentMethod,
-              });
-            } catch (paymentErr) {
-              try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
-              throw paymentErr;
-            }
-
-            if (combinePayment && paymentAmount2) {
-              const amount2 = parseFloat(paymentAmount2);
-              if (!isNaN(amount2) && amount2 > 0) {
-                try {
-                  await http.post('/payments', {
-                    paymentDate,
-                    amount: amount2,
-                    orderId: newOrderId,
-                    paymentMethod: paymentMethod2,
-                  });
-                } catch (paymentErr) {
-                  try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
-                  throw paymentErr;
-                }
-              }
-            }
-          }
-        }
+        const orderRes = await http.post<OrderResponseDTO[]>('/orders', body);
+        const newOrderId = orderRes.data.find((order) =>
+          order.items.some((item) => getProduct(item.productId)?.type === 'WATER'))?.id;
 
         if (loanEnabled && loanProductId && loanQuantity > 0) {
           try {
             await http.post('/bottles', { productId: loanProductId, clientId, quantity: loanQuantity, loanDate: null, orderId: newOrderId });
           } catch {
-            try { await http.delete(`/orders/${newOrderId}/void`); } catch { /* best-effort rollback */ }
-            setError('Falha ao registrar o empréstimo. O pedido foi cancelado automaticamente.');
+            clearOrderDraft();
+            onSuccess();
+            notify('Pedido e pagamentos registrados. Falha ao registrar o empréstimo; registre-o na tela de vasilhames.', 'warning');
+            onClose();
             return;
           }
         }
@@ -534,10 +523,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
   function addSecondPayment() {
     paymentAmountAutoSync.current = false;
-    if (currentTotal > 0) {
-      const half = Math.round((currentTotal / 2) * 100) / 100;
+    if (payableTotal > 0) {
+      const half = Math.round((payableTotal / 2) * 100) / 100;
       setPaymentAmount(half.toFixed(2));
-      setPaymentAmount2((currentTotal - half).toFixed(2));
+      setPaymentAmount2((payableTotal - half).toFixed(2));
     }
     if (paymentMethod2 === paymentMethod) {
       setPaymentMethod2(PAYMENT_METHODS.find((m) => m.value !== paymentMethod)!.value);
@@ -551,7 +540,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     setPaymentMethod2('DINHEIRO');
     setCashReceived2('');
     paymentAmountAutoSync.current = true;
-    setPaymentAmount(currentTotal > 0 ? currentTotal.toFixed(2) : '');
+    setPaymentAmount(payableTotal > 0 ? payableTotal.toFixed(2) : '');
   }
 
   const isOverdue = selectedClient && selectedClient.balance < 0;
@@ -1141,7 +1130,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
               <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 ${registerPayment ? 'border-b border-slate-200' : ''}`}>
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>payments</span>
-                  <span className="font-semibold text-[13px] text-slate-700">Pagamento</span>
+                  <span className="font-semibold text-[13px] text-slate-700">Pagamento da água</span>
                   <span className="text-[11px] text-slate-400 font-medium">(opcional)</span>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1155,16 +1144,19 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 </label>
               </div>
 
+              {items.some((item) => getProduct(item.productId)?.type === 'GAS') && (
+                <p className="px-4 py-2 text-[11px] text-slate-500">O pagamento do gás é definido nos itens acima e registrado junto com o pedido.</p>
+              )}
               {registerPayment && <div className="p-4 space-y-4">
                 {/* Progress strip — same Total/Alocado/Restante pattern used when registering a payment on an existing order */}
-                {currentTotal > 0 && (() => {
+                {payableTotal > 0 && (() => {
                   const allocated = (parseFloat(paymentAmount) || 0) + (combinePayment ? (parseFloat(paymentAmount2) || 0) : 0);
-                  const remaining = currentTotal - allocated;
+                  const remaining = payableTotal - allocated;
                   return (
                     <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <div className="text-center">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Total do pedido</p>
-                        <p className="text-[13px] font-bold text-slate-700">{formatBRL(currentTotal)}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Total de água</p>
+                        <p className="text-[13px] font-bold text-slate-700">{formatBRL(payableTotal)}</p>
                       </div>
                       <div className="text-center border-x border-slate-200">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Alocado</p>
@@ -1339,11 +1331,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
                 {(() => {
                   const totalEntered = (parseFloat(paymentAmount) || 0) + (combinePayment ? (parseFloat(paymentAmount2) || 0) : 0);
-                  if (currentTotal <= 0 || totalEntered <= 0 || totalEntered >= currentTotal - 0.004) return null;
+                  if (payableTotal <= 0 || totalEntered <= 0 || totalEntered >= payableTotal - 0.004) return null;
                   return (
                     <p className="text-[11px] text-amber-600 flex items-center gap-1">
                       <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>info</span>
-                      Pagamento parcial — o pedido ficará com {formatBRL(currentTotal - totalEntered)} em aberto
+                      Pagamento parcial — o pedido ficará com {formatBRL(payableTotal - totalEntered)} em aberto
                     </p>
                   );
                 })()}
