@@ -143,8 +143,8 @@ export function CashRegisterPage() {
           <div className="h-1 bg-gradient-to-r from-primary via-teal to-green-400" />
           <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { label: 'Faturado', value: faturado, color: 'text-slate-800', icon: 'receipt_long' },
-              { label: 'Recebido', value: recebido, color: 'text-teal', icon: 'check_circle' },
+              { label: 'Vendas entregues (valor bruto)', value: faturado, color: 'text-slate-800', icon: 'receipt_long' },
+              { label: 'Recebido no depósito', value: recebido, color: 'text-teal', icon: 'check_circle' },
               { label: 'Saldo do Caixa', value: saldoCaixa, color: (saldoCaixa ?? 0) >= 0 ? 'text-primary' : 'text-red-600', icon: 'account_balance_wallet' },
             ].map((item, i) => (
               <div key={item.label} className={`flex items-start gap-3 ${i < 2 ? 'md:border-r md:border-slate-100 md:pr-6' : ''}`}>
@@ -336,7 +336,7 @@ export function CashRegisterPage() {
                 {[
                   { label: 'Água (Recarga)', value: operational?.totalWaterSold, icon: 'water_drop', color: 'text-blue-500', bg: 'bg-blue-50' },
                   { label: 'Gás (Botijões)', value: operational?.totalGasSold, icon: 'local_fire_department', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { label: 'Lucro do Gás', value: financial?.gasGrossProfit, icon: 'trending_up', color: 'text-teal', bg: 'bg-teal/10', isCurrency: true },
+                  { label: 'Margem do gás entregue', value: financial?.gasGrossProfit, icon: 'trending_up', color: 'text-teal', bg: 'bg-teal/10', isCurrency: true },
                   { label: 'Crédito Gerado', value: operational?.totalCreditGenerated, icon: 'account_balance', color: 'text-purple-600', bg: 'bg-purple-50', isCurrency: true },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-3">

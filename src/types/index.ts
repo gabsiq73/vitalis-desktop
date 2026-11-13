@@ -50,7 +50,7 @@ export interface OrderItemResponseDTO {
   supplierName?: string;
   gasCostPrice?: number;
   receivedByUs?: boolean | null;
-  gasPaymentMethod?: GasPaymentMethod | null;
+  gasPaymentMethod?: PaymentMethod | null;
 }
 
 export interface OrderResponseDTO {
@@ -66,6 +66,14 @@ export interface OrderResponseDTO {
   isDelivery?: boolean;
   loanedBottlesCount?: number;
   notes?: string;
+}
+
+export interface ConfirmDeliveryRequestDTO {
+  gasPayments: {
+    orderItemId: string;
+    receivedByUs: boolean;
+    gasPaymentMethod: PaymentMethod | null;
+  }[];
 }
 
 export interface StockResponseDTO {

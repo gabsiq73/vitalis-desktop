@@ -7,6 +7,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { hasOrderDraft } from '../utils/orderDraft';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
+import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { PageSizeSelector } from '../components/PageSizeSelector';
@@ -121,6 +122,7 @@ export function OrdersPage() {
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
+  const [deliveryTarget, setDeliveryTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!statusMenu) return;
@@ -204,12 +206,10 @@ export function OrdersPage() {
 
   async function changeStatus(orderId: string, status: string) {
     if (!http) return;
+    if (status === 'DELIVERED') { setDeliveryTarget(orderId); return; }
     setActionLoading(orderId);
     try {
-      if (status === 'DELIVERED') {
-        await http.patch(`/orders/${orderId}/confirm-delivery`);
-        notify('Entrega confirmada com sucesso.', 'success');
-      } else if (status === 'CANCELLED') {
+      if (status === 'CANCELLED') {
         await http.delete(`/orders/${orderId}`);
         notify('Pedido cancelado.', 'warning');
       } else {
@@ -591,6 +591,7 @@ export function OrdersPage() {
       </div>
 
       {/* Modals */}
+      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => setDeliveryTarget(null)} onSuccess={() => { setDeliveryTarget(null); fetchOrders(); fetchCounts(); }} />}
       <NewOrderModal
         open={showNewOrder}
         onClose={() => setShowNewOrder(false)}

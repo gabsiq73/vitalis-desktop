@@ -105,6 +105,21 @@ orientando registrar o empréstimo pela tela de vasilhames.
 
 ## Projeto backend
 
+A confirmação de entrega no Dashboard, na lista e no detalhe de pedidos abre
+uma revisão do recebimento do gás. A seleção existente é preservada: o operador
+pode manter o entregador como recebedor ou informar recebimento pelo depósito
+em PIX/Dinheiro. O desktop envia os IDs dos itens em `gasPayments` no corpo de
+`PATCH /orders/{id}/confirm-delivery`; requer o backend com esse contrato para
+salvar pagamento, acerto e entrega na mesma transação. Pagamentos parciais
+legados são preservados; alterações de recebedor com pagamentos avulsos ou
+acertos já liquidados são recusadas pelo backend.
+
+Relatórios e Caixa do Dia distinguem valor bruto vendido, dinheiro recebido no
+depósito e margem do gás. A margem entregue pode estar pendente de repasse:
+ela não é uma entrada adicional de caixa. Os movimentos de acertos no livro-caixa
+já trazem `amount` totalizado pela quantidade; a listagem de Acertos de Gás
+continua recebendo `amount` unitário. Não multiplique movimentos de caixa novamente.
+
 A seção “Garrafões devidos aos clientes” de Vasilhames usa
 `POST /depot-bottle-debts`, `GET /depot-bottle-debts?clientId=...&page=0&size=15`
 e `PATCH /depot-bottle-debts/{id}/complete`. Requer o backend com o contrato da

@@ -5,6 +5,8 @@ import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
+import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
+import { parseApiError } from '../utils/parseApiError';
 import type { OrderResponseDTO, PaymentResponseDTO, OrderBalanceDTO, LoanedBottleResponseDTO } from '../types';
 import {
   formatBRL,
@@ -46,6 +48,7 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showEditOrder, setShowEditOrder] = useState(false);
+  const [showDelivery, setShowDelivery] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -72,13 +75,11 @@ export function OrderDetailPage() {
 
   async function handleChangeStatus(status: string) {
     if (actionLoading) return;
+    if (status === 'DELIVERED') { setShowDelivery(true); return; }
     setActionLoading(true);
     setActionError(null);
     try {
-      if (status === 'DELIVERED') {
-        await http!.patch(`/orders/${id}/confirm-delivery`);
-        notify('Entrega confirmada com sucesso.', 'success');
-      } else if (status === 'CANCELLED') {
+      if (status === 'CANCELLED') {
         await http!.delete(`/orders/${id}`);
         notify('Pedido cancelado.', 'warning');
         navigate('/orders');
@@ -88,8 +89,8 @@ export function OrderDetailPage() {
         notify('Status do pedido atualizado.', 'info');
       }
       fetchAll();
-    } catch {
-      setActionError('Falha ao atualizar o status. Tente novamente.');
+    } catch (err) {
+      setActionError(parseApiError(err));
     } finally {
       setActionLoading(false);
     }
@@ -116,6 +117,7 @@ export function OrderDetailPage() {
 
   const currentStepIdx = isCancelled ? -1 : STATUS_STEPS.findIndex((s) => s.value === order.status);
   const hasGasItems = order.items.some((i) => i.supplierId);
+  const hasSupplierCollectedGas = order.items.some(item => item.receivedByUs === false);
 
   return (
     <>
@@ -329,17 +331,25 @@ export function OrderDetailPage() {
                 </div>
                 <button
                   onClick={() => setShowAddPayment(true)}
-                  className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline transition-colors"
+                  disabled={hasSupplierCollectedGas || (hasGasItems && isFullyPaid) || isCancelled}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline transition-colors disabled:hidden"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span>
                   Adicionar
                 </button>
               </div>
 
+              {hasGasItems && <div className="px-5 py-4 space-y-2 bg-slate-50 text-sm text-slate-600">
+                {order.items.filter(item => item.supplierId).map(item => <p key={item.id}>
+                  <strong>{item.productName} × {item.quantity}:</strong> {item.receivedByUs === true
+                    ? `recebido no depósito (${METHOD_LABELS[item.gasPaymentMethod ?? ''] ?? 'método não informado'}). Custo a repassar à fornecedora.`
+                    : item.receivedByUs === false ? 'recebido pelo entregador da fornecedora. Margem a receber em Acertos de Gás; sem entrada no depósito.' : 'recebimento não informado.'}
+                </p>)}
+              </div>}
               {payments.length === 0 ? (
                 <div className="px-5 py-10 text-center">
                   <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>payments</span>
-                  <p className="text-[13px] text-slate-400">Nenhum pagamento registrado.</p>
+                  <p className="text-[13px] text-slate-400">Nenhum pagamento registrado no depósito.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-50">
@@ -394,7 +404,7 @@ export function OrderDetailPage() {
                   </div>
                   <div>
                     <p className="text-[13px] font-bold text-green-700">Pagamento Quitado</p>
-                    <p className="text-[11px] text-green-600">Sem pendências</p>
+                    <p className="text-[11px] text-green-600">Sem dívida do cliente. Repasses de gás são acompanhados em Acertos de Gás.</p>
                   </div>
                 </div>
               ) : (
@@ -405,7 +415,7 @@ export function OrderDetailPage() {
                 </div>
               )}
 
-              {!isFullyPaid && !isCancelled && (
+              {!isFullyPaid && !isCancelled && !hasSupplierCollectedGas && (
                 <button
                   onClick={() => setShowAddPayment(true)}
                   className="mt-4 w-full py-2.5 bg-primary text-white rounded-lg font-bold text-[13px] flex items-center justify-center gap-2 shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
@@ -505,6 +515,7 @@ export function OrderDetailPage() {
         onClose={() => setShowAddPayment(false)}
         onSuccess={fetchAll}
       />
+      {showDelivery && <ConfirmDeliveryModal orderId={order.id} onClose={() => setShowDelivery(false)} onSuccess={() => { setShowDelivery(false); fetchAll(); }} />}
     </>
   );
 }

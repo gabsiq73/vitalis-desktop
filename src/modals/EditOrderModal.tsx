@@ -39,7 +39,7 @@ function toEditItem(i: OrderResponseDTO['items'][number]): EditItem {
     supplierId: i.supplierId ?? '',
     gasCostPrice: i.gasCostPrice,
     receivedByUs: i.receivedByUs,
-    gasPaymentMethod: i.gasPaymentMethod ?? null,
+    gasPaymentMethod: i.gasPaymentMethod === 'SALDO' ? null : i.gasPaymentMethod ?? null,
     gasFinancialChanged: false,
   };
 }

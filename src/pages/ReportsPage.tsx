@@ -5,9 +5,10 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import type { OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
+import type { FinancialReportDTO, OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 import { buildOrderReport } from '../utils/orderReport';
+import { parseApiError } from '../utils/parseApiError';
 
 type Period = '7d' | '30d' | '90d';
 
@@ -39,6 +40,27 @@ export function ReportsPage() {
   const [clients, setClients] = useState<ClientResponseDTO[]>([]);
   const [stock, setStock] = useState<StockResponseDTO[]>([]);
   const [period, setPeriod] = useState<Period>('30d');
+  const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
+  const [financialError, setFinancialError] = useState('');
+  const [financialLoading, setFinancialLoading] = useState(true);
+  const [financialRefresh, setFinancialRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!http) return;
+    let active = true;
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (period === '7d' ? 6 : period === '30d' ? 29 : 89));
+    const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    setFinancialLoading(true);
+    setFinancial(null);
+    setFinancialError('');
+    http.get<FinancialReportDTO>('/reports/performance', { params: { start: localDate(start), end: localDate(end) } })
+      .then(response => { if (active) setFinancial(response.data); })
+      .catch(err => { if (active) setFinancialError(parseApiError(err)); })
+      .finally(() => { if (active) setFinancialLoading(false); });
+    return () => { active = false; };
+  }, [http, period, financialRefresh]);
 
   const fetchData = useCallback(async () => {
     if (!http) return;
@@ -125,13 +147,31 @@ export function ReportsPage() {
             </button>
           ))}
           <button
-            onClick={fetchData}
+            onClick={() => { fetchData(); setFinancialRefresh(value => value + 1); }}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
             Atualizar
           </button>
         </div>
+
+        <section aria-label="Vendas, recebimentos e margem do gás" className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-card">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700">Vendas, recebimentos e margem do gás</h2>
+            <p className="text-xs text-slate-500 mt-1">Vendas e margem consideram a data da entrega. Recebimentos consideram a data do pagamento em PIX/Dinheiro, incluindo crédito novo de clientes. A margem pode estar pendente de repasse; confira Acertos de Gás.</p>
+          </div>
+          {financialError && <p role="alert" className="text-sm text-error">Não foi possível consultar o financeiro: {financialError}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { label: 'Vendas entregues (valor bruto)', value: financial?.totalInvoiced },
+              { label: 'Recebido no depósito', value: financial?.totalReceived },
+              { label: 'Margem do gás entregue', value: financial?.gasGrossProfit },
+            ].map(item => <div key={item.label} className="p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs text-slate-500">{item.label}</p>
+              <p className="text-xl font-bold text-slate-800 mt-1">{financialLoading ? '—' : item.value === undefined ? 'Indisponível' : formatBRL(item.value)}</p>
+            </div>)}
+          </div>
+        </section>
 
         {loading ? (
           <div className="flex items-center justify-center py-24">
@@ -142,7 +182,7 @@ export function ReportsPage() {
             {/* KPI cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Receita no Período', value: formatBRL(totalRevenue), icon: 'trending_up', topColor: '#0d9488' },
+                { label: 'Valor dos pedidos no período', value: formatBRL(totalRevenue), icon: 'trending_up', topColor: '#0d9488' },
                 { label: 'Pedidos Entregues', value: String(deliveredCount), icon: 'check_circle', topColor: '#0056c6' },
                 { label: 'Clientes em Atraso', value: String(overdueClients), icon: 'warning', topColor: overdueClients > 0 ? '#ef4444' : '#6b7280' },
                 { label: 'Itens Críticos Estoque', value: String(criticalItems), icon: 'inventory_2', topColor: criticalItems > 0 ? '#f97316' : '#6b7280' },
@@ -166,11 +206,12 @@ export function ReportsPage() {
 
             {/* Revenue trend */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-card p-5">
-              <h2 className="text-sm font-semibold text-slate-700 mb-4">Evolução da Receita</h2>
+              <h2 className="text-sm font-semibold text-slate-700 mb-1">Evolução do valor dos pedidos</h2>
+              <p className="text-xs text-slate-500 mb-4">Pela data de criação, incluindo pedidos pendentes e excluindo cancelados. Não representa dinheiro recebido.</p>
               {trendData.every(d => d.receita === 0) ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                   <span className="material-symbols-outlined mb-2" style={{ fontSize: '40px' }}>show_chart</span>
-                  <p className="text-sm">Sem receita no período</p>
+                  <p className="text-sm">Sem valor de pedidos no período</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
@@ -181,10 +222,10 @@ export function ReportsPage() {
                     <Tooltip
                       contentStyle={CUSTOM_TOOLTIP_STYLE}
                       formatter={(v, name) =>
-                        name === 'receita' ? [formatBRL(Number(v ?? 0)), 'Receita'] : [Number(v ?? 0), 'Pedidos']
+                        name === 'receita' ? [formatBRL(Number(v ?? 0)), 'Valor dos pedidos'] : [Number(v ?? 0), 'Pedidos']
                       }
                     />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} formatter={v => v === 'receita' ? 'Receita' : 'Pedidos'} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} formatter={v => v === 'receita' ? 'Valor dos pedidos' : 'Pedidos'} />
                     <Line type="monotone" dataKey="receita" stroke="#0d9488" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                     <Line type="monotone" dataKey="pedidos" stroke="#0056c6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
                   </LineChart>
@@ -262,7 +303,7 @@ export function ReportsPage() {
 
             {/* Top clients */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-card p-5">
-              <h2 className="text-sm font-semibold text-slate-700 mb-4">Top Clientes por Receita</h2>
+              <h2 className="text-sm font-semibold text-slate-700 mb-4">Top Clientes por Valor dos Pedidos</h2>
               {topClients.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <span className="material-symbols-outlined mb-2" style={{ fontSize: '36px' }}>group</span>
@@ -281,7 +322,7 @@ export function ReportsPage() {
                     <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={110} />
                     <Tooltip
                       contentStyle={CUSTOM_TOOLTIP_STYLE}
-                      formatter={(v) => [formatBRL(Number(v ?? 0)), 'Receita']}
+                      formatter={(v) => [formatBRL(Number(v ?? 0)), 'Valor dos pedidos']}
                     />
                     <Bar dataKey="revenue" fill="#0056c6" radius={[0, 4, 4, 0]} />
                   </BarChart>
