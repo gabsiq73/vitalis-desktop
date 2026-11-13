@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { isStockLow } from '../utils/stock';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import type { OrderResponseDTO, SpringPage, StockResponseDTO } from '../types';
 import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge, isScheduledOrder } from '../utils/format';
@@ -89,9 +90,7 @@ export function DashboardPage() {
       if (activeRes.status === 'fulfilled') setActiveOrders(activeRes.value.data);
       if (shippedRes.status === 'fulfilled') setShippedCount(shippedRes.value.data.totalElements);
       if (stockRes.status === 'fulfilled') {
-        const critical = stockRes.value.data.content.filter(
-          (s) => s.status.toUpperCase() !== 'NORMAL'
-        ).length;
+        const critical = stockRes.value.data.content.filter(isStockLow).length;
         setCriticalStock(critical);
       }
       if (todayRes.status === 'fulfilled') {
@@ -173,7 +172,7 @@ export function DashboardPage() {
       icon: 'inventory_2',
       label: 'Estoque Crítico',
       value: loading ? '—' : criticalStock,
-      sub: 'itens abaixo do mínimo',
+      sub: 'itens no mínimo ou abaixo',
       iconColor: criticalStock > 0 ? 'text-orange-500' : 'text-slate-400',
       iconBg: criticalStock > 0 ? 'bg-orange-50' : 'bg-slate-100',
       topColor: criticalStock > 0 ? '#f97316' : '#e2e8f0',
@@ -475,7 +474,7 @@ export function DashboardPage() {
               </div>
               <p className="text-[12px] text-slate-500 mb-3">
                 {criticalStock > 0
-                  ? `${criticalStock} item${criticalStock !== 1 ? 's' : ''} abaixo do estoque mínimo.`
+                  ? `${criticalStock} item${criticalStock !== 1 ? 's' : ''} com estoque no mínimo ou abaixo dele.`
                   : 'Todos os itens dentro do estoque normal.'}
               </p>
               <button

@@ -76,12 +76,14 @@ export interface ConfirmDeliveryRequestDTO {
   }[];
 }
 
+export type StockStatus = 'NORMAL' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+
 export interface StockResponseDTO {
   productId: string;
   productName: string;
   quantityInStock: number;
   minimumStock: number;
-  status: string;
+  status: StockStatus;
 }
 
 export interface LoanedBottleResponseDTO {

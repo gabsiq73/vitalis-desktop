@@ -8,6 +8,7 @@ import {
 import type { FinancialReportDTO, OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 import { buildOrderReport } from '../utils/orderReport';
+import { getStockStatus, isStockLow } from '../utils/stock';
 import { parseApiError } from '../utils/parseApiError';
 
 type Period = '7d' | '30d' | '90d';
@@ -107,15 +108,14 @@ export function ReportsPage() {
 
   // Stock health
   const stockHealthData = [
-    { name: 'Normal', value: stock.filter(s => s.status?.toUpperCase() === 'NORMAL').length, color: '#22c55e' },
-    { name: 'Baixo', value: stock.filter(s => s.status?.toUpperCase() === 'LOW').length, color: '#eab308' },
-    { name: 'Crítico', value: stock.filter(s => s.status?.toUpperCase() === 'CRITICAL').length, color: '#f97316' },
-    { name: 'Zerado', value: stock.filter(s => s.status?.toUpperCase() === 'OUT_OF_STOCK').length, color: '#ef4444' },
+    { name: 'Normal', value: stock.filter(s => getStockStatus(s) === 'NORMAL').length, color: '#22c55e' },
+    { name: 'Baixo', value: stock.filter(s => getStockStatus(s) === 'LOW_STOCK').length, color: '#eab308' },
+    { name: 'Zerado', value: stock.filter(s => getStockStatus(s) === 'OUT_OF_STOCK').length, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   // KPIs
   const overdueClients = clients.filter(c => c.clientStatus === 'OVERDUE').length;
-  const criticalItems = stock.filter(s => s.status?.toUpperCase() !== 'NORMAL').length;
+  const criticalItems = stock.filter(isStockLow).length;
 
   const CUSTOM_TOOLTIP_STYLE = {
     borderRadius: '8px',
