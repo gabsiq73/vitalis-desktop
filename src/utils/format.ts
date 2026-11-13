@@ -86,7 +86,7 @@ export function getOrderStatusBadge(
 
 export function getPaymentStatusBadge(status: string): { label: string; className: string } {
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: { label: 'Aguardando', className: 'bg-orange-100 text-orange-700' },
+    PENDING: { label: 'Fiado', className: 'bg-orange-100 text-orange-700' },
     PARTIAL: { label: 'Parcial', className: 'bg-yellow-100 text-yellow-700' },
     PAID: { label: 'Pago', className: 'bg-green-100 text-green-700' },
     CANCELLED: { label: 'Cancelado', className: 'bg-red-100 text-red-700' },

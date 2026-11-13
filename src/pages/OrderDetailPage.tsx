@@ -512,10 +512,10 @@ export function OrderDetailPage() {
       <AddPaymentModal
         open={showAddPayment}
         orderId={order.id}
-        onClose={() => setShowAddPayment(false)}
-        onSuccess={fetchAll}
+        onClose={() => { setShowAddPayment(false); fetchAll(); }}
+        onSuccess={() => setShowAddPayment(false)}
       />
-      {showDelivery && <ConfirmDeliveryModal orderId={order.id} onClose={() => setShowDelivery(false)} onSuccess={() => { setShowDelivery(false); fetchAll(); }} />}
+      {showDelivery && <ConfirmDeliveryModal orderId={order.id} onClose={() => { setShowDelivery(false); fetchAll(); }} onSuccess={() => { setShowDelivery(false); fetchAll(); }} />}
     </>
   );
 }

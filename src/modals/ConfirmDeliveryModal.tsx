@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../components/Modal';
+import { AddPaymentModal } from './AddPaymentModal';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { useScrollToError } from '../hooks/useScrollToError';
@@ -20,6 +21,7 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
   const submitting = useRef(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [paymentReviewed, setPaymentReviewed] = useState(false);
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   useEffect(() => {
@@ -69,6 +71,14 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
 
   const inputClass = 'mt-1 w-full border border-outline-variant rounded-lg bg-surface-container-lowest px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none';
   const unavailable = order?.status === 'DELIVERED' || order?.status === 'CANCELLED';
+  if (order && !unavailable && order.paymentStatus !== 'PAID' && !paymentReviewed) {
+    return <AddPaymentModal
+      open orderId={orderId} forDelivery
+      onClose={onClose}
+      onSuccess={() => setPaymentReviewed(true)}
+      onFiado={() => setPaymentReviewed(true)}
+    />;
+  }
   return (
     <Modal open title="Confirmar entrega" maxWidth="max-w-2xl" onClose={() => { if (!submitting.current) onClose(); }}>
       <form onSubmit={submit} className="p-6 space-y-4 overflow-y-auto">
