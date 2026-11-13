@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, GasSettlementResponseDTO } from '../types';
-import { formatBRL } from '../utils/format';
+import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, CashMovementType } from '../types';
+import { formatBRL, formatTime } from '../utils/format';
 import { dailyCashTotals } from '../utils/dailyCashTotals';
-import { parseApiError } from '../utils/parseApiError';
+import { parseApiError, cashMovementApiError } from '../utils/parseApiError';
+import { CashMovementModal } from '../modals/CashMovementModal';
+import { cashMovementDirection } from '../utils/cashMovement';
 
 const METHOD_LABEL: Record<string, string> = {
   PIX: 'PIX',
@@ -24,11 +26,6 @@ function toLocalDateParam(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function formatTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
 export function CashRegisterPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
@@ -42,7 +39,8 @@ export function CashRegisterPage() {
   const [payments, setPayments] = useState<DailyCashPaymentDTO[]>([]);
   const [operational, setOperational] = useState<DailyReportDTO | null>(null);
   const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
-  const [gasSettlements, setGasSettlements] = useState<GasSettlementResponseDTO[]>([]);
+  const [financialError, setFinancialError] = useState<string | null>(null);
+  const [movementType, setMovementType] = useState<CashMovementType | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!http) return;
@@ -52,21 +50,19 @@ export function CashRegisterPage() {
     setPaymentsError(null);
     setOperational(null);
     setFinancial(null);
-    setGasSettlements([]);
+    setFinancialError(null);
     try {
-      const [paymentsRes, operationalRes, financialRes, gasRes] = await Promise.allSettled([
+      const [paymentsRes, operationalRes, financialRes] = await Promise.allSettled([
         http.get<DailyCashPaymentDTO[]>('/payments/daily', { params: { date: selectedDate, includeBalance: true } }),
         http.get<DailyReportDTO>('/reports/operational', { params: { start: selectedDate, end: selectedDate } }),
         http.get<FinancialReportDTO>('/reports/performance/daily', { params: { date: selectedDate } }),
-        http.get<GasSettlementResponseDTO[]>('/gas-settlements/daily', { params: { date: selectedDate } }),
       ]);
       if (currentRequest !== requestId.current) return;
       if (paymentsRes.status === 'fulfilled') setPayments(paymentsRes.value.data ?? []);
       else setPaymentsError(parseApiError(paymentsRes.reason));
       if (operationalRes.status === 'fulfilled') setOperational(operationalRes.value.data);
       if (financialRes.status === 'fulfilled') setFinancial(financialRes.value.data);
-      if (gasRes.status === 'fulfilled') setGasSettlements(gasRes.value.data ?? []);
-      else setGasSettlements([]);
+      else setFinancialError(cashMovementApiError(financialRes.reason));
     } finally {
       if (currentRequest === requestId.current) {
         setLoadedDate(selectedDate);
@@ -98,6 +94,18 @@ export function CashRegisterPage() {
     { name: 'Dinheiro', value: dinheiro ?? 0,    color: '#22c55e' },
   ].filter(d => d.value > 0);
 
+  const ledgerRows = [
+    ...(financial?.cashMovements ?? []).map(movement => ({
+      ...movement, direction: cashMovementDirection(movement), key: `manual-${movement.id}`,
+      label: { ENTRY: 'Entrada manual', WITHDRAWAL: 'Retirada', ADJUSTMENT: 'Ajuste' }[movement.type],
+    })),
+    ...(financial?.gasSettlementMovements ?? []).map(settlement => ({
+      key: `gas-${settlement.id}`, occurredAt: settlement.settledDate, direction: settlement.direction,
+      amount: settlement.amount, label: settlement.type === 'SUPPLIER_OWE' ? 'Comissão de gás' : 'Repasse de gás',
+      note: `Fornecedor: ${settlement.supplierName}`,
+    })),
+  ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <TopBar title="Caixa do Dia" subtitle="Movimentações financeiras e fechamento de caixa" />
@@ -111,7 +119,7 @@ export function CashRegisterPage() {
             <input
               type="date"
               value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
+              onChange={e => { if (e.target.value && e.target.value !== selectedDate) { requestId.current += 1; setMovementType(null); setSelectedDate(e.target.value); } }}
               className="text-sm font-medium text-slate-700 bg-transparent outline-none cursor-pointer"
             />
           </div>
@@ -133,14 +141,13 @@ export function CashRegisterPage() {
         {/* Summary banner */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-primary via-teal to-green-400" />
-          <div className="px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
               { label: 'Faturado', value: faturado, color: 'text-slate-800', icon: 'receipt_long' },
               { label: 'Recebido', value: recebido, color: 'text-teal', icon: 'check_circle' },
               { label: 'Saldo do Caixa', value: saldoCaixa, color: (saldoCaixa ?? 0) >= 0 ? 'text-primary' : 'text-red-600', icon: 'account_balance_wallet' },
-              { label: 'Fiado (Em Aberto)', value: fiado, color: (fiado ?? 0) > 0 ? 'text-orange-500' : 'text-slate-400', icon: 'schedule' },
             ].map((item, i) => (
-              <div key={item.label} className={`flex items-start gap-3 ${i < 3 ? 'md:border-r md:border-slate-100 md:pr-6' : ''}`}>
+              <div key={item.label} className={`flex items-start gap-3 ${i < 2 ? 'md:border-r md:border-slate-100 md:pr-6' : ''}`}>
                 <div className="p-2 rounded-lg bg-slate-50 flex-shrink-0">
                   <span className={`material-symbols-outlined ${item.color}`} style={{ fontSize: '20px' }}>{item.icon}</span>
                 </div>
@@ -161,7 +168,7 @@ export function CashRegisterPage() {
             { label: 'PIX',            value: pix,        icon: 'pix',         topColor: '#0d9488', badge: movementCount(totals.PIX.count) },
             { label: 'Dinheiro',       value: dinheiro,   icon: 'payments',    topColor: '#22c55e', badge: movementCount(totals.DINHEIRO.count) },
             { label: 'Crédito utilizado', value: saldoUsado, icon: 'account_balance', topColor: '#8b5cf6', badge: movementCount(totals.SALDO.count) },
-            { label: 'Fiado',          value: fiado,      icon: 'hourglass_empty', topColor: (fiado ?? 0) > 0 ? '#f97316' : '#94a3b8', badge: loading ? '—' : fiado === undefined ? 'Indisponível' : fiado > 0 ? 'Pendente' : 'Zerado' },
+            { label: 'Fiado do dia (pedidos entregues em aberto)', value: fiado,      icon: 'hourglass_empty', topColor: (fiado ?? 0) > 0 ? '#f97316' : '#94a3b8', badge: loading ? '—' : fiado === undefined ? 'Indisponível' : fiado > 0 ? 'Pendente' : 'Zerado' },
           ].map(kpi => (
             <div key={kpi.label} className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden relative">
               <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: kpi.topColor }} />
@@ -348,115 +355,48 @@ export function CashRegisterPage() {
           </div>
         </div>
 
-        {/* Gas settlements */}
-        {(gasSettlements.length > 0 || loading) && (
-          <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-orange-500" style={{ fontSize: '18px' }}>local_fire_department</span>
-                <h2 className="text-[15px] font-bold text-slate-800">Acertos de Gás</h2>
-                <span className="text-[11px] text-slate-400 font-medium">acertos liquidados na data selecionada</span>
-              </div>
-              <div className="flex items-center gap-4 text-[12px]">
-                {(() => {
-                  const inflow = gasSettlements
-                    .filter(s => s.settlementType === 'SUPPLIER_OWE')
-                    .reduce((sum, s) => sum + s.amount, 0);
-                  const outflow = gasSettlements
-                    .filter(s => s.settlementType === 'YOU_OWE')
-                    .reduce((sum, s) => sum + s.amount, 0);
-                  return (
-                    <>
-                      {!loading && inflow > 0 && (
-                        <span className="flex items-center gap-1 text-green-600 font-semibold">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_downward</span>
-                          {formatBRL(inflow)} recebido
-                        </span>
-                      )}
-                      {!loading && outflow > 0 && (
-                        <span className="flex items-center gap-1 text-red-500 font-semibold">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_upward</span>
-                          {formatBRL(outflow)} repassado
-                        </span>
-                      )}
-                    </>
-                  );
-                })()}
-                <span className="text-slate-400">{loading ? '—' : `${gasSettlements.length} acertos`}</span>
+        <section className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden" aria-labelledby="ledger-title">
+          <div className="px-5 py-4 border-b border-slate-100 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="ledger-title" className="text-[15px] font-bold text-slate-800">Livro-caixa do dia</h2>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { type: 'ENTRY', label: 'Registrar entrada' },
+                  { type: 'WITHDRAWAL', label: 'Registrar retirada' },
+                  { type: 'ADJUSTMENT', label: 'Ajustar caixa' },
+                ] as const).map(action => (
+                  <button key={action.type} disabled={loading || !financial} onClick={() => setMovementType(action.type)} className="px-3 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-primary hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">{action.label}</button>
+                ))}
               </div>
             </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Horário</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fornecedora</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
-                      <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {gasSettlements.map(s => {
-                      const isInflow = s.settlementType === 'SUPPLIER_OWE';
-                      const time = s.settledDate
-                        ? `${String(new Date(s.settledDate).getHours()).padStart(2,'0')}:${String(new Date(s.settledDate).getMinutes()).padStart(2,'0')}`
-                        : '—';
-                      return (
-                        <tr key={s.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-5 py-3 text-[12px] text-slate-400 font-mono tabular-nums">{time}</td>
-                          <td className="px-4 py-3 text-[13px] font-medium text-slate-700">{s.supplierName}</td>
-                          <td className="px-4 py-3 text-[13px] text-slate-500">{s.clientName ?? '—'}</td>
-                          <td className="px-4 py-3">
-                            {isInflow ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-green-50 text-green-700">
-                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_downward</span>
-                                Comissão recebida
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700">
-                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_upward</span>
-                                Repasse à distribuidora
-                              </span>
-                            )}
-                          </td>
-                          <td className={`px-5 py-3 text-right font-bold text-[14px] tabular-nums ${isInflow ? 'text-green-600' : 'text-orange-600'}`}>
-                            {isInflow ? '+' : '−'} {formatBRL(s.amount)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-50 border-t border-slate-200">
-                      <td colSpan={4} className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
-                        Saldo dos acertos
-                      </td>
-                      <td className="px-5 py-3 text-right font-black text-[15px] tabular-nums">
-                        {(() => {
-                          const net = gasSettlements.reduce((sum, s) =>
-                            s.settlementType === 'SUPPLIER_OWE' ? sum + s.amount : sum - s.amount, 0
-                          );
-                          return (
-                            <span className={net >= 0 ? 'text-green-600' : 'text-orange-600'}>
-                              {net >= 0 ? '+' : ''}{formatBRL(net)}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
+            <p className="text-xs text-slate-500">Saldo do Caixa retornado pela API para a data selecionada: recebimentos PIX/Dinheiro + entradas + ajustes líquidos − retiradas + comissões de gás liquidadas − repasses de gás liquidados. Acertos já incluídos no saldo. Não representa apenas dinheiro físico nem saldo acumulado de outros dias.</p>
+            {!loading && financial && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
+              <span>Entradas manuais: {formatBRL(financial.totalEntries)}</span>
+              <span>Ajustes líquidos: {formatBRL(financial.totalAdjustments)}</span>
+              <span>Retiradas: {formatBRL(financial.totalWithdrawals)}</span>
+              <span>Comissões de gás: {formatBRL(financial.gasSettlementsIn)}</span>
+              <span>Repasses de gás: {formatBRL(financial.gasSettlementsOut)}</span>
+            </div>}
           </div>
-        )}
+          {loading ? <p className="p-6 text-sm text-slate-500">Carregando livro-caixa…</p>
+            : financialError ? <p role="alert" className="p-6 text-sm text-red-600">Livro-caixa indisponível. {financialError} Use Atualizar para tentar novamente.</p>
+            : ledgerRows.length === 0 ? <p className="p-6 text-sm text-slate-500">Nenhum movimento manual ou acerto de gás liquidado nesta data.</p>
+            : <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-slate-50 text-left text-xs text-slate-500">
+                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Direção</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
+                </tr></thead>
+                <tbody className="divide-y divide-slate-100">{ledgerRows.map(row => <tr key={row.key}>
+                  <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">{formatTime(row.occurredAt)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                  <td className={`px-4 py-3 ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? 'Entrada' : row.direction === 'OUT' ? 'Saída' : 'Não informada'}</td>
+                  <td className="px-4 py-3 text-slate-600 whitespace-pre-wrap break-words max-w-sm">{row.note || '—'}</td>
+                  <td className={`px-5 py-3 text-right font-bold whitespace-nowrap ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? '+' : row.direction === 'OUT' ? '−' : ''} {formatBRL(row.amount)}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>}
+        </section>
+        {movementType && !loading && financial && <CashMovementModal type={movementType} date={selectedDate} balance={financial.finalBalance} onClose={() => setMovementType(null)} onSuccess={() => { setMovementType(null); fetchData(); }} />}
 
       </main>
     </div>

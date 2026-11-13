@@ -247,11 +247,20 @@ export interface DailyReportDTO {
 export type CashMovementType = 'ENTRY' | 'ADJUSTMENT' | 'WITHDRAWAL';
 export type CashMovementDirection = 'IN' | 'OUT';
 
+export type CashMovementRequestDTO = {
+  amount: number;
+  occurredAt: string;
+  note: string | null;
+} & (
+  | { type: 'ENTRY' | 'WITHDRAWAL'; direction?: never }
+  | { type: 'ADJUSTMENT'; direction: CashMovementDirection }
+);
+
 export interface CashMovementResponseDTO {
   id: string;
   type: CashMovementType;
   amount: number;
-  direction: CashMovementDirection;
+  direction: CashMovementDirection | null;
   occurredAt: string;
   note: string | null;
   createdAt: string;
