@@ -100,6 +100,14 @@ orientando registrar o empréstimo pela tela de vasilhames.
 
 ## Projeto backend
 
+O Caixa do Dia consulta `GET /payments/daily?date=YYYY-MM-DD&includeBalance=true`.
+Esta versão requer o backend com suporte a `includeBalance` para mostrar o uso
+de SALDO na data do pagamento. PIX e Dinheiro incluem as linhas `CLIENT_CREDIT`
+e compõem as novas entradas; SALDO é apresentado separadamente como crédito
+utilizado, fora do total e do gráfico de recebimentos. Falhas da lista deixam
+totais e contagens indisponíveis até uma nova consulta. Teste dirigido:
+`node --experimental-strip-types --test tests/dailyCashTotals.test.mjs`.
+
 O contrato coordenado da descontinuação remove `fidelityPoints` e
 `pendingBonusWater` de clientes e `pointsPerWaterItem`/`pointsPerFreeWater` de
 configuração. `/config` mantém `pickupDiscountCents`. Atualize backend e desktop
