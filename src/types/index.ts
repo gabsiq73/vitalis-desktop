@@ -224,13 +224,14 @@ export interface ClientPriceRequestDTO {
 
 export interface DailyCashPaymentDTO {
   id: string;
-  orderId: string;
+  orderId: string | null;
   orderRef: string;
   clientName: string;
   paymentDate: string;
   amount: number;
   paymentMethod: PaymentMethod;
   notes?: string;
+  entryType: 'PAYMENT' | 'CLIENT_CREDIT';
 }
 
 export interface DailyReportDTO {
