@@ -82,6 +82,22 @@ O app usa `HashRouter` para funcionar no Electron carregado a partir de arquivo.
 - A confirmação de entrega efetiva a baixa de estoque da água.
 - Acertos de gás são movimentações financeiras com fornecedores, não estoque local.
 
+Na criação, o modal envia as parcelas em `POST /orders` por meio do campo opcional
+`initialPayments: [{ amount, paymentMethod }]`, com métodos `PIX`, `DINHEIRO` e
+`SALDO`. O backend registra pedido(s) e pagamentos em uma única transação e mantém
+o retorno em lista. Esta versão do desktop requer o backend com suporte a esse campo;
+atualize o backend antes do desktop.
+
+A seção de pagamento opcional cobre a água, inclusive pagamento parcial ou combinado.
+O gás recebido pelo depósito usa o método selecionado no item e é incluído na mesma
+requisição; o backend deduz o pagamento automático por método, evitando duplicidade.
+Gás recebido pelo entregador não gera parcela recebida no depósito. Pagamentos avulsos
+de pedidos existentes continuam usando os endpoints de pagamentos.
+
+Empréstimos de vasilhames continuam separados. Se falharem após a criação, o pedido
+e seus pagamentos permanecem registrados; o modal fecha e exibe uma notificação
+orientando registrar o empréstimo pela tela de vasilhames.
+
 ## Projeto backend
 
 O contrato coordenado da descontinuação remove `fidelityPoints` e
