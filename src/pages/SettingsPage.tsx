@@ -157,16 +157,12 @@ export function SettingsPage() {
   const [cfgSaving, setCfgSaving] = useState(false);
   const [cfgError, setCfgError] = useState('');
   const cfgErrorRef = useScrollToError<HTMLDivElement>(cfgError);
-  const [pointsPerItem, setPointsPerItem] = useState('1');
-  const [pointsPerWater, setPointsPerWater] = useState('10');
   const [discountCents, setDiscountCents] = useState('50');
 
   useEffect(() => {
     if (!http) return;
     http.get<SystemConfigDTO>('/config')
       .then(r => {
-        setPointsPerItem(String(r.data.pointsPerWaterItem));
-        setPointsPerWater(String(r.data.pointsPerFreeWater));
         setDiscountCents(String(r.data.pickupDiscountCents));
       })
       .catch(() => setCfgError('Erro ao carregar configurações.'))
@@ -175,13 +171,11 @@ export function SettingsPage() {
 
   async function handleSave() {
     if (!http) return;
-    const ppi = parseInt(pointsPerItem), ppw = parseInt(pointsPerWater), dc = parseInt(discountCents);
-    if (isNaN(ppi) || ppi < 1) { setCfgError('Pontos por item deve ser ≥ 1.'); return; }
-    if (isNaN(ppw) || ppw < 1) { setCfgError('Pontos para água deve ser ≥ 1.'); return; }
+    const dc = parseInt(discountCents);
     if (isNaN(dc) || dc < 0)   { setCfgError('Desconto não pode ser negativo.'); return; }
     setCfgSaving(true); setCfgError('');
     try {
-      await http.patch<SystemConfigDTO>('/config', { pointsPerWaterItem: ppi, pointsPerFreeWater: ppw, pickupDiscountCents: dc });
+      await http.patch<SystemConfigDTO>('/config', { pickupDiscountCents: dc });
       notify('Configurações salvas com sucesso.', 'success');
     } catch {
       setCfgError('Erro ao salvar configurações.');
@@ -219,8 +213,8 @@ export function SettingsPage() {
       if (exportSel.clients) {
         const d = await fetchAll<ClientResponseDTO>('/clients');
         triggerDownload('clientes.csv', makeCSV(
-          ['nome','telefone','endereco','notas','tipo','saldo','pontos_fidelidade'],
-          d.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance, c.fidelityPoints])
+          ['nome','telefone','endereco','notas','tipo','saldo'],
+          d.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance])
         ));
         await delay(400);
       }
@@ -267,8 +261,8 @@ export function SettingsPage() {
       ]);
       const parts: string[] = [
         '[CLIENTES]',
-        makeCSV(['nome','telefone','endereco','notas','tipo','saldo','pontos_fidelidade'],
-          clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance, c.fidelityPoints])),
+        makeCSV(['nome','telefone','endereco','notas','tipo','saldo'],
+          clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance])),
         '',
         '[PRODUTOS]',
         makeCSV(['nome','preco_base','preco_custo','preco_revendedor','tipo','ativo'],
@@ -453,19 +447,6 @@ export function SettingsPage() {
   // config layout data (unchanged)
   const settings = [
     {
-      section: 'Programa de Fidelidade', sectionIcon: 'workspace_premium', sectionColor: 'text-amber-500',
-      items: [
-        { icon: 'water_drop', iconColor: 'text-blue-600', iconBg: 'bg-blue-50',
-          title: 'Pontos por Galão de Água',
-          description: 'Quantos pontos o cliente recebe por cada unidade de água paga na entrega.',
-          unit: 'ponto(s) por unidade', control: <Counter value={pointsPerItem} onChange={setPointsPerItem} min={1} /> },
-        { icon: 'redeem', iconColor: 'text-amber-600', iconBg: 'bg-amber-50',
-          title: 'Pontos para 1 Água Bônus',
-          description: 'Quantos pontos o cliente precisa acumular para ganhar 1 galão de água grátis.',
-          unit: 'pontos para resgate', control: <Counter value={pointsPerWater} onChange={setPointsPerWater} min={1} /> },
-      ],
-    },
-    {
       section: 'Política de Preços', sectionIcon: 'sell', sectionColor: 'text-primary',
       items: [
         { icon: 'shopping_bag', iconColor: 'text-primary', iconBg: 'bg-primary/10',
@@ -542,10 +523,8 @@ export function SettingsPage() {
                     <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '18px' }}>preview</span>
                     <h2 className="text-[14px] font-semibold text-slate-700">Resumo Atual</h2>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     {[
-                      { label: 'Pontos por galão',   value: `${pointsPerItem} pt${parseInt(pointsPerItem) !== 1 ? 's' : ''}`, icon: 'water_drop', color: 'text-blue-600', bg: 'bg-blue-50' },
-                      { label: 'Pontos p/ água bônus', value: `${pointsPerWater} pts`, icon: 'redeem', color: 'text-amber-600', bg: 'bg-amber-50' },
                       { label: 'Desconto retirada',  value: `R$ ${(parseInt(discountCents || '0') / 100).toFixed(2).replace('.', ',')}`, icon: 'sell', color: 'text-primary', bg: 'bg-primary/8' },
                     ].map(item => (
                       <div key={item.label} className={`${item.bg} rounded-xl p-4 text-center`}>

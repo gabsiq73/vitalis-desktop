@@ -21,8 +21,6 @@ export interface ClientResponseDTO {
   address?: string;
   notes?: string;
   balance: number;
-  fidelityPoints: number;
-  pendingBonusWater: number;
   clientType: ClientType;
   clientStatus: ClientStatus;
   orderCount?: number;
@@ -201,8 +199,6 @@ export interface OrderBalanceDTO {
 }
 
 export interface SystemConfigDTO {
-  pointsPerWaterItem: number;
-  pointsPerFreeWater: number;
   pickupDiscountCents: number;
 }
 

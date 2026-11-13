@@ -5,7 +5,6 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
-import { AddFidelityPointsModal } from '../modals/AddFidelityPointsModal';
 import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ClientResponseDTO,
@@ -16,7 +15,6 @@ import type {
   ClientPriceRequestDTO,
   SpringPage,
   PaymentMethod,
-  SystemConfigDTO,
 } from '../types';
 import {
   formatBRL,
@@ -29,14 +27,13 @@ import {
 } from '../utils/format';
 import { hasOrderDraft } from '../utils/orderDraft';
 
-type TabId = 'pedidos' | 'pagamentos' | 'precos' | 'fidelidade' | 'vasilhames';
+type TabId = 'pedidos' | 'pagamentos' | 'precos' | 'vasilhames';
 type OrderPayFilter = 'all' | 'open' | 'paid';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'pedidos',    label: 'Pedidos',           icon: 'shopping_cart' },
   { id: 'pagamentos', label: 'Pag. em Lote',       icon: 'payments' },
   { id: 'precos',     label: 'Preços',             icon: 'sell' },
-  { id: 'fidelidade', label: 'Fidelidade',         icon: 'workspace_premium' },
   { id: 'vasilhames', label: 'Vasilhames',         icon: 'propane_tank' },
 ];
 
@@ -72,7 +69,6 @@ export function ClientDetailPage() {
     if (!showNewOrder) setHasDraft(hasOrderDraft());
   }, [showNewOrder]);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
-  const [showAddPoints, setShowAddPoints] = useState(false);
 
   const [bulkAmount, setBulkAmount] = useState('');
   const [bulkMethod, setBulkMethod] = useState<PaymentMethod>('PIX');
@@ -82,7 +78,6 @@ export function ClientDetailPage() {
   const bulkErrorRef = useScrollToError<HTMLDivElement>(bulkError);
 
   const [outstandingDebt, setOutstandingDebt] = useState<number>(0);
-  const [sysConfig, setSysConfig] = useState<SystemConfigDTO | null>(null);
   const [prices, setPrices] = useState<ClientPriceResponseDTO[]>([]);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [priceForm, setPriceForm] = useState<{ productId: string; customPrice: string }>({ productId: '', customPrice: '' });
@@ -125,16 +120,14 @@ export function ClientDetailPage() {
       http.get<ClientPriceResponseDTO[]>(`/clients/${id}/prices`),
       http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200 } }),
       http.get<number>(`/clients/${id}/outstanding-debt`),
-      http.get<SystemConfigDTO>('/config'),
     ])
-      .then(([cRes, oRes, bRes, pricRes, prodRes, debtRes, cfgRes]) => {
+      .then(([cRes, oRes, bRes, pricRes, prodRes, debtRes]) => {
         setClient(cRes.data);
         setOrders(oRes.data.content);
         setBottles(bRes.data.content);
         setPrices(pricRes.data);
         setProducts(prodRes.data.content.filter((p) => p.isActive));
         setOutstandingDebt(Number(debtRes.data) ?? 0);
-        setSysConfig(cfgRes.data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -282,7 +275,7 @@ export function ClientDetailPage() {
         </div>
 
         {/* KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Saldo */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
             <div className="flex items-start justify-between mb-3">
@@ -319,24 +312,6 @@ export function ClientDetailPage() {
             </p>
           </div>
 
-          {/* Fidelidade — oculto para Revendedor */}
-          {client.clientType !== 'RESELLER' && <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
-            <div className="flex items-start justify-between mb-3">
-              <div className="p-2 rounded-lg bg-amber-50">
-                <span className="material-symbols-outlined text-amber-500" style={{ fontSize: '20px' }}>workspace_premium</span>
-              </div>
-              {client.pendingBonusWater > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                  {client.pendingBonusWater} bônus
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Pontos</p>
-            <p className="text-[26px] font-black leading-none text-amber-500">
-              {client.fidelityPoints.toLocaleString('pt-BR')}
-            </p>
-          </div>}
-
           {/* Vasilhames */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
             <div className="flex items-start justify-between mb-3">
@@ -358,7 +333,7 @@ export function ClientDetailPage() {
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
           {/* Tab bar */}
           <div className="border-b border-slate-200 px-2 flex items-end gap-0.5 overflow-x-auto">
-            {TABS.filter((tab) => !(tab.id === 'fidelidade' && client.clientType === 'RESELLER')).map((tab) => (
+            {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -639,132 +614,6 @@ export function ClientDetailPage() {
               </div>
             )}
 
-            {/* ── FIDELIDADE ── */}
-            {activeTab === 'fidelidade' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Pontos em destaque */}
-                <div className="md:col-span-1 bg-amber-50 border border-amber-100 rounded-xl p-5 flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="material-symbols-outlined text-amber-400" style={{ fontSize: '28px' }}>workspace_premium</span>
-                    <button onClick={() => setShowAddPoints(true)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[11px] font-bold hover:brightness-110 transition-all">
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>add</span>
-                      Adicionar
-                    </button>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-amber-600/70 uppercase tracking-wider mb-1">Pontos acumulados</p>
-                    <p className="text-[40px] font-black text-amber-500 leading-none">{client.fidelityPoints.toLocaleString('pt-BR')}</p>
-                    <p className="text-[12px] text-amber-600/70 mt-1">pontos de fidelidade</p>
-                  </div>
-                  {client.pendingBonusWater > 0 && (
-                    <div className="mt-4 flex items-center gap-2 p-3 bg-amber-100 rounded-lg">
-                      <span className="material-symbols-outlined text-amber-600" style={{ fontSize: '16px' }}>redeem</span>
-                      <p className="text-[12px] font-semibold text-amber-700">
-                        {client.pendingBonusWater} galão(ões) bônus disponível
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Progresso + Histórico */}
-                <div className="md:col-span-2 space-y-4">
-                  <div className="bg-white border border-slate-200 rounded-xl p-5">
-                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-4">Próximo galão bônus</p>
-                    {(() => {
-                      const goal = sysConfig?.pointsPerFreeWater ?? 10;
-                      const remainder = client.fidelityPoints % goal;
-                      const pct = goal > 0 ? (remainder / goal) * 100 : 0;
-                      const remaining = goal - remainder;
-                      return (
-                        <div className="mb-3">
-                          <div className="flex justify-between text-[12px] text-slate-500 mb-1.5">
-                            <span>{remainder.toLocaleString('pt-BR')} pts acumulados</span>
-                            <span>Meta: {goal.toLocaleString('pt-BR')} pts</span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                            <div className="bg-amber-400 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                          <p className="text-[11px] text-slate-400 mt-1">
-                            {remaining.toLocaleString('pt-BR')} pontos para o próximo galão bônus
-                          </p>
-                        </div>
-                      );
-                    })()}
-                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-slate-500">Total de pontos</span>
-                        <span className="font-bold text-amber-500">{client.fidelityPoints.toLocaleString('pt-BR')} pts</span>
-                      </div>
-                      <div className="flex justify-between text-[13px]">
-                        <span className="text-slate-500">Pontos por galão de água</span>
-                        <span className="font-bold text-slate-600">{sysConfig?.pointsPerWaterItem ?? '—'} pts/un</span>
-                      </div>
-                      {client.pendingBonusWater > 0 && (
-                        <div className="flex justify-between text-[13px]">
-                          <span className="text-slate-500">Bônus disponível</span>
-                          <span className="font-bold text-amber-600">{client.pendingBonusWater} galão(ões)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Histórico de pontos derivado dos pedidos */}
-                  {(() => {
-                    const goal = sysConfig?.pointsPerFreeWater ?? 10;
-                    const pointsPerItem = sysConfig?.pointsPerWaterItem ?? 1;
-                    type PointEvent = { date: string; label: string; delta: number; orderId: string };
-                    const events: PointEvent[] = [];
-                    orders.forEach((order) => {
-                      order.items.forEach((item) => {
-                        if (item.unitPrice === 0 && item.subTotal === 0) {
-                          events.push({
-                            date: order.createDate,
-                            label: `Resgate: ${item.quantity}× ${item.productName}`,
-                            delta: -(item.quantity * goal),
-                            orderId: order.id,
-                          });
-                        } else if (order.status === 'DELIVERED' && item.unitPrice > 0) {
-                          const earned = item.quantity * pointsPerItem;
-                          events.push({
-                            date: order.createDate,
-                            label: `Entrega: ${item.quantity}× ${item.productName} (+${earned} pt)`,
-                            delta: earned,
-                            orderId: order.id,
-                          });
-                        }
-                      });
-                    });
-                    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                    if (events.length === 0) return (
-                      <div className="bg-white border border-slate-200 rounded-xl p-5">
-                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Histórico de Pontos</p>
-                        <p className="text-[13px] text-slate-400 text-center py-4">Nenhuma movimentação registrada.</p>
-                      </div>
-                    );
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-xl p-5">
-                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Histórico de Pontos</p>
-                        <div className="space-y-2 max-h-52 overflow-y-auto">
-                          {events.map((ev, i) => (
-                            <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                              <div>
-                                <p className="text-[13px] font-medium text-slate-700">{ev.label}</p>
-                                <p className="text-[11px] text-slate-400">{formatDateTime(ev.date)}</p>
-                              </div>
-                              <span className={`text-[13px] font-black ${ev.delta > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {ev.delta > 0 ? `+${ev.delta}` : ev.delta} pts
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
             {/* ── VASILHAMES ── */}
             {activeTab === 'vasilhames' && (
               <div>
@@ -816,9 +665,7 @@ export function ClientDetailPage() {
       <ConfirmModal open={returnTarget !== null} title="Registrar Devolução"
         message="Confirmar a devolução deste vasilhame?" confirmLabel="Confirmar Devolução"
         onConfirm={registerReturn} onClose={() => setReturnTarget(null)} />
-      <AddFidelityPointsModal open={showAddPoints} onClose={() => setShowAddPoints(false)}
-        onSuccess={() => { setShowAddPoints(false); fetchClient(); }}
-        clientId={client.id} clientName={client.name} />
+
     </>
   );
 }
