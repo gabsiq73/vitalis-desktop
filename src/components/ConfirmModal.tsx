@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Modal } from './Modal';
 import { useScrollToError } from '../hooks/useScrollToError';
 
@@ -9,7 +9,7 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   danger?: boolean;
   error?: string;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<void | boolean>;
   onClose: () => void;
 }
 
@@ -24,20 +24,24 @@ export function ConfirmModal({
   onClose,
 }: ConfirmModalProps) {
   const [loading, setLoading] = useState(false);
+  const confirming = useRef(false);
   const errorRef = useScrollToError<HTMLDivElement>(error);
 
   async function handleConfirm() {
+    if (confirming.current) return;
+    confirming.current = true;
     setLoading(true);
     try {
-      await onConfirm();
-      onClose();
+      const result = await onConfirm();
+      if (result !== false) onClose();
     } finally {
+      confirming.current = false;
       setLoading(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={title} maxWidth="max-w-md">
+    <Modal open={open} onClose={() => { if (!confirming.current) onClose(); }} title={title} maxWidth="max-w-md">
       <div className="p-6">
         <p className="text-body-lg text-on-surface-variant mb-4">{message}</p>
         {error && (
