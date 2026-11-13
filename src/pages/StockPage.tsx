@@ -7,6 +7,7 @@ import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
 import { PageSizeSelector } from '../components/PageSizeSelector';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { getStockStatus, isStockLow } from '../utils/stock';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 
 function getStockStatusBadge(status: string): { label: string; className: string; dot: string } {
@@ -167,10 +168,7 @@ export function StockPage() {
   const [sort, setSort] = useState<SortState | null>(null);
   const waterItems = applySortInMemory(items.filter(i => !gasProductIds.has(i.productId)), sort);
 
-  const lowCount = waterItems.filter((i) => {
-    const s = i.status.toUpperCase();
-    return s === 'LOW' || s === 'LOW_STOCK' || s === 'OUT_OF_STOCK' || s === 'CRITICAL';
-  }).length;
+  const lowCount = waterItems.filter(isStockLow).length;
 
   const waterTotal = waterItems.reduce((sum, i) => sum + i.quantityInStock, 0);
 
@@ -270,8 +268,8 @@ export function StockPage() {
                   </tr>
                 ) : (
                   waterItems.map((item) => {
-                    const badge = getStockStatusBadge(item.status);
-                    const isLow = item.quantityInStock < item.minimumStock;
+                    const badge = getStockStatusBadge(getStockStatus(item));
+                    const isLow = isStockLow(item);
                     return (
                       <tr key={item.productId} className="hover:bg-surface-container transition-colors group">
                         <td className="px-6 py-4">

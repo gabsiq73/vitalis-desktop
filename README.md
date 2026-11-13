@@ -105,6 +105,13 @@ orientando registrar o empréstimo pela tela de vasilhames.
 
 ## Projeto backend
 
+Os alertas de estoque no Dashboard, em Estoque e em Relatórios seguem a mesma
+regra: zerado, no mínimo/abaixo do mínimo, ou normal. `GET /stocks` deve retornar
+somente estoque físico de água, filtrando registros legados de gás antes da
+paginação. Atualize o backend com esse filtro para evitar que um gás oculto na
+tela de Estoque gere um falso alerta no Dashboard. Teste dirigido:
+`node --experimental-strip-types --test tests/stockStatus.test.mjs`.
+
 A confirmação de entrega no Dashboard, na lista e no detalhe de pedidos abre
 uma revisão do recebimento do gás. A seleção existente é preservada: o operador
 pode manter o entregador como recebedor ou informar recebimento pelo depósito
