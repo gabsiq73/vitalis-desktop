@@ -144,6 +144,24 @@ export interface LoanedBottleRequestDTO {
   orderId?: string;
 }
 
+export interface DepotBottleDebtRequestDTO {
+  clientId: string;
+  quantity: number;
+  debtDate: string;
+  notes?: string | null;
+}
+
+export interface DepotBottleDebtResponseDTO {
+  id: string;
+  clientId: string;
+  clientName: string;
+  quantity: number;
+  debtDate: string;
+  notes: string | null;
+  status: 'PENDING' | 'COMPLETED';
+  completionDate: string | null;
+}
+
 export type UserRole = 'ADMIN' | 'SELLER';
 
 export interface UserResponseDTO {

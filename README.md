@@ -10,6 +10,7 @@ Ele foi desenhado para o uso diário do depósito, não como aplicação web pú
 - Pedidos de água e gás, com entrega, retirada, edição, cancelamento e confirmação de entrega.
 - Clientes, preços personalizados, histórico de pedidos, fiados e saldo de crédito.
 - Produtos, estoque, fornecedores e vasilhames.
+- Garrafões devidos aos clientes, com cadastro, filtro por cliente e baixa integral em Vasilhames.
 - Acertos de gás, Caixa do Dia, relatórios e usuários.
 
 > O programa de fidelidade foi descontinuado. Saldo de crédito financeiro e pagamentos com SALDO continuam disponíveis.
@@ -103,6 +104,14 @@ e seus pagamentos permanecem registrados; o modal fecha e exibe uma notificaçã
 orientando registrar o empréstimo pela tela de vasilhames.
 
 ## Projeto backend
+
+A seção “Garrafões devidos aos clientes” de Vasilhames usa
+`POST /depot-bottle-debts`, `GET /depot-bottle-debts?clientId=...&page=0&size=15`
+e `PATCH /depot-bottle-debts/{id}/complete`. Requer o backend com o contrato da
+issue `gabsiq73/vitalis#2`. A listagem mostra somente pendências; a baixa integral
+retira o registro da lista, preservando seu histórico no backend. Esses registros
+não compõem empréstimos, estoque ou saldos financeiros. Quantidade inteira
+positiva, cliente e data são obrigatórios; a observação aceita até 255 caracteres.
 
 O Caixa do Dia consulta `GET /payments/daily?date=YYYY-MM-DD&includeBalance=true`.
 Esta versão requer o backend com suporte a `includeBalance` para mostrar o uso
