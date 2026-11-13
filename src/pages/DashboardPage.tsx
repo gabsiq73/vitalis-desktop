@@ -523,7 +523,7 @@ export function DashboardPage() {
       </div>
 
       {/* Status dropdown */}
-      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => setDeliveryTarget(null)} onSuccess={() => { setDeliveryTarget(null); fetchData(); }} />}
+      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => { setDeliveryTarget(null); fetchData(); }} onSuccess={() => { setDeliveryTarget(null); fetchData(); }} />}
       {statusMenu && (() => {
         const currentOrder = recentOrders.find((o) => o.id === statusMenu.id);
         return (

@@ -6,7 +6,6 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { hasOrderDraft } from '../utils/orderDraft';
-import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
@@ -121,7 +120,6 @@ export function OrdersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
-  const [paymentTarget, setPaymentTarget] = useState<string | null>(null);
   const [deliveryTarget, setDeliveryTarget] = useState<string | null>(null);
 
   useEffect(() => {
@@ -355,7 +353,7 @@ export function OrdersPage() {
             }`}
           >
             <option value="">Pagamento: Todos</option>
-            <option value="PENDING">Aguardando pagamento</option>
+            <option value="PENDING">Fiado</option>
             <option value="PARTIAL">Pagamento parcial</option>
             <option value="PAID">Pago</option>
           </select>
@@ -505,15 +503,6 @@ export function OrdersPage() {
                                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
                               </button>
                             )}
-                            {order.paymentStatus !== 'PAID' && !isCancelled && (
-                              <button
-                                title="Registrar pagamento"
-                                onClick={() => setPaymentTarget(order.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
-                              </button>
-                            )}
                             {!isDelivered && !isCancelled && (
                               <button
                                 title="Confirmar entrega"
@@ -591,7 +580,7 @@ export function OrdersPage() {
       </div>
 
       {/* Modals */}
-      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => setDeliveryTarget(null)} onSuccess={() => { setDeliveryTarget(null); fetchOrders(); fetchCounts(); }} />}
+      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => { setDeliveryTarget(null); fetchOrders(); fetchCounts(); }} onSuccess={() => { setDeliveryTarget(null); fetchOrders(); fetchCounts(); }} />}
       <NewOrderModal
         open={showNewOrder}
         onClose={() => setShowNewOrder(false)}
@@ -614,15 +603,6 @@ export function OrdersPage() {
           editOrder={editTarget}
           onClose={() => setEditTarget(null)}
           onSuccess={() => { setEditTarget(null); fetchOrders(); fetchCounts(); }}
-        />
-      )}
-
-      {paymentTarget && (
-        <AddPaymentModal
-          open
-          orderId={paymentTarget}
-          onClose={() => setPaymentTarget(null)}
-          onSuccess={() => { setPaymentTarget(null); fetchOrders(); fetchCounts(); }}
         />
       )}
 

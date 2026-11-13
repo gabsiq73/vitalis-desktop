@@ -103,7 +103,7 @@ export function ReportsPage() {
   const paymentStatusData = [
     { name: 'Pago', value: paidOrders, color: '#22c55e' },
     { name: 'Parcial', value: partialOrders, color: '#eab308' },
-    { name: 'Pendente', value: pendingPayment, color: '#f97316' },
+    { name: 'Fiado', value: pendingPayment, color: '#f97316' },
   ].filter(d => d.value > 0);
 
   // Stock health

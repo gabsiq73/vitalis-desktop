@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { isAxiosError } from 'axios';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import type { PaymentRequestDTO, PaymentMethod, OrderBalanceDTO } from '../types';
 import { formatBRL } from '../utils/format';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { parseApiError } from '../utils/parseApiError';
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
   { value: 'PIX',      label: 'PIX',          icon: 'qr_code_2' },
@@ -16,6 +18,8 @@ interface AddPaymentModalProps {
   orderId: string;
   onClose: () => void;
   onSuccess: () => void;
+  forDelivery?: boolean;
+  onFiado?: () => void;
 }
 
 function nowPaymentDate() {
@@ -24,7 +28,7 @@ function nowPaymentDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymentModalProps) {
+export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery = false, onFiado }: AddPaymentModalProps) {
   const { http } = useAuth();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<PaymentMethod>('PIX');
@@ -37,25 +41,38 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
   const [cashReceived2, setCashReceived2] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balance, setBalance] = useState<OrderBalanceDTO | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [balanceRetry, setBalanceRetry] = useState(0);
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
+
+  const loadBalance = useCallback(async () => {
+    const response = await http!.get<OrderBalanceDTO>(`/payments/orders/${orderId}/balance`);
+    return response.data;
+  }, [http, orderId]);
 
   useEffect(() => {
     if (!open || !http || !orderId) return;
+    let active = true;
     setBalanceLoading(true);
-    http.get<OrderBalanceDTO>(`/payments/orders/${orderId}/balance`)
-      .then((res) => {
-        setBalance(res.data);
-        const debt = res.data.remainingBalance;
-        if (debt > 0) setAmount(debt.toFixed(2));
+    setBalance(null);
+    setError('');
+    loadBalance()
+      .then((data) => {
+        if (!active) return;
+        setBalance(data);
+        setAmount(data.remainingBalance > 0 ? data.remainingBalance.toFixed(2) : '');
       })
-      .catch(() => setBalance(null))
-      .finally(() => setBalanceLoading(false));
-  }, [open, orderId, http]);
+      .catch(err => { if (active) setError(parseApiError(err)); })
+      .finally(() => { if (active) setBalanceLoading(false); });
+    return () => { active = false; };
+  }, [open, orderId, http, loadBalance, balanceRetry]);
 
   function handleClose() {
+    if (submitting.current) return;
     setAmount('');
     setMethod('PIX');
     setCashReceived('');
@@ -65,6 +82,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
     setMethod2('DINHEIRO');
     setCashReceived2('');
     setError('');
+    setNotice('');
     setBalance(null);
     onClose();
   }
@@ -102,16 +120,21 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!http || submitting.current || !balance || balanceLoading) return;
+    if (forDelivery && balance.remainingBalance <= 0) { onSuccess(); return; }
     const value1 = parseFloat(amount);
     const value2 = combine ? parseFloat(amount2) : 0;
 
-    if (isNaN(value1) || value1 <= 0) { setError('Valor deve ser maior que zero.'); return; }
-    if (combine && (isNaN(value2) || value2 <= 0)) { setError('Informe o valor do segundo meio de pagamento.'); return; }
+    if (!Number.isFinite(value1) || value1 <= 0) { setError('Valor deve ser maior que zero.'); return; }
+    if (combine && (!Number.isFinite(value2) || value2 <= 0)) { setError('Informe o valor do segundo meio de pagamento.'); return; }
     if (combine && method === method2) { setError('Escolha dois meios de pagamento diferentes.'); return; }
     if (notes && notes.length < 5) { setError('Observação deve ter mínimo 5 caracteres.'); return; }
 
+    submitting.current = true;
     setLoading(true);
     setError('');
+    setNotice('');
+    let savedPayments = 0;
     try {
       const paymentDate = nowPaymentDate();
       const payload1: PaymentRequestDTO = {
@@ -122,30 +145,51 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
         notes: notes.trim() || undefined,
       };
       await http!.post('/payments', payload1);
+      savedPayments++;
 
       if (combine) {
-        try {
-          const payload2: PaymentRequestDTO = {
+        const payload2: PaymentRequestDTO = {
             orderId,
             amount: value2,
             paymentMethod: method2,
             paymentDate,
             notes: notes.trim() || undefined,
-          };
-          await http!.post('/payments', payload2);
-        } catch {
-          setError(`O pagamento em ${PAYMENT_METHODS.find((m) => m.value === method)?.label} (${formatBRL(value1)}) foi registrado, mas o segundo meio falhou. Registre o restante manualmente.`);
-          onSuccess();
-          setLoading(false);
-          return;
-        }
+        };
+        await http!.post('/payments', payload2);
+        savedPayments++;
       }
-
-      onSuccess();
-      handleClose();
-    } catch {
-      setError('Erro ao registrar pagamento. Tente novamente.');
+      if (forDelivery) {
+        const updatedBalance = await loadBalance();
+        setBalance(updatedBalance);
+        setCombine(false);
+        setAmount2('');
+        setCashReceived('');
+        setCashReceived2('');
+        setAmount(updatedBalance.remainingBalance > 0 ? updatedBalance.remainingBalance.toFixed(2) : '');
+        if (updatedBalance.remainingBalance > 0) {
+          setNotice(`Pagamento registrado. Restam ${formatBRL(updatedBalance.remainingBalance)}. Receba o restante ou registre fiado para continuar a entrega.`);
+        } else onSuccess();
+      } else {
+        onSuccess();
+        submitting.current = false;
+        handleClose();
+      }
+    } catch (err) {
+      if (savedPayments > 0 || (isAxiosError(err) && !err.response)) {
+        // Os endpoints são separados: não repetir parcelas que a API já confirmou.
+        setBalance(null);
+        setAmount('');
+        setAmount2('');
+        setCombine(false);
+        setCashReceived('');
+        setCashReceived2('');
+        setNotice(savedPayments > 0
+          ? `${savedPayments} pagamento(s) já registrado(s). Atualize o saldo antes de continuar; as parcelas registradas não serão reenviadas.`
+          : 'Não foi possível confirmar o resultado do envio. Atualize o saldo antes de tentar novamente.');
+      }
+      setError(parseApiError(err));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
@@ -164,13 +208,18 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
       <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
+          {forDelivery && <p className="text-[13px] text-slate-600">Antes de confirmar a entrega, registre o pagamento ou escolha fiado. Fiado mantém o saldo devedor sem lançar entrada no caixa.</p>}
+          {notice && <p role="status" className="p-3 rounded-lg bg-amber-50 text-[13px] text-amber-800">{notice}</p>}
+
           {/* Order balance summary */}
           {balanceLoading ? (
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span className="text-[13px] text-slate-400">Carregando saldo do pedido...</span>
             </div>
-          ) : balance && (
+          ) : !balance ? (
+            <button type="button" disabled={loading} onClick={() => setBalanceRetry(value => value + 1)} className="text-sm font-semibold text-primary disabled:opacity-50">Atualizar saldo do pedido</button>
+          ) : (
             <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
               <div className="text-center">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Total</p>
@@ -188,6 +237,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
           )}
 
           {/* Payment 1 */}
+          <fieldset disabled={loading || balanceLoading || !balance || (forDelivery && balance.remainingBalance <= 0)} className="space-y-5 disabled:opacity-60">
           <div className="space-y-3">
             {combine && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">1º meio de pagamento</p>}
             <div>
@@ -371,26 +421,33 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
           {/* Notes */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              Observações <span className="normal-case text-slate-400 font-normal">(mín. 5 chars se preenchido)</span>
+              Observações do pagamento <span className="normal-case text-slate-400 font-normal">(mín. 5 chars se preenchido)</span>
             </label>
             <textarea
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-[13px] bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none text-slate-700"
               placeholder="Ex: Pagamento referente à parcela 1/2"
               rows={2}
+              maxLength={255}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+          </fieldset>
 
           {error && (
-            <p ref={errorRef} className="text-[13px] text-red-600 flex items-center gap-1">
+            <p ref={errorRef} role="alert" className="text-[13px] text-red-600 flex items-center gap-1">
               <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>error</span>
               {error}
             </p>
           )}
         </div>
 
-        <div className="flex gap-3 justify-end px-6 py-4 border-t border-slate-200 flex-shrink-0">
+        <div className="flex flex-wrap gap-3 justify-end px-6 py-4 border-t border-slate-200 flex-shrink-0">
+          {forDelivery && onFiado && balance && balance.remainingBalance > 0 && <button
+            type="button" disabled={loading || balanceLoading}
+            onClick={() => { if (!submitting.current) onFiado(); }}
+            className="px-4 py-2.5 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg font-semibold text-[13px] disabled:opacity-50"
+          >Registrar fiado</button>}
           <button
             type="button"
             onClick={handleClose}
@@ -401,7 +458,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
           </button>
           <button
             type="submit"
-            disabled={loading || balanceLoading}
+            disabled={loading || balanceLoading || !balance}
             className="px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-[13px] hover:brightness-110 disabled:opacity-70 transition-all flex items-center gap-2 shadow-sm shadow-primary/20"
           >
             {loading ? (
@@ -409,7 +466,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess }: AddPaymen
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Registrando...
               </>
-            ) : 'Confirmar Pagamento'}
+            ) : forDelivery && balance && balance.remainingBalance <= 0 ? 'Continuar para entrega' : 'Confirmar Pagamento'}
           </button>
         </div>
       </form>

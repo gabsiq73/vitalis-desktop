@@ -105,6 +105,24 @@ orientando registrar o empréstimo pela tela de vasilhames.
 
 ## Projeto backend
 
+Na lista de pedidos, o pagamento é revisado pelo botão de confirmar entrega;
+o ícone separado de registrar pagamento foi removido. Dashboard, lista e detalhe
+reutilizam `AddPaymentModal` quando o pedido ainda não está pago. O operador
+pode receber o valor ou escolher **Registrar fiado**, mantendo a dívida sem criar
+pagamento/entrada no caixa. Pagamento parcial mantém o modal aberto para receber
+o restante ou escolher fiado. Após essa etapa, a confirmação de entrega existente
+continua, preservando a revisão do gás; pedidos pagos seguem diretamente para ela.
+
+Fiado usa o estado `PENDING` existente, apresentado como “Fiado” na interface,
+sem novo método de pagamento ou enum no backend. A confirmação da entrega torna
+o saldo em aberto uma dívida do cliente. Para receber depois de uma entrega fiada,
+o registro de pagamento permanece disponível no detalhe do pedido. Os endpoints
+de pagamento e entrega são separados: se o pagamento for registrado e a entrega
+falhar ou for cancelada pelo operador, o valor continua registrado e não é cobrado
+novamente ao retomar o fluxo. Uma falha após parcela registrada exige atualizar
+o saldo antes de tentar novamente. Teste de rótulos:
+`node --experimental-strip-types --test tests/paymentStatusLabel.test.mjs`.
+
 Os alertas de estoque no Dashboard, em Estoque e em Relatórios seguem a mesma
 regra: zerado, no mínimo/abaixo do mínimo, ou normal. `GET /stocks` deve retornar
 somente estoque físico de água, filtrando registros legados de gás antes da
