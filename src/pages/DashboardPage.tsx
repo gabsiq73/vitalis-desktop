@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import type { OrderResponseDTO, SpringPage, StockResponseDTO } from '../types';
 import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge, isScheduledOrder } from '../utils/format';
 
@@ -62,6 +63,7 @@ export function DashboardPage() {
 
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [deliveryTarget, setDeliveryTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!statusMenu) return;
@@ -114,11 +116,10 @@ export function DashboardPage() {
 
   async function changeStatus(orderId: string, status: string) {
     if (!http) return;
+    if (status === 'DELIVERED') { setDeliveryTarget(orderId); return; }
     setActionLoading(orderId);
     try {
-      if (status === 'DELIVERED') {
-        await http.patch(`/orders/${orderId}/confirm-delivery`);
-      } else if (status === 'CANCELLED') {
+      if (status === 'CANCELLED') {
         await http.delete(`/orders/${orderId}`);
       } else {
         await http.patch(`/orders/${orderId}/status`, null, { params: { status } });
@@ -498,7 +499,7 @@ export function DashboardPage() {
               </div>
               <div className="divide-y divide-slate-50">
                 {[
-                  { label: 'Receita Bruta', value: todayRevenue, color: 'text-slate-800', icon: 'trending_up' },
+                  { label: 'Valor dos pedidos', value: todayRevenue, color: 'text-slate-800', icon: 'trending_up' },
                   { label: 'Recebido (Quitado)', value: todayReceived, color: 'text-teal', icon: 'check_circle' },
                   { label: 'Pendente / Parcial', value: todayPending, color: todayPending > 0 ? 'text-orange-500' : 'text-slate-400', icon: 'schedule' },
                 ].map(row => (
@@ -523,6 +524,7 @@ export function DashboardPage() {
       </div>
 
       {/* Status dropdown */}
+      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => setDeliveryTarget(null)} onSuccess={() => { setDeliveryTarget(null); fetchData(); }} />}
       {statusMenu && (() => {
         const currentOrder = recentOrders.find((o) => o.id === statusMenu.id);
         return (
