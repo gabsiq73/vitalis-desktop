@@ -84,6 +84,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const [deliveryDate, setDeliveryDate] = useState(nowDatetimeLocal);
 
   const [clientPrices, setClientPrices] = useState<ClientPriceResponseDTO[]>([]);
+  const [clientPricesLoading, setClientPricesLoading] = useState(false);
+  const [clientPricesError, setClientPricesError] = useState(false);
 
   const [registerPayment, setRegisterPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -114,7 +116,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     if (open) {
       setError(null);
       setDraftNeedsReview(false);
-      setClientPrices([]);
       paymentAmountAutoSync.current = true;
       hasInitialized.current = false;
       isDirty.current = false;
@@ -251,12 +252,29 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     setClientSearch(c.name);
     setShowDropdown(false);
     setClientResults([]);
-    if (http) {
-      http.get<ClientPriceResponseDTO[]>(`/clients/${c.id}/prices`)
-        .then((r) => setClientPrices(r.data))
-        .catch(() => setClientPrices([]));
-    }
   }
+
+  const selectedClientId = selectedClient?.id;
+  useEffect(() => {
+    setClientPrices([]);
+    setClientPricesError(false);
+    if (!open || !http || !selectedClientId) {
+      setClientPricesLoading(false);
+      return;
+    }
+    let active = true;
+    setClientPricesLoading(true);
+    http.get<ClientPriceResponseDTO[]>(`/clients/${selectedClientId}/prices`)
+      .then((response) => { if (active) setClientPrices(response.data); })
+      .catch(() => {
+        if (active) {
+          setClientPricesError(true);
+          setError('Não foi possível carregar os preços do cliente. Selecione o cliente novamente.');
+        }
+      })
+      .finally(() => { if (active) setClientPricesLoading(false); });
+    return () => { active = false; };
+  }, [http, open, selectedClientId]);
 
   function addItem() { setItems((p) => [...p, emptyItem()]); }
   function removeItem(idx: number) { setItems((p) => p.filter((_, i) => i !== idx)); }
@@ -318,6 +336,14 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!http) return;
+    if (clientPricesLoading || clientPricesError) {
+      setError('Aguarde o carregamento dos preços ou selecione o cliente novamente.');
+      return;
+    }
+    if (draftNeedsReview) {
+      setError('Revise os itens e os totais do rascunho antes de confirmar a revisão.');
+      return;
+    }
 
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
@@ -725,7 +751,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             {draftNeedsReview && (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[13px]">
                 <p>Este rascunho foi criado antes da descontinuação do programa de fidelidade. Os itens usam os preços atuais. Revise as quantidades e os totais.</p>
-                <button type="button" onClick={() => setDraftNeedsReview(false)} className="mt-2 font-bold underline">Revisei os itens e os totais</button>
+                <button type="button" disabled={clientPricesLoading || clientPricesError} onClick={() => { setDraftNeedsReview(false); setError(null); }} className="mt-2 font-bold underline disabled:opacity-50">Revisei os itens e os totais</button>
               </div>
             )}
             {/* ── Itens do Pedido ── */}
@@ -1235,7 +1261,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             </button>
             <button
               type="submit"
-              disabled={submitting || (!isEditMode && !selectedClient && !isAvulso)}
+              disabled={submitting || clientPricesLoading || clientPricesError || (!isEditMode && !selectedClient && !isAvulso)}
               className="px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-[13px] hover:brightness-110 transition-all disabled:opacity-70 flex items-center gap-2 shadow-md shadow-primary/20"
             >
               {submitting ? (
