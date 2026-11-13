@@ -112,6 +112,18 @@ utilizado, fora do total e do gráfico de recebimentos. Falhas da lista deixam
 totais e contagens indisponíveis até uma nova consulta. Teste dirigido:
 `node --experimental-strip-types --test tests/dailyCashTotals.test.mjs`.
 
+O livro-caixa usa os detalhes `cashMovements` e `gasSettlementMovements` do
+financeiro diário e exibe `finalBalance` sem recalcular ou duplicar acertos.
+Administradores podem registrar entrada, retirada com motivo e ajuste em
+`POST /cash-movements`. A direção é enviada somente para ajustes; nas respostas,
+entradas e retiradas têm direção nula e seu sinal é determinado pelo tipo.
+A conferência compara o valor informado com o saldo do dia retornado pela API
+(PIX/Dinheiro, movimentos manuais e acertos liquidados), não apenas o dinheiro
+físico nem o saldo acumulado. A diferença zero não gera lançamento; se a base
+mudar antes de confirmar, o operador deve revisá-la. Exclusão de movimentos e
+mudanças nas regras de fechamento não fazem parte desse fluxo.
+Teste dirigido: `node --experimental-strip-types --test tests/cashMovement.test.mjs`.
+
 O contrato coordenado da descontinuação remove `fidelityPoints` e
 `pendingBonusWater` de clientes e `pointsPerWaterItem`/`pointsPerFreeWater` de
 configuração. `/config` mantém `pickupDiscountCents`. Atualize backend e desktop

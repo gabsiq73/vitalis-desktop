@@ -1,5 +1,11 @@
 import { isAxiosError } from 'axios';
 
+export function cashMovementApiError(error: unknown): string {
+  if (isAxiosError(error) && error.response?.status === 403) return 'Acesso restrito a administradores para operar e consultar o livro-caixa.';
+  if (isAxiosError(error) && error.response?.status === 401) return 'Sessão inválida. Entre novamente para operar o livro-caixa.';
+  return parseApiError(error);
+}
+
 export function parseApiError(err: unknown): string {
   if (!isAxiosError(err)) return 'Erro de conexão. Verifique se o servidor está rodando.';
   const status = err.response?.status;
