@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import type { OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
+import { buildOrderReport } from '../utils/orderReport';
 
 type Period = '7d' | '30d' | '90d';
 
@@ -29,44 +30,6 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelado',
 };
 
-
-function groupByDay(orders: OrderResponseDTO[], days: number) {
-  const now = new Date();
-  const buckets: Record<string, { date: string; receita: number; pedidos: number }> = {};
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const key = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-    buckets[key] = { date: key, receita: 0, pedidos: 0 };
-  }
-  for (const o of orders) {
-    const d = new Date(o.createDate);
-    const key = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (buckets[key]) {
-      buckets[key].receita += o.totalValue;
-      buckets[key].pedidos += 1;
-    }
-  }
-  return Object.values(buckets);
-}
-
-function groupByWeek(orders: OrderResponseDTO[]) {
-  const buckets: Record<string, { date: string; receita: number; pedidos: number }> = {};
-  for (const o of orders) {
-    const d = new Date(o.createDate);
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    const key = `${String(weekStart.getDate()).padStart(2, '0')}/${String(weekStart.getMonth() + 1).padStart(2, '0')}`;
-    if (!buckets[key]) buckets[key] = { date: key, receita: 0, pedidos: 0 };
-    buckets[key].receita += o.totalValue;
-    buckets[key].pedidos += 1;
-  }
-  return Object.values(buckets).sort((a, b) => {
-    const [da, ma] = a.date.split('/').map(Number);
-    const [db, mb] = b.date.split('/').map(Number);
-    return ma !== mb ? ma - mb : da - db;
-  });
-}
 
 export function ReportsPage() {
   const { http } = useAuth();
@@ -97,15 +60,11 @@ export function ReportsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-  const cutoff = new Date(Date.now() - days * 86400000);
-  const filteredOrders = orders.filter(o => new Date(o.createDate) >= cutoff);
-
-  // Revenue trend
-  const trendData = days <= 30 ? groupByDay(filteredOrders, days) : groupByWeek(filteredOrders);
+  const { periodOrders, trendData, totalRevenue, deliveredCount, averageTicket, deliveryRate, topClients } = buildOrderReport(orders, days);
 
   // Orders by status
   const statusCount: Record<string, number> = {};
-  for (const o of filteredOrders) {
+  for (const o of periodOrders) {
     statusCount[o.status] = (statusCount[o.status] ?? 0) + 1;
   }
   const statusData = Object.entries(statusCount).map(([status, value]) => ({
@@ -115,26 +74,14 @@ export function ReportsPage() {
   }));
 
   // Payment status breakdown
-  const paidOrders = filteredOrders.filter(o => o.paymentStatus === 'PAID').length;
-  const partialOrders = filteredOrders.filter(o => o.paymentStatus === 'PARTIAL').length;
-  const pendingPayment = filteredOrders.filter(o => o.paymentStatus === 'PENDING').length;
+  const paidOrders = periodOrders.filter(o => o.paymentStatus === 'PAID').length;
+  const partialOrders = periodOrders.filter(o => o.paymentStatus === 'PARTIAL').length;
+  const pendingPayment = periodOrders.filter(o => o.paymentStatus === 'PENDING').length;
   const paymentStatusData = [
     { name: 'Pago', value: paidOrders, color: '#22c55e' },
     { name: 'Parcial', value: partialOrders, color: '#eab308' },
     { name: 'Pendente', value: pendingPayment, color: '#f97316' },
   ].filter(d => d.value > 0);
-
-  // Top clients by revenue
-  const clientRevenue: Record<string, { name: string; revenue: number; orders: number }> = {};
-  for (const o of filteredOrders) {
-    if (!clientRevenue[o.clientId]) clientRevenue[o.clientId] = { name: o.clientName, revenue: 0, orders: 0 };
-    clientRevenue[o.clientId].revenue += o.totalValue;
-    clientRevenue[o.clientId].orders += 1;
-  }
-  const topClients = Object.values(clientRevenue)
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 8)
-    .map(c => ({ ...c, name: c.name.length > 16 ? c.name.slice(0, 16) + '…' : c.name }));
 
   // Stock health
   const stockHealthData = [
@@ -145,8 +92,6 @@ export function ReportsPage() {
   ].filter(d => d.value > 0);
 
   // KPIs
-  const totalRevenue = filteredOrders.reduce((a, o) => a + o.totalValue, 0);
-  const deliveredCount = filteredOrders.filter(o => o.status === 'DELIVERED').length;
   const overdueClients = clients.filter(c => c.clientStatus === 'OVERDUE').length;
   const criticalItems = stock.filter(s => s.status?.toUpperCase() !== 'NORMAL').length;
 
@@ -225,7 +170,7 @@ export function ReportsPage() {
               {trendData.every(d => d.receita === 0) ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                   <span className="material-symbols-outlined mb-2" style={{ fontSize: '40px' }}>show_chart</span>
-                  <p className="text-sm">Sem pedidos no período</p>
+                  <p className="text-sm">Sem receita no período</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
@@ -380,14 +325,15 @@ export function ReportsPage() {
 
               {/* Summary stats */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-card p-5">
-                <h2 className="text-sm font-semibold text-slate-700 mb-4">Resumo Geral</h2>
+                <h2 className="text-sm font-semibold text-slate-700 mb-2">Resumo Geral</h2>
+                <p className="text-xs text-slate-500 mb-4">Ticket médio e taxa de entrega desconsideram pedidos cancelados.</p>
                 <div className="space-y-3">
                   {[
-                    { label: 'Total de Pedidos', value: filteredOrders.length, icon: 'shopping_cart' },
-                    { label: 'Ticket Médio', value: filteredOrders.length > 0 ? formatBRL(totalRevenue / filteredOrders.length) : '—', icon: 'receipt' },
+                    { label: 'Total de Pedidos', value: periodOrders.length, icon: 'shopping_cart' },
+                    { label: 'Ticket Médio', value: averageTicket === null ? '—' : formatBRL(averageTicket), icon: 'receipt' },
                     { label: 'Total de Clientes', value: clients.length, icon: 'group' },
                     { label: 'Itens em Estoque', value: stock.reduce((a, s) => a + s.quantityInStock, 0), icon: 'inventory_2' },
-                    { label: 'Taxa de Entrega', value: filteredOrders.length > 0 ? `${Math.round((deliveredCount / filteredOrders.length) * 100)}%` : '—', icon: 'local_shipping' },
+                    { label: 'Taxa de Entrega', value: deliveryRate === null ? '—' : `${deliveryRate}%`, icon: 'local_shipping' },
                   ].map(stat => (
                     <div key={stat.label} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-2.5">

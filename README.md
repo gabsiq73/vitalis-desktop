@@ -44,6 +44,10 @@ npm run build
 
 O build verifica os tipos, gera o bundle web, compila o Electron e executa o `electron-builder`.
 
+Teste dirigido das métricas de Relatórios (pedidos cancelados, filtros de período,
+ticket médio e taxa de entrega):
+`node --experimental-strip-types --test tests/orderReport.test.mjs`.
+
 ## Estrutura
 
 ```text
