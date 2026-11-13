@@ -190,6 +190,8 @@ export function CashRegisterPage() {
                   <tbody className="divide-y divide-slate-50">
                     {payments.map(p => {
                       const m = METHOD_COLORS[p.paymentMethod] ?? { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', hex: '#94a3b8' };
+                      const orderId = typeof p.orderId === 'string' ? p.orderId.trim() : '';
+                      const hasOrder = orderId !== '' && orderId !== 'null' && orderId !== 'undefined';
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="px-5 py-3.5 text-[12px] text-slate-400 font-mono tabular-nums whitespace-nowrap">
@@ -199,12 +201,24 @@ export function CashRegisterPage() {
                             {p.clientName}
                           </td>
                           <td className="px-4 py-3.5">
-                            <button
-                              onClick={() => navigate(`/orders/${p.orderId}`)}
-                              className="font-mono text-[12px] text-primary hover:underline"
-                            >
-                              {p.orderRef}
-                            </button>
+                            <div className="flex flex-col items-start gap-1">
+                              {p.entryType === 'CLIENT_CREDIT' && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700">
+                                  Crédito gerado
+                                </span>
+                              )}
+                              {hasOrder ? (
+                                <button
+                                  onClick={() => navigate(`/orders/${orderId}`)}
+                                  aria-label={`Abrir pedido ${p.orderRef}`}
+                                  className="font-mono text-[12px] text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded"
+                                >
+                                  {p.orderRef}
+                                </button>
+                              ) : (
+                                <span className="text-[12px] text-slate-500">Sem pedido vinculado</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${m.bg} ${m.text}`}>
