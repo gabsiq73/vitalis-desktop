@@ -28,17 +28,19 @@ interface AdjustModalProps {
 }
 
 function AdjustModal({ item, onConfirm, onClose }: AdjustModalProps) {
-  const [quantity, setQuantity] = useState(0);
+  const [quantity, setQuantity] = useState('0');
+  const adjustment = Number(quantity);
+  const validAdjustment = quantity.trim() !== '' && Number.isInteger(adjustment) && adjustment !== 0;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   async function handleConfirm() {
-    if (quantity === 0) { setError('Informe um valor diferente de zero.'); return; }
+    if (!validAdjustment) { setError('Informe uma quantidade inteira diferente de zero.'); return; }
     setLoading(true);
     setError('');
     try {
-      await onConfirm(item.productId, quantity);
+      await onConfirm(item.productId, adjustment);
       onClose();
     } catch {
       setError('Erro ao ajustar estoque. Tente novamente.');
@@ -59,26 +61,28 @@ function AdjustModal({ item, onConfirm, onClose }: AdjustModalProps) {
       </div>
 
       <div>
-        <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
+        <label htmlFor="stock-adjustment" className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
           Quantidade do Ajuste
         </label>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setQuantity((q) => q - 1)}
+            onClick={() => setQuantity((q) => String(Number(q) - 1))}
             className="w-10 h-10 rounded-full bg-error/10 text-error flex items-center justify-center hover:bg-error/20 transition-colors font-bold text-lg"
           >
             −
           </button>
           <input
+            id="stock-adjustment"
             type="number"
+            step={1}
             className="flex-1 text-center px-4 py-2.5 border border-outline-variant rounded-lg text-body-lg font-bold bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
             value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
+            onChange={(e) => setQuantity(e.target.value)}
           />
           <button
             type="button"
-            onClick={() => setQuantity((q) => q + 1)}
+            onClick={() => setQuantity((q) => String(Number(q) + 1))}
             className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors font-bold text-lg"
           >
             +
@@ -89,11 +93,11 @@ function AdjustModal({ item, onConfirm, onClose }: AdjustModalProps) {
         </p>
       </div>
 
-      {quantity !== 0 && (
-        <div className={`p-3 rounded-lg text-sm font-semibold ${quantity > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+      {validAdjustment && (
+        <div className={`p-3 rounded-lg text-sm font-semibold ${adjustment > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
           Novo estoque previsto:{' '}
           <span className="font-black">
-            {(item.quantityInStock + quantity).toLocaleString('pt-BR')} unidades
+            {(item.quantityInStock + adjustment).toLocaleString('pt-BR')} unidades
           </span>
         </div>
       )}
