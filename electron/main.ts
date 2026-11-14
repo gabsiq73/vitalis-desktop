@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { startUpdates } from './updates'
 
 const execute = promisify(execFile)
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -19,6 +20,7 @@ let apiUrl = 'http://localhost:8080'
 let quitting = false
 let stopped = false
 let lastApiOutput = ''
+let installUpdate: (() => Promise<boolean>) | undefined
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'vitalis', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
@@ -67,17 +69,17 @@ async function readConfig(home: string): Promise<DatabaseConfig> {
   return cfg
 }
 
-async function backup(home: string, cfg: DatabaseConfig) {
+async function backup(home: string, cfg: DatabaseConfig, force = false) {
   const dir = path.join(home, 'backups')
   await fs.mkdir(dir, { recursive: true })
   const list = (await fs.readdir(dir)).filter(name => /^vitalis-\d+\.dump$/.test(name))
     .sort((a, b) => Number(b.slice(8, -5)) - Number(a.slice(8, -5)))
-  if (list[0] && Date.now() - Number(list[0].slice(8, -5)) < 86400000) return
+  if (!force && list[0] && Date.now() - Number(list[0].slice(8, -5)) < 86400000) return
   const dump = cfg.pgDump ?? path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'PostgreSQL', '16', 'bin', 'pg_dump.exe')
   const file = path.join(dir, 'vitalis-' + Date.now() + '.dump')
   try {
     await execute(dump, ['-w', '-Fc', '-h', cfg.host, '-p', String(cfg.port), '-U', cfg.user, '-f', file + '.partial', 'vitalis'],
-      { env: { ...process.env, PGPASSWORD: cfg.password }, windowsHide: true })
+      { env: { ...process.env, PGPASSWORD: cfg.password, PGCONNECT_TIMEOUT: '10' }, windowsHide: true, timeout: 300000 })
     await fs.rename(file + '.partial', file)
   } finally {
     await fs.rm(file + '.partial', { force: true })
@@ -115,7 +117,7 @@ async function startApi(home: string, cfg: DatabaseConfig, log: (message: string
   await rotate(apiLog)
   if (quitting) return
   api = spawn(java, ['-jar', jar, '--vitalis.desktop=true', '--server.address=127.0.0.1',
-    '--server.port=' + port, '--spring.profiles.active=desktop', '--logging.file.name=' + apiLog,
+    '--server.port=' + port, '--spring.flyway.ignore-migration-patterns=*:pending', '--spring.profiles.active=desktop', '--logging.file.name=' + apiLog,
     '--logging.logback.rollingpolicy.max-file-size=2MB', '--logging.logback.rollingpolicy.max-history=7',
     '--logging.logback.rollingpolicy.total-size-cap=16MB'], {
     cwd: home,
@@ -143,6 +145,9 @@ async function startApi(home: string, cfg: DatabaseConfig, log: (message: string
     await new Promise(resolve => setTimeout(resolve, 300))
   }
   if (quitting) return
+  if (/applied migration not resolved locally|newer than the latest available migration/i.test(lastApiOutput)) {
+    throw Error('O banco foi atualizado por uma versão mais recente ou incompatível do Vitalis. Instale a versão mais recente antes de continuar.')
+  }
   if (/baseline|flyway/i.test(lastApiOutput) && /schema history|non-empty schema/i.test(lastApiOutput)) {
     throw Error('O banco existente ainda precisa ser registrado no Flyway. Peça ao responsável para conferir o schema e fazer o baseline em V1.')
   }
@@ -175,7 +180,7 @@ else {
         await apiClosed
       }
       stopped = true
-      app.quit()
+      if (!await installUpdate?.()) app.quit()
     })()
   })
   Menu.setApplicationMenu(null)
@@ -215,12 +220,16 @@ else {
     await startApi(home, cfg, log)
     if (quitting) return
     await win.loadURL('vitalis://app/index.html')
-    void backup(home, cfg).catch(async () => {
+    const startupBackup = backup(home, cfg).catch(async () => {
       await log('Falha no backup automático. Verifique o pg_dump e as permissões.')
-      if (!quitting && win && !win.isDestroyed()) await dialog.showMessageBox(win, {
+      if (!quitting && win && !win.isDestroyed()) void dialog.showMessageBox(win, {
         type: 'warning', message: 'Não foi possível fazer o backup automático do Vitalis.',
-      })
+      }).catch(() => undefined)
     })
+    installUpdate = startUpdates(win, async () => {
+      await startupBackup
+      await backup(home, cfg, true)
+    }, log, () => quitting)
   }).catch(error => {
     if (!quitting) dialog.showErrorBox('Vitalis', error instanceof Error ? error.message : 'Falha na inicialização.')
     app.quit()

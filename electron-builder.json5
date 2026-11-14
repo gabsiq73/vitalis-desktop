@@ -5,6 +5,7 @@
   "asar": true,
   extraResources: [{ from: 'desktop-runtime', to: 'runtime' }],
   "productName": "Vitalis",
+  publish: [{ provider: 'github', owner: 'gabsiq73', repo: 'vitalis-desktop', releaseType: 'draft' }],
   "directories": {
     "output": "release/${version}"
   },
@@ -20,6 +21,7 @@
   },
   "win": {
     "icon": "public/icon_vitalis.ico",
+    verifyUpdateCodeSignature: false,
     "target": [
       {
         "target": "nsis",
