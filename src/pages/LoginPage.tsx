@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useScrollToError } from '../hooks/useScrollToError';
 
@@ -8,8 +8,10 @@ const REMEMBER_KEY = 'vitalis_remember_user';
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const registeredUsername: unknown = location.state?.registeredUsername;
 
-  const [username, setUsername] = useState(() => localStorage.getItem(REMEMBER_KEY) ?? '');
+  const [username, setUsername] = useState(() => typeof registeredUsername === 'string' ? registeredUsername : localStorage.getItem(REMEMBER_KEY) ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberUser, setRememberUser] = useState(() => !!localStorage.getItem(REMEMBER_KEY));
@@ -155,11 +157,12 @@ export function LoginPage() {
                 ) : (
                   <>
                     Entrar
-                    <span className="material-symbols-outlined">login</span>
+                    <span aria-hidden="true" className="material-symbols-outlined">login</span>
                   </>
                 )}
               </button>
             </form>
+            <Link to="/register" className="block text-center text-primary hover:underline mt-4">Criar conta</Link>
           </div>
 
           <div className="bg-surface-container-low p-4 border-t border-outline-variant text-center">
