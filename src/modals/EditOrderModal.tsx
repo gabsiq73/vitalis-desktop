@@ -376,12 +376,11 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                               value={item.waterUnitPrice ?? ''}
                               placeholder={item.unitPrice.toFixed(2)}
                               onChange={(e) => updateItem(idx, 'waterUnitPrice', e.target.value)}
-                              className={inputCls + ' text-right'}
+                              className="w-full border border-slate-200 rounded bg-white text-[13px] py-1.5 px-2 text-right focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all text-slate-700"
                             />
                           ) : (
                             <span className="text-[13px] font-semibold text-slate-700">{item.productId ? formatBRL(item.unitPrice) : '—'}</span>
                           )}
-                          <span className="block text-[11px] text-slate-500 mt-1">{item.productId ? `Subtotal: ${formatBRL(itemPrice(item) * item.quantity)}` : ''}</span>
                         </td>
                         <td className="px-2 py-2">
                           {items.length > 1 && (

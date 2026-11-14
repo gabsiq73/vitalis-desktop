@@ -313,16 +313,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     return p.basePrice;
   }
 
-  function getPriceSource(item: ItemForm): 'manual' | 'custom' | 'reseller' | 'discount' | 'base' {
-    const p = getProduct(item.productId);
-    if (!p || !item.productId) return 'base';
-    if (item.waterUnitPrice || (isEditMode && item.unitPrice !== undefined)) return 'manual';
-    if (getClientCustomPrice(item.productId) !== null) return 'custom';
-    if (selectedClient?.clientType === 'RESELLER' && p.resellerPrice) return 'reseller';
-    if (!isDelivery && selectedClient?.clientType === 'RETAIL') return 'discount';
-    return 'base';
-  }
-
   function buildTotal(): number {
     return items.reduce((sum, item) => {
       if (!item.productId) return sum;
@@ -859,35 +849,17 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                                 className={cellInputClass + ' text-right'}
                               />
                             ) : (
-                              <div className="px-1">
-                                {(() => {
-                                    const src = getPriceSource(item);
-                                    const colorMap: Record<string, string> = { manual: 'text-primary', custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
-                                    const badgeMap: Record<string, string | null> = { manual: 'Preço neste pedido', custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
-                                    return (
-                                      <>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          min={isEditMode && item.waterUnitPrice === undefined && item.unitPrice === 0 ? 0 : 0.01}
-                                          disabled={!item.productId}
-                                          aria-label={`Preço unitário da água no item ${idx + 1}`}
-                                          value={item.waterUnitPrice ?? (isEditMode && item.unitPrice !== undefined ? String(item.unitPrice) : '')}
-                                          onChange={(e) => updateItem(idx, 'waterUnitPrice', e.target.value)}
-                                          placeholder={item.productId ? unitPrice.toFixed(2) : 'Preço'}
-                                          className={cellInputClass + ' text-right'}
-                                        />
-                                        <p className="text-[10px] text-slate-500 mt-1">{item.productId ? `${formatBRL(unitPrice)} por unidade` : 'Selecione o produto'}</p>
-                                        {item.waterUnitPrice && (
-                                          <button type="button" onClick={() => updateItem(idx, 'waterUnitPrice', '')} className="text-[10px] text-primary hover:underline mt-1">{isEditMode ? 'Manter preço atual' : 'Usar preço padrão'}</button>
-                                        )}
-                                        {badgeMap[src] && item.productId && (
-                                          <p className={`text-[10px] font-bold leading-none mt-0.5 ${colorMap[src]}`}>{badgeMap[src]}</p>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                              </div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min={isEditMode && item.waterUnitPrice === undefined && item.unitPrice === 0 ? 0 : 0.01}
+                                disabled={!item.productId}
+                                aria-label={`Preço unitário da água no item ${idx + 1}`}
+                                value={item.waterUnitPrice ?? (isEditMode && item.unitPrice !== undefined ? String(item.unitPrice) : '')}
+                                onChange={(e) => updateItem(idx, 'waterUnitPrice', e.target.value)}
+                                placeholder={item.productId ? unitPrice.toFixed(2) : 'Preço'}
+                                className={cellInputClass + ' text-right'}
+                              />
                             )}
                           </td>
                           {hasGasItem && (

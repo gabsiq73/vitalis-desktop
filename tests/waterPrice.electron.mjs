@@ -71,7 +71,7 @@ try {
   assert.equal(await page.getByPlaceholder('0,00', { exact: true }).inputValue(), '13.00');
   await price().fill('7');
   assert.equal(await page.getByPlaceholder('0,00', { exact: true }).inputValue(), '14.00');
-  await page.getByRole('button', { name: 'Usar preço padrão', exact: true }).click();
+  await price().fill('');
   assert.equal(await price().inputValue(), '');
   assert.equal(await page.getByPlaceholder('0,00', { exact: true }).inputValue(), '18.00');
   await price().fill('6.50');
