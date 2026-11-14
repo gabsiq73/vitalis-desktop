@@ -26,7 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Geral',
     items: [
-      { icon: 'dashboard', label: 'Dashboard', path: '/dashboard' },
+      { icon: 'dashboard', label: 'Início', path: '/dashboard' },
       { icon: 'shopping_cart', label: 'Pedidos', path: '/orders' },
       { icon: 'group', label: 'Clientes', path: '/clients' },
       { icon: 'point_of_sale', label: 'Caixa do Dia', path: '/cash-register' },

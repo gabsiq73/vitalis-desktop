@@ -29,7 +29,7 @@ const TYPE_CHIPS = [
   },
   {
     key: 'RESELLER',
-    label: 'Revendedor',
+    label: 'Revenda',
     icon: 'storefront',
     inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-400 hover:bg-violet-50',
     active: 'bg-violet-600 border-violet-600 text-white',
@@ -349,7 +349,7 @@ export function ClientsPage() {
                               : 'bg-violet-600 text-white'
                           }`}>
                             {!isRetail && <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>storefront</span>}
-                            {isRetail ? 'Varejo' : 'Revendedor'}
+                            {isRetail ? 'Varejo' : 'Revenda'}
                           </span>
                         </td>
 

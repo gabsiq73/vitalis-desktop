@@ -55,7 +55,7 @@ export function LoginPage() {
             </span>
           </div>
           <h1 className="text-h1 text-on-background tracking-tighter">Vitalis</h1>
-          <p className="text-body-md text-on-surface-variant mt-1">Logistics ERP System Control</p>
+          <p className="text-body-md text-on-surface-variant mt-1">Gestão do depósito de água e gás</p>
         </div>
 
         <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-[0_1px_2px_0_rgba(15,23,42,0.05),0_10px_15px_-3px_rgba(15,23,42,0.1)]">
@@ -79,7 +79,7 @@ export function LoginPage() {
 
               <div className="space-y-1">
                 <label className="block text-label-sm text-secondary" htmlFor="username">
-                  Username
+                  Usuário
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline">
@@ -100,7 +100,7 @@ export function LoginPage() {
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="block text-label-sm text-secondary" htmlFor="password">
-                    Password
+                    Senha
                   </label>
                   <span className="text-label-sm text-primary cursor-pointer hover:underline">
                     Esqueceu a senha?
@@ -167,7 +167,7 @@ export function LoginPage() {
 
           <div className="bg-surface-container-low p-4 border-t border-outline-variant text-center">
             <p className="text-label-sm text-on-secondary-container">
-              © 2024 Vitalis Logistics. All rights reserved.
+              Vitalis · Gestão do depósito
             </p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export function LoginPage() {
             </span>
           </div>
           <span className="text-outline text-xs opacity-30">|</span>
-          <span className="text-label-sm text-outline uppercase tracking-widest">v2.4.0-build</span>
+          <span className="text-label-sm text-outline uppercase tracking-widest">Uso local</span>
         </div>
       </main>
     </div>

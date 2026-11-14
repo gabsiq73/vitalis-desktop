@@ -76,6 +76,15 @@ ticket médio e taxa de entrega):
 
 ## Estrutura
 
+As telas e os arquivos exportados usam nomes da operação, como Varejo, Revenda,
+Água, Gás, Administrador e Vendedor. A importação aceita esses nomes e mantém
+compatibilidade com os códigos dos arquivos antigos. Mensagens e conferência
+do caixa usam linguagem do operador, sem exibir detalhes da integração.
+Teste dirigido: `node --experimental-strip-types --test tests/importTypes.test.mjs`.
+O fluxo completo é verificado por `node tests/operatorLanguage.electron.mjs`, com
+Playwright, desktop em `localhost:5173` e uma API real descartável informada em
+`OPERATOR_LANGUAGE_TEST_API`.
+
 ```text
 electron/             # Processo principal e preload do Electron
 src/

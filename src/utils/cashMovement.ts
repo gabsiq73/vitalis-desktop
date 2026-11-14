@@ -28,7 +28,7 @@ export function buildCashMovement(input: {
   let direction = input.direction;
   if (type === 'ADJUSTMENT' && input.counted !== undefined) {
     if (!Number.isFinite(input.counted) || input.counted < 0) throw new Error('Informe um valor conferido maior ou igual a zero.');
-    if (input.balance === undefined || !Number.isFinite(input.balance)) throw new Error('Saldo da API indisponível para conferência.');
+    if (input.balance === undefined || !Number.isFinite(input.balance)) throw new Error('Saldo do caixa indisponível para conferência.');
     const difference = cashDifference(input.counted, input.balance);
     if (difference === 0) return null;
     amount = Math.abs(difference);

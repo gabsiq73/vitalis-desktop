@@ -39,7 +39,7 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 
 const CLIENT_TYPE_LABEL: Record<string, string> = {
   RETAIL: 'Varejo',
-  RESELLER: 'Revendedor',
+  RESELLER: 'Revenda',
   AVULSO: 'Avulso',
 };
 
@@ -222,7 +222,7 @@ export function ClientDetailPage() {
                       ? 'bg-violet-600 text-white'
                       : 'bg-primary/10 text-primary'
                   }`}>
-                    {CLIENT_TYPE_LABEL[client.clientType] ?? client.clientType}
+                    {CLIENT_TYPE_LABEL[client.clientType] ?? 'Não informado'}
                   </span>
                   {isOverdue && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-100 text-red-600">

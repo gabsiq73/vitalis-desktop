@@ -132,7 +132,7 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
           Preço de Revenda
-          <span className="ml-1 normal-case font-normal text-slate-400">(opcional — aplicado automaticamente para clientes Revendedor)</span>
+          <span className="ml-1 normal-case font-normal text-slate-400">(opcional — aplicado automaticamente para clientes de revenda)</span>
         </label>
         <input
           type="number"

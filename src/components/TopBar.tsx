@@ -41,7 +41,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const username = auth?.username ?? 'Admin';
+  const username = auth?.username ?? 'Usuário';
   const initial = username.charAt(0).toUpperCase();
 
   useEffect(() => {

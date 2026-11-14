@@ -22,7 +22,7 @@ const password = randomUUID();
 let operator;
 async function fill(username, role = 'ADMIN', email = `${username}@example.com`) {
   await page.getByLabel('Nome *', { exact: true }).fill('Teste');
-  await page.getByLabel('Username *', { exact: true }).fill(username);
+  await page.getByLabel('Nome de usuário *', { exact: true }).fill(username);
   await page.getByLabel('Email *', { exact: true }).fill(email);
   await page.getByLabel('Senha *', { exact: true }).fill(password);
   await page.getByLabel('Confirmação de senha *', { exact: true }).fill(password);
@@ -105,7 +105,7 @@ try {
     await page.getByRole('alert').waitFor();
     await page.waitForFunction(() => !document.querySelector('button[type=submit]').disabled);
     assert.match(await page.getByRole('alert').innerText(), expected);
-    assert.equal(await page.getByLabel('Username *', { exact: true }).inputValue(), username);
+    assert.equal(await page.getByLabel('Nome de usuário *', { exact: true }).inputValue(), username);
     assert.match(page.url(), /register/);
   }
   await fill(`${prefix}invalid`);
@@ -130,7 +130,7 @@ try {
   await page.context().setOffline(true);
   await fill(`${prefix}offline`);
   await page.getByRole('button', { name: 'Criar conta', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('[role=alert]')?.textContent.includes('API indisponível'));
+  await page.waitForFunction(() => document.querySelector('[role=alert]')?.textContent.includes('Não foi possível conectar ao sistema'));
   await page.context().setOffline(false);
   await page.getByRole('button', { name: 'Voltar para login', exact: true }).click();
   await page.waitForURL('**/#/login');

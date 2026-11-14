@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { parseApiError } from '../utils/parseApiError';
+import { CLIENT_TYPE_LABELS, PRODUCT_TYPE_LABELS, parseClientType, parseProductType } from '../utils/importTypes';
 import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   SystemConfigDTO, SpringPage, ClientResponseDTO,
@@ -118,10 +119,10 @@ const DATA_OPTS: { key: DataKey; label: string; icon: string }[] = [
 
 const TEMPLATES: Record<DataKey, { headers: string[]; rows: unknown[][] }> = {
   clients:   { headers: ['nome','telefone','endereco','notas','tipo'],
-               rows: [['João Silva','11999999999','Rua das Flores 123','cliente antigo','RETAIL'],
-                      ['Maria Costa','11988888888','Av. Principal 456','','RESELLER']] },
+               rows: [['João Silva','11999999999','Rua das Flores 123','cliente antigo','Varejo'],
+                      ['Maria Costa','11988888888','Av. Principal 456','','Revenda']] },
   products:  { headers: ['nome','preco_base','preco_custo','tipo'],
-               rows: [['Água 20L','12.00','','WATER'],['Gás 13kg','120.00','80.00','GAS']] },
+               rows: [['Água 20L','12.00','','Água'],['Gás 13kg','120.00','80.00','Gás']] },
   stock:     { headers: ['produto','quantidade'],
                rows: [['Água 20L','50']] },
   suppliers: { headers: ['nome','notas'],
@@ -129,9 +130,9 @@ const TEMPLATES: Record<DataKey, { headers: string[]; rows: unknown[][] }> = {
 };
 
 const TIPO_HINTS: Record<DataKey, string> = {
-  clients:   'tipo: RETAIL, RESELLER ou AVULSO',
-  products:  'tipo: WATER ou GAS · preco_base: número decimal (ex: 12.50) · preco_custo: obrigatório para tipo GAS',
-  stock:     'produto: nome exato do produto cadastrado · define a quantidade absoluta',
+  clients:   'Tipo de cliente: Varejo, Revenda ou Avulso.',
+  products:  'Tipo de produto: Água ou Gás. Informe os preços com ponto decimal (ex.: 12.50). O preço de custo é obrigatório para gás.',
+  stock:     'Use o nome do produto cadastrado e informe a quantidade que deve ficar em estoque.',
   suppliers: 'nome é obrigatório · notas é opcional',
 };
 
@@ -214,7 +215,7 @@ export function SettingsPage() {
         const d = await fetchAll<ClientResponseDTO>('/clients');
         triggerDownload('clientes.csv', makeCSV(
           ['nome','telefone','endereco','notas','tipo','saldo'],
-          d.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance])
+          d.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', CLIENT_TYPE_LABELS[c.clientType], c.balance])
         ));
         await delay(400);
       }
@@ -222,7 +223,7 @@ export function SettingsPage() {
         const d = await fetchAll<ProductResponseDTO>('/products');
         triggerDownload('produtos.csv', makeCSV(
           ['nome','preco_base','preco_custo','preco_revendedor','tipo','ativo'],
-          d.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', p.type, p.isActive])
+          d.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', PRODUCT_TYPE_LABELS[p.type], p.isActive ? 'Sim' : 'Não'])
         ));
         await delay(400);
       }
@@ -262,11 +263,11 @@ export function SettingsPage() {
       const parts: string[] = [
         '[CLIENTES]',
         makeCSV(['nome','telefone','endereco','notas','tipo','saldo'],
-          clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', c.clientType, c.balance])),
+          clients.map(c => [c.name, c.phone ?? '', c.address ?? '', c.notes ?? '', CLIENT_TYPE_LABELS[c.clientType], c.balance])),
         '',
         '[PRODUTOS]',
         makeCSV(['nome','preco_base','preco_custo','preco_revendedor','tipo','ativo'],
-          products.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', p.type, p.isActive])),
+          products.map(p => [p.name, p.basePrice, p.lastCostPrice ?? '', p.resellerPrice ?? '', PRODUCT_TYPE_LABELS[p.type], p.isActive ? 'Sim' : 'Não'])),
         '',
         '[ESTOQUE]',
         makeCSV(['produto','quantidade_atual','estoque_minimo'],
@@ -294,6 +295,19 @@ export function SettingsPage() {
   const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
   const importResultRef = useScrollToError<HTMLDivElement>(importResult?.errors);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function previewValue(header: string, value: string): string {
+    if (header !== 'tipo') return value;
+    if (importEntity === 'clients') {
+      const type = parseClientType(value);
+      return type ? CLIENT_TYPE_LABELS[type] : 'Tipo não informado';
+    }
+    if (importEntity === 'products') {
+      const type = parseProductType(value);
+      return type ? PRODUCT_TYPE_LABELS[type] : 'Tipo não informado';
+    }
+    return value;
+  }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -345,24 +359,24 @@ export function SettingsPage() {
         if (entity === 'clients') {
           const name = row.nome?.trim();
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
-          const tipo = row.tipo?.trim().toUpperCase();
+          const tipo = parseClientType(row.tipo) ?? 'RETAIL';
           await http!.post('/clients', {
             name, phone: row.telefone?.trim() || '',
             address: row.endereco?.trim() || '', notes: row.notas?.trim() || '',
-            clientType: ['RETAIL','RESELLER','AVULSO'].includes(tipo) ? tipo : 'RETAIL',
+            clientType: tipo,
             clientStatus: 'PAID',
           });
           success++;
         } else if (entity === 'products') {
           const name = row.nome?.trim();
           const basePrice = parseFloat(row.preco_base ?? '');
-          const tipo = row.tipo?.trim().toUpperCase();
+          const tipo = parseProductType(row.tipo);
           if (!name) { errors.push(`${lbl}: 'nome' obrigatório`); continue; }
-          if (isNaN(basePrice)) { errors.push(`${lbl}: 'preco_base' inválido`); continue; }
-          if (!['WATER','GAS'].includes(tipo)) { errors.push(`${lbl}: 'tipo' deve ser WATER ou GAS`); continue; }
+          if (isNaN(basePrice)) { errors.push(`${lbl}: informe um preço base válido.`); continue; }
+          if (!tipo) { errors.push(`${lbl}: escolha Água ou Gás no tipo de produto.`); continue; }
           const lastCostPrice = row.preco_custo ? parseFloat(row.preco_custo) : undefined;
           if (tipo === 'GAS' && (lastCostPrice === undefined || isNaN(lastCostPrice))) {
-            errors.push(`${lbl}: 'preco_custo' é obrigatório para produtos do tipo GAS`); continue;
+            errors.push(`${lbl}: informe o preço de custo do gás.`); continue;
           }
           const created = await http!.post<ProductResponseDTO>('/products', { name, basePrice, type: tipo, lastCostPrice });
           prodNameToId[name] = created.data.id;
@@ -451,7 +465,7 @@ export function SettingsPage() {
       items: [
         { icon: 'shopping_bag', iconColor: 'text-primary', iconBg: 'bg-primary/10',
           title: 'Desconto na Retirada (Varejo)',
-          description: 'Valor em centavos descontado quando o cliente RETAIL retira no balcão.',
+          description: 'Desconto em centavos para clientes de varejo que retiram no balcão.',
           unit: `= R$ ${(parseInt(discountCents || '0') / 100).toFixed(2).replace('.', ',')} de desconto`,
           control: <Counter value={discountCents} onChange={setDiscountCents} min={0} step={10} /> },
       ],
@@ -604,7 +618,7 @@ export function SettingsPage() {
                   <button onClick={() => switchImportMode('single')}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[12px] font-semibold transition-all ${importMode === 'single' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>table_rows</span>
-                    Entidade única
+                    Um tipo de cadastro
                   </button>
                   <button onClick={() => switchImportMode('all')}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[12px] font-semibold transition-all ${importMode === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -632,7 +646,7 @@ export function SettingsPage() {
                       <span className="material-symbols-outlined text-slate-400 flex-shrink-0" style={{ fontSize: '16px' }}>info</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] text-slate-500">{TIPO_HINTS[importEntity]}</p>
-                        <button onClick={() => triggerDownload(`modelo_${importEntity}.csv`, makeCSV(TEMPLATES[importEntity].headers, TEMPLATES[importEntity].rows))}
+                        <button onClick={() => triggerDownload(`modelo_${DATA_OPTS.find(opt => opt.key === importEntity)!.label.toLowerCase()}.csv`, makeCSV(TEMPLATES[importEntity].headers, TEMPLATES[importEntity].rows))}
                           className="text-[11px] font-semibold text-blue-600 hover:underline mt-0.5">
                           Baixar modelo CSV
                         </button>
@@ -711,7 +725,7 @@ export function SettingsPage() {
                         <thead className="bg-slate-50">
                           <tr>
                             {headers.map(h => (
-                              <th key={h} className="px-2.5 py-2 text-left font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                              <th key={h} className="px-2.5 py-2 text-left font-semibold text-slate-500 whitespace-nowrap">{h.replace(/_/g, ' ')}</th>
                             ))}
                           </tr>
                         </thead>
@@ -719,7 +733,7 @@ export function SettingsPage() {
                           {preview.map((row, i) => (
                             <tr key={i} className="hover:bg-slate-50">
                               {headers.map(h => (
-                                <td key={h} className="px-2.5 py-1.5 text-slate-700 max-w-[120px] truncate">{row[h]}</td>
+                                <td key={h} className="px-2.5 py-1.5 text-slate-700 max-w-[120px] truncate">{previewValue(h, row[h])}</td>
                               ))}
                             </tr>
                           ))}

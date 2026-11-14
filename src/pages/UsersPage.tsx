@@ -11,8 +11,8 @@ import type { UserResponseDTO, UserRequestDTO, UserUpdateDTO, UserRole } from '.
 import { getInitials } from '../utils/format';
 
 const ROLE_BADGE: Record<UserRole, { label: string; className: string }> = {
-  ADMIN: { label: 'ADMIN', className: 'bg-primary-fixed text-on-primary-fixed-variant' },
-  SELLER: { label: 'SELLER', className: 'bg-secondary-container text-on-secondary-container' },
+  ADMIN: { label: 'Administrador', className: 'bg-primary-fixed text-on-primary-fixed-variant' },
+  SELLER: { label: 'Vendedor', className: 'bg-secondary-container text-on-secondary-container' },
 };
 
 export function UsersPage() {
@@ -106,7 +106,7 @@ export function UsersPage() {
               <span className="material-symbols-outlined">admin_panel_settings</span>
             </div>
             <div>
-              <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">Admins</p>
+              <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">Administradores</p>
               <p className="text-h2 text-on-surface">{loading ? '—' : adminCount}</p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export function UsersPage() {
               <thead>
                 <tr className="bg-surface-container-high border-b border-outline-variant">
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Nome Completo" field="firstName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Username" field="username" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Usuário" field="username" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Email" field="email" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Perfil" field="userRole" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase text-right">Ações</th>
