@@ -47,6 +47,7 @@ export function BottlesPage() {
   const [pageSize, setPageSize] = useState(15);
 
   const [showNewLoan, setShowNewLoan] = useState(false);
+  const [editLoan, setEditLoan] = useState<LoanedBottleResponseDTO | null>(null);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const { notify } = useNotification();
@@ -402,6 +403,9 @@ export function BottlesPage() {
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
                             {!isReturned && (
+                              <button title="Editar empréstimo" onClick={() => setEditLoan(b)} className="p-2 text-primary rounded-lg hover:bg-primary/10"><span className="material-symbols-outlined">edit</span></button>
+                            )}
+                            {!isReturned && (
                               <button
                                 onClick={() => setReturnTarget(b.id)}
                                 className="p-2 text-primary hover:bg-secondary-container rounded-lg"
@@ -463,6 +467,7 @@ export function BottlesPage() {
         </section>
       </div>
 
+      {editLoan && <NewLoanModal open loan={editLoan} onClose={() => setEditLoan(null)} onSuccess={() => { setEditLoan(null); fetchBottles(); }} />}
       <NewLoanModal
         open={showNewLoan}
         onClose={() => setShowNewLoan(false)}

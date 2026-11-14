@@ -28,6 +28,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] =
 ];
 
 interface ItemForm {
+  bottleMode?: import('../types').BottleMode;
   productId: string;
   quantity: number;
   supplierId: string;
@@ -144,6 +145,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             })()
           : nowDatetimeLocal());
         setItems(editOrder.items.map((i) => ({
+          bottleMode: i.bottleMode,
           productId: i.productId,
           quantity: i.quantity,
           supplierId: i.supplierId ?? '',
@@ -433,6 +435,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
+      if (p?.type === 'WATER') base.bottleMode = item.bottleMode ?? (p.name.toUpperCase().includes('COMPLETO') ? 'FULL' : 'REFILL');
       if (p?.type === 'WATER' && item.waterUnitPrice !== undefined) {
         if (item.waterUnitPrice !== '') base.unitPrice = Number(item.waterUnitPrice);
         else if (isEditMode && item.unitPrice !== undefined) base.unitPrice = item.unitPrice;
@@ -803,6 +806,9 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                                 <option key={p.id} value={p.id}>{p.name}</option>
                               ))}
                             </select>
+                            {!isGas && item.productId && <select aria-label="Tipo da venda de garrafão" value={item.bottleMode ?? (getProduct(item.productId)?.name.toUpperCase().includes('COMPLETO') ? 'FULL' : 'REFILL')} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={cellInputClass + ' mt-2'}>
+                              <option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido, sem água (outros usos)</option>
+                            </select>}
                           </td>
                           <td className="px-3 py-2">
                             <input

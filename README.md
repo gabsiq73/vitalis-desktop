@@ -100,6 +100,39 @@ src/
 
 ## Integração com a API
 
+Em **Estoque → Garrafões do depósito**, informe a contagem física inicial de válidos
+e vencidos (vazios e cheios). A quantidade de água cheia usa parte dos válidos;
+o restante é mostrado como válido vazio. Os estoques anteriores ficam preservados
+até informar essa contagem. Para realocar água entre produtos, reduza uma alocação
+e aumente outra, sem exceder os garrafões válidos disponíveis.
+
+No item de água do pedido, selecione **Troca de água**, **Garrafão completo** ou
+**Vencido, sem água** e informe o preço da venda. A entrega de troca baixa apenas
+a água; completo baixa água e total válido; vencido baixa apenas o total vencido.
+Cancelamento recompõe os efeitos aplicados. Vencidos não contam como água vendida.
+O cadastro de empréstimos continua separado da alocação física de águas.
+
+**Pedidos → Promoção Gás + água** permite escolher água, valor de referência, custo
+do gás e preço do conjunto. Uma promoção de R$ 127 com custo de gás R$ 110 e água
+de referência R$ 9 gera margem de gás R$ 8. Se a água vale R$ 8, a margem é R$ 9.
+Quando o entregador recebe, o repasse é R$ 17 (água + margem). A água é inclusa,
+sem segunda cobrança, e baixa normalmente na entrega. Pedidos comuns mistos
+continuam gerando seus subpedidos; a promoção mantém gás e água juntos.
+
+Pedidos concluídos podem ser corrigidos pela lista ou pelo detalhe. O formulário
+mantém cliente, IDs e linhas existentes, permitindo corrigir produto do mesmo tipo,
+quantidade, preço, custo do gás, recebedor, data e observação. Estoque e acertos são
+recalculados na mesma transação. Pagamentos avulsos recebidos a mais viram crédito,
+mantendo o total recebido no caixa. Acertos já liquidados podem editar valor,
+data, meio e situação; empréstimos pendentes podem editar cliente, produto,
+quantidade e data. Os registros são atualizados sem excluir e recriar.
+
+Requer os contratos `/bottle-inventory`, `/orders/{id}/correction`,
+`PUT /gas-settlements/{id}`, `PUT /bottles/{id}`, `bottleMode` e `promotion` do backend.
+Atualize o backend antes do desktop. Teste dirigido do fluxo:
+`node tests/correctionsBottlesPromotion.electron.mjs`, com Playwright e
+`OPERATION_CORRECTIONS_TEST_API` apontando para uma API real descartável.
+
 A tela de Pedidos pesquisa por cliente, número exibido (com ou sem `#`) ou
 observação em todas as páginas, respeitando os filtros de data, entrega e pagamento.
 Selecione **Todos** nas datas para procurar pedidos antigos. As observações aparecem
@@ -129,7 +162,8 @@ retirada e atualiza total e pagamento sugerido. Na criação, deixe o campo em b
 para voltar ao cálculo habitual. O preço permanece no
 rascunho e no pedido gravado, sem alterar cadastros. Na edição,
 deixar o campo em branco mantém o preço já gravado; itens históricos a zero
-continuam preservados. Pedidos entregues/cancelados mantêm as restrições existentes.
+continuam preservados. Concluídos usam o formulário de correção; cancelados não
+permitem alteração de itens.
 
 Teste do fluxo no Electron: `node tests/waterPrice.electron.mjs`, com Playwright
 instalado (ou `PLAYWRIGHT_MODULE`), desktop em `localhost:5173` e

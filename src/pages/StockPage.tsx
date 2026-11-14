@@ -9,6 +9,8 @@ import { PageSizeSelector } from '../components/PageSizeSelector';
 import { useScrollToError } from '../hooks/useScrollToError';
 import { getStockStatus, isStockLow } from '../utils/stock';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
+import type { BottleInventoryResponseDTO } from '../types';
+import { parseApiError } from '../utils/parseApiError';
 
 function getStockStatusBadge(status: string): { label: string; className: string; dot: string } {
   const s = status.toUpperCase();
@@ -133,15 +135,30 @@ export function StockPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(15);
   const [adjustTarget, setAdjustTarget] = useState<StockResponseDTO | null>(null);
+  const [inventory, setInventory] = useState<BottleInventoryResponseDTO | null>(null);
+  const [inventoryError, setInventoryError] = useState('');
+  const [showInventory, setShowInventory] = useState(false);
+  const [validCount, setValidCount] = useState('0'); const [expiredCount, setExpiredCount] = useState('0');
+  const [savingInventory, setSavingInventory] = useState(false);
+
+  async function saveInventory(e: React.FormEvent) {
+    e.preventDefault(); if (!http || savingInventory) return;
+    setSavingInventory(true); setInventoryError('');
+    try { const r = await http.put<BottleInventoryResponseDTO>('/bottle-inventory', { validQuantity: Number(validCount), expiredQuantity: Number(expiredCount) }); setInventory(r.data); setShowInventory(false); }
+    catch (err) { setInventoryError(parseApiError(err)); } finally { setSavingInventory(false); }
+  }
 
   async function fetchStock() {
     if (!http) return;
     setLoading(true);
     try {
-      const [stockRes, productsRes] = await Promise.allSettled([
+      const [stockRes, productsRes, inventoryRes] = await Promise.allSettled([
         http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { page: currentPage, size: pageSize } }),
         http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200, page: 0 } }),
+        http.get<BottleInventoryResponseDTO>('/bottle-inventory'),
       ]);
+      if (inventoryRes.status === 'fulfilled') { setInventory(inventoryRes.value.data); setInventoryError(''); }
+      else { setInventory(null); setInventoryError(parseApiError(inventoryRes.reason)); }
       if (productsRes.status === 'fulfilled') {
         const gasIds = new Set(
           (productsRes.value.data.content ?? [])
@@ -190,6 +207,14 @@ export function StockPage() {
           </div>
         </div>
 
+        <section className="p-5 bg-white border border-slate-200 rounded-xl space-y-3">
+          <div className="flex flex-wrap gap-3 items-center justify-between"><h2 className="font-bold text-slate-800">Garrafões do depósito</h2><button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button></div>
+          {inventoryError && !showInventory && <p role="alert" className="text-sm text-red-700">{inventoryError}</p>}
+          {inventory?.configured ? <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{[
+            ['Total de garrafões', inventory.totalQuantity], ['Válidos (vazios + cheios)', inventory.validQuantity], ['Vencidos', inventory.expiredQuantity], ['Águas cheias', inventory.filledQuantity], ['Válidos vazios', inventory.emptyValidQuantity],
+          ].map(([label,count]) => <div key={label} className="p-3 bg-slate-50 rounded-lg"><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold">{count}</p></div>)}</div> : <p className="text-sm text-amber-800">Informe a contagem física de garrafões válidos e vencidos para ativar o controle total. Os estoques existentes de água serão preservados.</p>}
+          <p className="text-xs text-slate-500">As águas cheias usam os garrafões válidos. Para realocar entre águas, reduza uma e aumente outra. A troca comum mantém o total; completo e vencido vendidos saem do total correspondente.</p>
+        </section>
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
@@ -357,6 +382,13 @@ export function StockPage() {
         </section>
       </div>
 
+      {showInventory && <Modal open title="Totais de garrafões" maxWidth="max-w-lg" onClose={() => { if (!savingInventory) setShowInventory(false); }}><form onSubmit={saveInventory} className="p-6 space-y-4">
+        <p className="text-sm text-slate-600">Conte todos os garrafões físicos: vazios e cheios. Válidos precisam cobrir as {inventory?.filledQuantity ?? 0} águas cheias já registradas.</p>
+        {inventoryError && <p role="alert" className="text-sm text-red-700">{inventoryError}</p>}
+        <label className="block text-sm">Garrafões válidos<input required disabled={savingInventory} type="number" min="0" step="1" value={validCount} onChange={e => setValidCount(e.target.value)} className="w-full mt-1 border rounded-lg px-3 py-2" /></label>
+        <label className="block text-sm">Garrafões vencidos<input required disabled={savingInventory} type="number" min="0" step="1" value={expiredCount} onChange={e => setExpiredCount(e.target.value)} className="w-full mt-1 border rounded-lg px-3 py-2" /></label>
+        <button disabled={savingInventory} className="px-4 py-2 bg-primary text-white rounded-lg">{savingInventory ? 'Salvando...' : 'Salvar totais'}</button>
+      </form></Modal>}
       {adjustTarget && (
         <Modal
           open={adjustTarget !== null}

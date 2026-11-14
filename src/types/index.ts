@@ -11,6 +11,7 @@ export type ClientStatus = 'PAID' | 'OVERDUE';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS';
+export type BottleMode = 'REFILL' | 'FULL' | 'EXPIRED';
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
 export type GasPaymentMethod = Extract<PaymentMethod, 'PIX' | 'DINHEIRO'>;
 
@@ -39,6 +40,8 @@ export interface ProductResponseDTO {
 }
 
 export interface OrderItemResponseDTO {
+  bottleMode?: BottleMode;
+  promotionWaterValue?: number;
   id: string;
   productId: string;
   productName: string;
@@ -333,6 +336,8 @@ export interface FinancialReportDTO {
 }
 
 export interface OrderItemRequestBody {
+  itemId?: string;
+  bottleMode?: BottleMode;
   productId: string;
   quantity: number;
   unitPrice?: number;
@@ -349,10 +354,20 @@ export interface InitialPaymentRequestBody {
 }
 
 export interface OrderRequestBody {
+  promotion?: { waterProductId: string; bundleUnitPrice: number; waterUnitValue: number };
   clientId: string;
   items: OrderItemRequestBody[];
   initialPayments?: InitialPaymentRequestBody[];
   isDelivery: boolean;
   deliveryDate?: string;
   notes?: string;
+}
+
+export interface BottleInventoryResponseDTO {
+  configured: boolean;
+  validQuantity: number;
+  expiredQuantity: number;
+  filledQuantity: number;
+  emptyValidQuantity: number;
+  totalQuantity: number;
 }

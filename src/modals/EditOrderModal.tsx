@@ -14,6 +14,7 @@ interface EditOrderModalProps {
 }
 
 interface EditItem {
+  bottleMode?: import('../types').BottleMode;
   productId: string;
   quantity: number;
   unitPrice: number;
@@ -33,6 +34,7 @@ const gasMethods: { value: GasPaymentMethod; label: string; icon: string }[] = [
 
 function toEditItem(i: OrderResponseDTO['items'][number]): EditItem {
   return {
+    bottleMode: i.bottleMode,
     productId: i.productId,
     quantity: i.quantity,
     unitPrice: i.unitPrice,
@@ -145,6 +147,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         isDelivery,
         notes: notes.trim() || undefined,
         items: validItems.map((i): OrderItemRequestBody => ({
+          bottleMode: i.bottleMode,
           productId: i.productId,
           quantity: i.quantity,
           unitPrice: itemPrice(i),
@@ -314,6 +317,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                               <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
+                          {products.find(p => p.id === item.productId)?.type === 'WATER' && <select aria-label="Tipo da venda de garrafão" value={item.bottleMode ?? 'REFILL'} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={inputCls + ' mt-2'}><option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido sem água</option></select>}
                           {(item.receivedByUs || products.find((p) => p.id === item.productId)?.type === 'GAS') && (
                             <div className="mt-2 space-y-2">
                               <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
