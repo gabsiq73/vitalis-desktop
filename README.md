@@ -242,3 +242,30 @@ crédito financeiro e SALDO permanecem disponíveis.
 Teste dirigido do rascunho: `node --experimental-strip-types --test tests/orderDraft.test.mjs`.
 
 Banco e instruções da API estão no repositório [vitalis](https://github.com/gabsiq73/vitalis).
+
+## Instalador Windows 11 x64
+
+No backend, com JDK 21 x64 e PowerShell 7, gere o JAR e o runtime em uma pasta nova.
+Na primeira compilacao, use desktop-runtime na raiz do checkout desktop.
+
+```powershell
+pwsh -File scripts/build-desktop-runtime.ps1 -Destination <checkout-desktop>/desktop-runtime
+```
+
+No desktop, rode npm ci e npm run build -- --win nsis --x64 --publish never.
+O instalador fica em release/1.0.0. Entregue tambem scripts/setup-pc.ps1.
+
+No PC do usuario, abra PowerShell como administrador na mesma conta Windows
+que usara o app e execute .\setup-pc.ps1. O script usa o pacote oficial EDB
+via winget, exige internet e elevacao e assume a pasta padrao PostgreSQL\16.
+Com servidor Windows ja instalado, informe a senha administrativa quando
+solicitada e use -Port se a porta for diferente de 5432. A instalacao silenciosa
+passa a senha administrativa temporaria ao instalador pela linha de comando,
+visivel a administradores e ferramentas de auditoria do Windows durante a instalacao.
+A conta vitalis tem uma senha separada, gravada no perfil Windows do usuario.
+O script recusa adotar um banco preexistente sem configuracao correspondente.
+
+Execute o instalador do Vitalis e abra pelo menu Iniciar. Configuracao, logs
+e ate sete backups automaticos ficam em %APPDATA%\Vitalis. O PostgreSQL roda
+como servico do Windows. Confira a restauracao de um backup em um banco separado
+antes de usar o app com dados reais.
