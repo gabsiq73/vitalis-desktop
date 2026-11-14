@@ -197,10 +197,10 @@ else {
     })
     win = new BrowserWindow({
       title: 'Vitalis',
-      fullscreen: true,
       icon: path.join(root, 'dist', 'icon_vitalis.ico'),
       webPreferences: { sandbox: false, preload: path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.mjs') },
     })
+    win.maximize()
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     win.webContents.on('will-navigate', event => event.preventDefault())
     if (developmentUrl) {
