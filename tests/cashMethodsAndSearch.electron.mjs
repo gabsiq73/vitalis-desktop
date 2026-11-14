@@ -78,6 +78,12 @@ try {
   await page.screenshot({ path: join(tmpdir(), 'vitalis-gas-methods.png') });
   await page.goto('http://localhost:5173/#/cash-register');
   await page.getByText('Saldo do PIX', { exact: true }).waitFor();
+  const dailySales = await checkBalances(140, 280);
+  assert.equal(dailySales.depotDeliveredSales - base.depotDeliveredSales, 200);
+  assert.equal(dailySales.totalInvoiced - base.totalInvoiced, 300);
+  const salesCard = page.getByText('Vendas entregues (valor bruto)', { exact: true }).locator('..');
+  const displayedSales = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dailySales.depotDeliveredSales);
+  await salesCard.getByText(displayedSales, { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Registrar retirada', exact: true }).click();
   await page.getByLabel(/^Valor \(R\$\)/).fill('10');
   await page.getByLabel(/^Motivo/).fill('Troco para trabalhar');

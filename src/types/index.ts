@@ -317,6 +317,7 @@ export interface GasSettlementMovementDTO {
 }
 
 export interface FinancialReportDTO {
+  depotDeliveredSales: number;
   cashBalance: number;
   pixBalance: number;
   unclassifiedGasNet: number;

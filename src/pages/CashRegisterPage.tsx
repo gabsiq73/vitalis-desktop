@@ -79,7 +79,7 @@ export function CashRegisterPage() {
   const isToday = selectedDate === toLocalDateParam(new Date());
 
   const totals = dailyCashTotals(payments);
-  const faturado   = financial?.totalInvoiced;
+  const faturado   = financial?.depotDeliveredSales;
   const recebido   = financial?.totalReceived;
   const saldoCaixa = financial?.cashBalance;
   const saldoPix = financial?.pixBalance;
@@ -165,6 +165,8 @@ export function CashRegisterPage() {
             ))}
           </div>
         </div>
+
+        <p className="text-xs text-slate-500">Vendas entregues excluem o gás recebido pelo entregador. Nesse caso, apenas o acerto recebido entra no saldo.</p>
 
         {!loading && (financial?.unclassifiedGasCount ?? 0) > 0 && <p role="status" className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
           {financial!.unclassifiedGasCount} acerto(s) antigo(s) sem meio informado. Esses valores ainda não compõem os saldos de Dinheiro e PIX.

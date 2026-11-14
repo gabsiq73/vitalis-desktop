@@ -250,6 +250,11 @@ salvar pagamento, acerto e entrega na mesma transação. Pagamentos parciais
 legados são preservados; alterações de recebedor com pagamentos avulsos ou
 acertos já liquidados são recusadas pelo backend.
 
+No Caixa do Dia, **Vendas entregues (valor bruto)** usa `depotDeliveredSales` do
+relatório diário: exclui o gás recebido pelo entregador e inclui o valor bruto do
+gás recebido pelo depósito. Margens e acertos seguem separados; o faturamento
+geral (`totalInvoiced`) continua incluindo todas as vendas entregues.
+
 Relatórios e Caixa do Dia distinguem valor bruto vendido, dinheiro recebido no
 depósito e margem do gás. A margem entregue pode estar pendente de repasse:
 ela não é uma entrada adicional de caixa. Os movimentos de acertos no livro-caixa
