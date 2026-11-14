@@ -239,16 +239,31 @@ totais e contagens indisponíveis até uma nova consulta. Teste dirigido:
 `node --experimental-strip-types --test tests/dailyCashTotals.test.mjs`.
 
 O livro-caixa usa os detalhes `cashMovements` e `gasSettlementMovements` do
-financeiro diário e exibe `finalBalance` sem recalcular ou duplicar acertos.
+financeiro diário. **Saldo do Caixa** usa `cashBalance`, apenas dinheiro físico;
+**Saldo do PIX** usa `pixBalance`. Recebimentos incluem créditos novos de clientes,
+mas SALDO utilizado não é nova entrada. `finalBalance` permanece como total
+combinado no contrato e não é usado para conferir o dinheiro físico.
 Administradores podem registrar entrada, retirada com motivo e ajuste em
 `POST /cash-movements`. A direção é enviada somente para ajustes; nas respostas,
 entradas e retiradas têm direção nula e seu sinal é determinado pelo tipo.
-A conferência compara o valor informado com o saldo do dia retornado pela API
-(PIX/Dinheiro, movimentos manuais e acertos liquidados), não apenas o dinheiro
-físico nem o saldo acumulado. A diferença zero não gera lançamento; se a base
+A conferência compara o valor contado com `cashBalance` da data selecionada.
+Entradas, retiradas e ajustes manuais movimentam apenas dinheiro físico.
+Acertos individuais ou por distribuidora exigem escolher PIX ou Dinheiro e alteram
+apenas o saldo escolhido, na data da liquidação. `paymentMethod` aparece nos
+acertos e no livro-caixa. Registros antigos sem meio informado ficam separados,
+com aviso no caixa; use **Informar meio do acerto antigo** em Acertos de Gás para
+classificá-los preservando sua data. A diferença zero não gera lançamento; se a base
 mudar antes de confirmar, o operador deve revisá-la. Exclusão de movimentos e
 mudanças nas regras de fechamento não fazem parte desse fluxo.
 Teste dirigido: `node --experimental-strip-types --test tests/cashMovement.test.mjs`.
+
+A busca por nome em Clientes e Novo Pedido ignora acentos e maiúsculas no backend,
+antes da paginação e preservando os filtros de tipo e clientes ativos. Não exige
+extensão PostgreSQL ou alteração dos nomes cadastrados. Atualize o backend antes
+do desktop: acertos exigem `paymentMethod=PIX|DINHEIRO` nos endpoints de liquidação,
+e o financeiro diário acrescenta os saldos separados e a contagem de acertos antigos.
+Teste completo: `node tests/cashMethodsAndSearch.electron.mjs`, com Playwright e
+`CASH_METHODS_TEST_API` apontando para uma API real descartável.
 
 O contrato coordenado da descontinuação remove `fidelityPoints` e
 `pendingBonusWater` de clientes e `pointsPerWaterItem`/`pointsPerFreeWater` de

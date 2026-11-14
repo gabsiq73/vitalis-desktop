@@ -134,6 +134,7 @@ export interface GasSupplierResponseDTO {
 export type SettlementType = 'YOU_OWE' | 'SUPPLIER_OWE';
 
 export interface GasSettlementResponseDTO {
+  paymentMethod: GasPaymentMethod | null;
   id: string;
   supplierName: string;
   amount: number;
@@ -303,6 +304,7 @@ export interface CashMovementResponseDTO {
 }
 
 export interface GasSettlementMovementDTO {
+  paymentMethod: GasPaymentMethod | null;
   id: string;
   supplierName: string;
   type: SettlementType;
@@ -312,6 +314,10 @@ export interface GasSettlementMovementDTO {
 }
 
 export interface FinancialReportDTO {
+  cashBalance: number;
+  pixBalance: number;
+  unclassifiedGasNet: number;
+  unclassifiedGasCount: number;
   totalInvoiced: number;
   totalReceived: number;
   gasGrossProfit: number;

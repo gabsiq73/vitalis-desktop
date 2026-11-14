@@ -81,7 +81,8 @@ export function CashRegisterPage() {
   const totals = dailyCashTotals(payments);
   const faturado   = financial?.totalInvoiced;
   const recebido   = financial?.totalReceived;
-  const saldoCaixa = financial?.finalBalance;
+  const saldoCaixa = financial?.cashBalance;
+  const saldoPix = financial?.pixBalance;
   const pix        = paymentsError ? undefined : totals.PIX.amount;
   const dinheiro   = paymentsError ? undefined : totals.DINHEIRO.amount;
   const saldoUsado = paymentsError ? undefined : totals.SALDO.amount;
@@ -98,11 +99,13 @@ export function CashRegisterPage() {
     ...(financial?.cashMovements ?? []).map(movement => ({
       ...movement, direction: cashMovementDirection(movement), key: `manual-${movement.id}`,
       label: { ENTRY: 'Entrada manual', WITHDRAWAL: 'Retirada', ADJUSTMENT: 'Ajuste' }[movement.type],
+      paymentMethod: 'DINHEIRO',
     })),
     ...(financial?.gasSettlementMovements ?? []).map(settlement => ({
       key: `gas-${settlement.id}`, occurredAt: settlement.settledDate, direction: settlement.direction,
       amount: settlement.amount, label: settlement.type === 'SUPPLIER_OWE' ? 'Comissão de gás' : 'Repasse de gás',
       note: `Fornecedor: ${settlement.supplierName}`,
+      paymentMethod: settlement.paymentMethod,
     })),
   ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
@@ -141,11 +144,12 @@ export function CashRegisterPage() {
         {/* Summary banner */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-primary via-teal to-green-400" />
-          <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
             {[
               { label: 'Vendas entregues (valor bruto)', value: faturado, color: 'text-slate-800', icon: 'receipt_long' },
               { label: 'Recebido no depósito', value: recebido, color: 'text-teal', icon: 'check_circle' },
               { label: 'Saldo do Caixa', value: saldoCaixa, color: (saldoCaixa ?? 0) >= 0 ? 'text-primary' : 'text-red-600', icon: 'account_balance_wallet' },
+              { label: 'Saldo do PIX', value: saldoPix, color: (saldoPix ?? 0) >= 0 ? 'text-teal' : 'text-red-600', icon: 'pix' },
             ].map((item, i) => (
               <div key={item.label} className={`flex items-start gap-3 ${i < 2 ? 'md:border-r md:border-slate-100 md:pr-6' : ''}`}>
                 <div className="p-2 rounded-lg bg-slate-50 flex-shrink-0">
@@ -162,6 +166,10 @@ export function CashRegisterPage() {
           </div>
         </div>
 
+        {!loading && (financial?.unclassifiedGasCount ?? 0) > 0 && <p role="status" className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+          {financial!.unclassifiedGasCount} acerto(s) antigo(s) sem meio informado. Esses valores ainda não compõem os saldos de Dinheiro e PIX.
+          {' '}<button className="font-semibold underline" onClick={() => navigate('/gas-settlements')}>Informar meio nos acertos de gás</button>
+        </p>}
         {/* KPI cards — by method */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
@@ -365,11 +373,11 @@ export function CashRegisterPage() {
                   { type: 'WITHDRAWAL', label: 'Registrar retirada' },
                   { type: 'ADJUSTMENT', label: 'Ajustar caixa' },
                 ] as const).map(action => (
-                  <button key={action.type} disabled={loading || !financial} onClick={() => setMovementType(action.type)} className="px-3 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-primary hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">{action.label}</button>
+                  <button key={action.type} disabled={loading || saldoCaixa === undefined} onClick={() => setMovementType(action.type)} className="px-3 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-primary hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">{action.label}</button>
                 ))}
               </div>
             </div>
-            <p className="text-xs text-slate-500">Saldo do dia, incluindo recebimentos, entradas, retiradas e acertos de gás. O total inclui PIX e dinheiro.</p>
+            <p className="text-xs text-slate-500">Saldos desta data separados por meio. Entradas, retiradas e ajustes manuais alteram apenas o dinheiro físico. Acertos de gás alteram o saldo do meio escolhido.</p>
             {!loading && financial && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
               <span>Entradas manuais: {formatBRL(financial.totalEntries)}</span>
               <span>Ajustes líquidos: {formatBRL(financial.totalAdjustments)}</span>
@@ -384,11 +392,12 @@ export function CashRegisterPage() {
             : <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-slate-50 text-left text-xs text-slate-500">
-                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Entrada / saída</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
+                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Meio</th><th className="px-4 py-3">Entrada / saída</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">{ledgerRows.map(row => <tr key={row.key}>
                   <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">{formatTime(row.occurredAt)}</td>
                   <td className="px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                  <td className="px-4 py-3 text-slate-600">{row.paymentMethod ? METHOD_LABEL[row.paymentMethod] : 'Sem meio informado'}</td>
                   <td className={`px-4 py-3 ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? 'Entrada' : row.direction === 'OUT' ? 'Saída' : 'Não informada'}</td>
                   <td className="px-4 py-3 text-slate-600 whitespace-pre-wrap break-words max-w-sm">{row.note || '—'}</td>
                   <td className={`px-5 py-3 text-right font-bold whitespace-nowrap ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? '+' : row.direction === 'OUT' ? '−' : ''} {formatBRL(row.amount)}</td>
@@ -396,7 +405,7 @@ export function CashRegisterPage() {
               </table>
             </div>}
         </section>
-        {movementType && !loading && financial && <CashMovementModal type={movementType} date={selectedDate} balance={financial.finalBalance} onClose={() => setMovementType(null)} onSuccess={() => { setMovementType(null); fetchData(); }} />}
+        {movementType && !loading && saldoCaixa !== undefined && <CashMovementModal type={movementType} date={selectedDate} balance={saldoCaixa} onClose={() => setMovementType(null)} onSuccess={() => { setMovementType(null); fetchData(); }} />}
 
       </main>
     </div>
