@@ -353,7 +353,7 @@ export function OrdersPage() {
             }`}
           >
             <option value="">Pagamento: Todos</option>
-            <option value="PENDING">Fiado</option>
+            <option value="PENDING">Em aberto (Aguardando / Fiado)</option>
             <option value="PARTIAL">Pagamento parcial</option>
             <option value="PAID">Pago</option>
           </select>
@@ -410,7 +410,7 @@ export function OrdersPage() {
                 ) : (
                   orders.map((order) => {
                     const statusBadge = getOrderStatusBadge(order.status, order.deliveryDate);
-                    const paymentBadge = getPaymentStatusBadge(order.paymentStatus);
+                    const paymentBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
                     const isDelivered = order.status === 'DELIVERED';
                     const isCancelled = order.status === 'CANCELLED';
                     const isLoadingThis = actionLoading === order.id;

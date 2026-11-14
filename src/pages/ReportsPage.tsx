@@ -99,11 +99,13 @@ export function ReportsPage() {
   // Payment status breakdown
   const paidOrders = periodOrders.filter(o => o.paymentStatus === 'PAID').length;
   const partialOrders = periodOrders.filter(o => o.paymentStatus === 'PARTIAL').length;
-  const pendingPayment = periodOrders.filter(o => o.paymentStatus === 'PENDING').length;
+  const pendingPayment = periodOrders.filter(o => o.paymentStatus === 'PENDING' && o.status !== 'DELIVERED' && o.status !== 'CANCELLED').length;
+  const fiadoPayment = periodOrders.filter(o => o.paymentStatus === 'PENDING' && o.status === 'DELIVERED').length;
   const paymentStatusData = [
     { name: 'Pago', value: paidOrders, color: '#22c55e' },
     { name: 'Parcial', value: partialOrders, color: '#eab308' },
-    { name: 'Fiado', value: pendingPayment, color: '#f97316' },
+    { name: 'Aguardando', value: pendingPayment, color: '#64748b' },
+    { name: 'Fiado', value: fiadoPayment, color: '#f97316' },
   ].filter(d => d.value > 0);
 
   // Stock health

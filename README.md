@@ -152,8 +152,11 @@ pagamento/entrada no caixa. Pagamento parcial mantém o modal aberto para recebe
 o restante ou escolher fiado. Após essa etapa, a confirmação de entrega existente
 continua, preservando a revisão do gás; pedidos pagos seguem diretamente para ela.
 
-Fiado usa o estado `PENDING` existente, apresentado como “Fiado” na interface,
-sem novo método de pagamento ou enum no backend. A confirmação da entrega torna
+Pagamento `PENDING` aparece como “Aguardando” antes da entrega e como “Fiado”
+somente depois da entrega confirmada com valor em aberto. Escolher **Registrar fiado**
+e cancelar a confirmação ainda mantém “Aguardando”. Não há novo método de pagamento
+ou enum no backend. O filtro “Em aberto” inclui ambos; Relatórios os separa.
+A confirmação da entrega torna
 o saldo em aberto uma dívida do cliente. Para receber depois de uma entrega fiada,
 o registro de pagamento permanece disponível no detalhe do pedido. Os endpoints
 de pagamento e entrega são separados: se o pagamento for registrado e a entrega
@@ -161,6 +164,10 @@ falhar ou for cancelada pelo operador, o valor continua registrado e não é cob
 novamente ao retomar o fluxo. Uma falha após parcela registrada exige atualizar
 o saldo antes de tentar novamente. Teste de rótulos:
 `node --experimental-strip-types --test tests/paymentStatusLabel.test.mjs`.
+Teste do fluxo no Electron: `node tests/paymentStatus.electron.mjs`, com
+Playwright (ou `PLAYWRIGHT_MODULE`), desktop em `localhost:5173` e
+`PAYMENT_STATUS_TEST_API` apontando para uma API real descartável. O teste
+verifica a escolha de fiado cancelada e a entrega efetivamente confirmada.
 
 Os alertas de estoque no Dashboard, em Estoque e em Relatórios seguem a mesma
 regra: zerado, no mínimo/abaixo do mínimo, ou normal. `GET /stocks` deve retornar

@@ -84,9 +84,13 @@ export function getOrderStatusBadge(
   return map[status.toUpperCase()] ?? { label: status, className: 'bg-gray-100 text-gray-600' };
 }
 
-export function getPaymentStatusBadge(status: string): { label: string; className: string } {
+export function getPaymentStatusBadge(status: string, orderStatus: string): { label: string; className: string } {
+  if (status.toUpperCase() === 'PENDING') {
+    if (orderStatus.toUpperCase() === 'DELIVERED') return { label: 'Fiado', className: 'bg-orange-100 text-orange-700' };
+    if (orderStatus.toUpperCase() === 'CANCELLED') return { label: 'Cancelado', className: 'bg-red-100 text-red-700' };
+    return { label: 'Aguardando', className: 'bg-slate-100 text-slate-700' };
+  }
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: { label: 'Fiado', className: 'bg-orange-100 text-orange-700' },
     PARTIAL: { label: 'Parcial', className: 'bg-yellow-100 text-yellow-700' },
     PAID: { label: 'Pago', className: 'bg-green-100 text-green-700' },
     CANCELLED: { label: 'Cancelado', className: 'bg-red-100 text-red-700' },
