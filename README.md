@@ -36,6 +36,31 @@ npm run dev
 
 O plugin do Vite inicia o processo principal do Electron. Faça login com um usuário existente no backend.
 
+## Primeira utilização
+
+Com a API local em execução, clique em **Criar conta** na tela de login.
+Informe nome, sobrenome opcional, nome de usuário, email, senha (mínimo de
+6 caracteres), confirmação e perfil **Administrador** ou **Vendedor**.
+O cadastro permite criar a primeira conta e outros administradores sem login,
+convite, SQL ou conta padrão. Após o sucesso, o login recebe o nome de usuário
+preenchido; informe sua senha para entrar pelo HTTP Basic existente.
+
+O cadastro usa `POST /users` sem Authorization e não persiste senha nem
+confirmação como rascunho. Requer o tratamento de duplicidade e validação do
+backend da issue `gabsiq73/vitalis#12`. Erros preservam o formulário para correção;
+API indisponível recebe mensagem distinta. **Usuários → Novo Usuário** reutiliza
+o formulário e mantém a sessão de quem está operando.
+
+Teste dirigido das validações de usuário:
+`node --experimental-strip-types --test tests/userValidation.test.mjs`.
+O teste `node tests/registration.electron.mjs` requer Playwright instalado,
+`npm run dev` em `localhost:5173` e API local. Usa perfil Electron separado,
+cria contas temporárias e as remove ao terminar. `PLAYWRIGHT_MODULE` aceita
+o módulo de uma instalação existente. Para verificar a primeira conta em uma
+API descartável com banco vazio, informe `REGISTRATION_TEST_API` com seu endereço
+e `REGISTRATION_EXPECT_EMPTY=1`; só o teste encaminha as requisições a essa API.
+O endereço do aplicativo continua fixo em `http://localhost:8080`.
+
 ## Build e verificação
 
 ```powershell

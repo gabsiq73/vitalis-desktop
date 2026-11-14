@@ -8,6 +8,7 @@ export function cashMovementApiError(error: unknown): string {
 
 export function parseApiError(err: unknown): string {
   if (!isAxiosError(err)) return 'Erro de conexão. Verifique se o servidor está rodando.';
+  if (!err.response) return 'API indisponível. Verifique se o servidor local está em execução e tente novamente.';
   const status = err.response?.status;
   const data = err.response?.data as Record<string, unknown> | undefined;
   if (!data) return `Erro no servidor (${status ?? 'desconhecido'}). Tente novamente.`;
