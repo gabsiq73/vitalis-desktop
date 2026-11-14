@@ -20,3 +20,8 @@ test('older isBonus marker is removed and empty drafts remain valid', () => {
   assert.equal(restoreOrderDraftItems([{ quantity: 1, isBonus: true }]).needsReview, true);
   assert.deepEqual(restoreOrderDraftItems([]), { items: [], needsReview: false });
 });
+
+test('negotiated water price survives draft restoration without becoming a client price', () => {
+  const items = [{ productId: 'water', quantity: 2, waterUnitPrice: '6.50' }];
+  assert.deepEqual(restoreOrderDraftItems(items), { items, needsReview: false });
+});

@@ -35,6 +35,7 @@ interface ItemForm {
   receivedByUs: boolean;
   gasPaymentMethod: GasPaymentMethod | null;
   unitPrice?: number;
+  waterUnitPrice?: string;
 }
 
 interface NewOrderModalProps {
@@ -279,7 +280,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function updateItem<K extends keyof ItemForm>(idx: number, key: K, value: ItemForm[K]) {
     setItems((p) => p.map((item, i) => {
       if (i !== idx) return item;
-      const updated = { ...item, [key]: value, ...((key === 'productId' || (key === 'quantity' && item.unitPrice === 0)) ? { unitPrice: undefined } : {}) };
+      const updated = { ...item, [key]: value, ...((key === 'productId' || (key === 'quantity' && item.unitPrice === 0)) ? { unitPrice: undefined } : {}), ...(key === 'productId' ? { waterUnitPrice: undefined } : {}) };
       return updated;
     }));
   }
@@ -295,6 +296,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   function getItemUnitPrice(item: ItemForm): number {
     const p = getProduct(item.productId);
     if (!p) return 0;
+    if (p.type === 'WATER' && item.waterUnitPrice !== undefined) {
+      if (item.waterUnitPrice !== '') return Number(item.waterUnitPrice);
+    }
+    if (isEditMode && item.unitPrice !== undefined) {
+      return item.unitPrice;
+    }
     const custom = getClientCustomPrice(item.productId);
     if (custom !== null) return custom;
     if (p.type === 'GAS') return p.basePrice;
@@ -306,9 +313,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     return p.basePrice;
   }
 
-  function getPriceSource(item: ItemForm): 'custom' | 'reseller' | 'discount' | 'base' {
+  function getPriceSource(item: ItemForm): 'manual' | 'custom' | 'reseller' | 'discount' | 'base' {
     const p = getProduct(item.productId);
     if (!p || !item.productId) return 'base';
+    if (item.waterUnitPrice || (isEditMode && item.unitPrice !== undefined)) return 'manual';
     if (getClientCustomPrice(item.productId) !== null) return 'custom';
     if (selectedClient?.clientType === 'RESELLER' && p.resellerPrice) return 'reseller';
     if (!isDelivery && selectedClient?.clientType === 'RETAIL') return 'discount';
@@ -350,6 +358,11 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (validItems.length === 0) {
       setError('Adicione pelo menos um item ao pedido.');
+      return;
+    }
+
+    if (validItems.some((item) => getProduct(item.productId)?.type === 'WATER' && item.waterUnitPrice !== undefined && item.waterUnitPrice !== '' && (!Number.isFinite(Number(item.waterUnitPrice)) || Number(item.waterUnitPrice) <= 0))) {
+      setError('Informe um preço da água maior que zero ou deixe em branco para usar o preço padrão.');
       return;
     }
 
@@ -430,7 +443,12 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
     const orderItems: OrderItemRequestBody[] = validItems.map((item) => {
       const p = getProduct(item.productId);
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
-      if (isEditMode && item.unitPrice !== undefined) base.unitPrice = item.unitPrice;
+      if (p?.type === 'WATER' && item.waterUnitPrice !== undefined) {
+        if (item.waterUnitPrice !== '') base.unitPrice = Number(item.waterUnitPrice);
+        else if (isEditMode && item.unitPrice !== undefined) base.unitPrice = item.unitPrice;
+      } else if (isEditMode && item.unitPrice !== undefined) {
+        base.unitPrice = item.unitPrice;
+      }
       if (p?.type === 'GAS') {
         if (item.supplierId) base.supplierId = item.supplierId;
         if (item.gasCostPrice) base.gasCostPrice = parseFloat(item.gasCostPrice);
@@ -844,13 +862,25 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               <div className="px-1">
                                 {(() => {
                                     const src = getPriceSource(item);
-                                    const colorMap: Record<string, string> = { custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
-                                    const badgeMap: Record<string, string | null> = { custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
+                                    const colorMap: Record<string, string> = { manual: 'text-primary', custom: 'text-amber-600', reseller: 'text-violet-700', discount: 'text-primary', base: 'text-slate-800' };
+                                    const badgeMap: Record<string, string | null> = { manual: 'Preço neste pedido', custom: '★ preço especial', reseller: '⬟ revenda', discount: '↓ desconto retirada', base: null };
                                     return (
                                       <>
-                                        <span className={`text-[13px] font-bold ${colorMap[src]}`}>
-                                          {item.productId ? formatBRL(unitPrice) : '—'}
-                                        </span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min={isEditMode && item.waterUnitPrice === undefined && item.unitPrice === 0 ? 0 : 0.01}
+                                          disabled={!item.productId}
+                                          aria-label={`Preço unitário da água no item ${idx + 1}`}
+                                          value={item.waterUnitPrice ?? (isEditMode && item.unitPrice !== undefined ? String(item.unitPrice) : '')}
+                                          onChange={(e) => updateItem(idx, 'waterUnitPrice', e.target.value)}
+                                          placeholder={item.productId ? unitPrice.toFixed(2) : 'Preço'}
+                                          className={cellInputClass + ' text-right'}
+                                        />
+                                        <p className="text-[10px] text-slate-500 mt-1">{item.productId ? `${formatBRL(unitPrice)} por unidade` : 'Selecione o produto'}</p>
+                                        {item.waterUnitPrice && (
+                                          <button type="button" onClick={() => updateItem(idx, 'waterUnitPrice', '')} className="text-[10px] text-primary hover:underline mt-1">{isEditMode ? 'Manter preço atual' : 'Usar preço padrão'}</button>
+                                        )}
                                         {badgeMap[src] && item.productId && (
                                           <p className={`text-[10px] font-bold leading-none mt-0.5 ${colorMap[src]}`}>{badgeMap[src]}</p>
                                         )}
