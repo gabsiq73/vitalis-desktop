@@ -94,8 +94,8 @@ src/
 No pedido, o campo de preço unitário da água permite informar um valor combinado
 somente para aquela venda. O valor manual positivo é enviado como `unitPrice`,
 prevalece sobre preço do produto, preço fixo do cliente, revenda e desconto de
-retirada e atualiza total e pagamento sugerido. Na criação, deixe em branco ou clique em
-**Usar preço padrão** para voltar ao cálculo habitual. O preço permanece no
+retirada e atualiza total e pagamento sugerido. Na criação, deixe o campo em branco
+para voltar ao cálculo habitual. O preço permanece no
 rascunho e no pedido gravado, sem alterar cadastros. Na edição,
 deixar o campo em branco mantém o preço já gravado; itens históricos a zero
 continuam preservados. Pedidos entregues/cancelados mantêm as restrições existentes.
