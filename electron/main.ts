@@ -198,7 +198,7 @@ else {
     win = new BrowserWindow({
       title: 'Vitalis',
       icon: path.join(root, 'dist', 'icon_vitalis.ico'),
-      webPreferences: { sandbox: false, preload: path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.mjs') },
+      webPreferences: { sandbox: false, preload: path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.cjs') },
     })
     win.maximize()
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
