@@ -197,6 +197,7 @@ else {
     })
     win = new BrowserWindow({
       title: 'Vitalis',
+      fullscreen: true,
       icon: path.join(root, 'dist', 'icon_vitalis.ico'),
       webPreferences: { sandbox: false, preload: path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.mjs') },
     })
