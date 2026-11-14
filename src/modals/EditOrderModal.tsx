@@ -17,6 +17,7 @@ interface EditItem {
   productId: string;
   quantity: number;
   unitPrice: number;
+  waterUnitPrice?: string;
   productName: string;
   supplierId: string;
   gasCostPrice: number | undefined;
@@ -102,13 +103,14 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
       if (i !== idx) return item;
       if (field === 'productId') {
         const p = products.find((p) => p.id === value);
-        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true };
+        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0, waterUnitPrice: undefined, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true };
       }
       return { ...item, [field]: value, ...((field === 'receivedByUs' || field === 'gasPaymentMethod') ? { gasFinancialChanged: true } : {}) };
     }));
   }
 
-  const total = items.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
+  const itemPrice = (item: EditItem) => item.waterUnitPrice ? Number(item.waterUnitPrice) : item.unitPrice;
+  const total = items.reduce((sum, i) => sum + (itemPrice(i) * i.quantity), 0);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -117,6 +119,10 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
     const validItems = items.filter((i) => i.productId && i.quantity > 0);
     if (!isShipped && validItems.length === 0) {
       setError('O pedido precisa ter pelo menos um item.');
+      return;
+    }
+    if (validItems.some((item) => item.waterUnitPrice && (!Number.isFinite(Number(item.waterUnitPrice)) || Number(item.waterUnitPrice) <= 0))) {
+      setError('Informe um preço da água maior que zero ou deixe em branco para manter o preço atual.');
       return;
     }
     if (validItems.some((i) => i.receivedByUs === true && !i.gasPaymentMethod && i.gasFinancialChanged)) {
@@ -141,7 +147,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         items: validItems.map((i): OrderItemRequestBody => ({
           productId: i.productId,
           quantity: i.quantity,
-          unitPrice: i.unitPrice,
+          unitPrice: itemPrice(i),
           ...(i.supplierId ? { supplierId: i.supplierId } : {}),
           ...(i.gasCostPrice != null ? { gasCostPrice: i.gasCostPrice } : {}),
           ...(i.receivedByUs != null ? { receivedByUs: i.receivedByUs } : {}),
@@ -360,7 +366,22 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
-                          <span className="text-[13px] font-semibold text-slate-700">{item.productId ? formatBRL(item.unitPrice * item.quantity) : '—'}</span>
+                          {products.find((p) => p.id === item.productId)?.type === 'WATER' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              disabled={isItemsReadOnly}
+                              aria-label={`Preço unitário da água no item ${idx + 1}`}
+                              value={item.waterUnitPrice ?? ''}
+                              placeholder={item.unitPrice.toFixed(2)}
+                              onChange={(e) => updateItem(idx, 'waterUnitPrice', e.target.value)}
+                              className={inputCls + ' text-right'}
+                            />
+                          ) : (
+                            <span className="text-[13px] font-semibold text-slate-700">{item.productId ? formatBRL(item.unitPrice) : '—'}</span>
+                          )}
+                          <span className="block text-[11px] text-slate-500 mt-1">{item.productId ? `Subtotal: ${formatBRL(itemPrice(item) * item.quantity)}` : ''}</span>
                         </td>
                         <td className="px-2 py-2">
                           {items.length > 1 && (
