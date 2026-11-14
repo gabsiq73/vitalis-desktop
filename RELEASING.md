@@ -1,5 +1,31 @@
 # Publicar o Vitalis no GitHub Releases
 
+## Fechamento / 1.0.5
+
+A branch de origem já estava na versão 1.0.5. O fechamento requer o backend
+correspondente, com migrations V2 (custos congelados e classificação de saídas)
+e V3 (compatibilidade das operações existentes). A V1 permanece intacta.
+Leia `FECHAMENTO.md` no backend para as limitações de crédito/adiantamento,
+fiado antigo, garrafões e gás recebido pelo entregador.
+
+O login/cadastro aguarda `/health` com status UP. Depois de 60 segundos mostra
+erro e nova tentativa, com o caminho de logs. Falhas ao iniciar a API embutida
+também mostram erro na janela, logs e botão que reinicia a inicialização.
+
+Nesta entrega o instalador foi adiado pelo dono. Validação sem NSIS/publicação:
+`npx tsc && npx vite build`. Quando for autorizado gerar os artefatos, atualize
+primeiro o runtime do backend e use `npm run build -- --win nsis --x64 --publish never`.
+Gere `.exe`, `.exe.blockmap` e `latest.yml` juntos; compare o SHA-512 em base64
+do executável com `sha512` em `latest.yml`. Não reutilize metadados de build anterior.
+
+Testes de lógica: `node --experimental-strip-types --test tests/*.test.mjs`.
+Teste Electron/PostgreSQL: `tests/closing.electron.mjs`, API descartável na porta
+8084, Vite em 5175, `CLOSING_TEST_API=http://127.0.0.1:8084` e `PLAYWRIGHT_MODULE`
+apontando para Playwright instalado. Usa somente o Postgres de teste, nunca a
+configuração/dados da instalação operacional.
+
+## Procedimento de publicação
+
 Use Releases do repositorio publico gabsiq73/vitalis-desktop. Um repositorio
 separado so vale a pena se for preciso separar permissoes de publicacao.
 O destino fica gravado no instalador. Preserve appId e productName.

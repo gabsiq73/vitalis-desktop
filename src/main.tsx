@@ -2,14 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { configureApi } from './api/http'
+import { ApiReadinessGate } from './components/ApiReadinessGate'
 
 async function render() {
-  const desktop = window.vitalis
-  if (desktop) configureApi(await desktop.getApiUrl())
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <App />
+      <ApiReadinessGate><App /></ApiReadinessGate>
     </React.StrictMode>,
   )
 }

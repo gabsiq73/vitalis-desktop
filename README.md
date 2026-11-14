@@ -180,6 +180,19 @@ A autenticação usa HTTP Basic e a sessão é guardada localmente. Respostas pa
 
 ## Navegação
 
+**Fechamento** consulta `GET /reports/closing?year=...&month=...` (administrador).
+Mostra lucro de água/gás na data do pagamento, compras/despesas, saldo diário e
+acumulado, retirada informativa, totais e quadro de faturamento bruto/percentuais.
+Todos os cálculos vêm da API; o desktop apenas formata. Avisos do backend indicam
+custos antigos estimados, crédito sem rastreio e outras situações não apropriadas.
+No Caixa do Dia, **Registrar retirada** mantém o padrão antigo e permite escolher
+Compra de casa ou Despesa e dinheiro/PIX. A listagem mostra tipo e meio da saída.
+Requer as novas migrations do backend, sem editar a V1 nem alterar dados antigos.
+
+Login/cadastro só são liberados após `/health` responder UP. Falha em 60 segundos
+mostra erro, logs e botão de nova tentativa. Os logs da instalação ficam na pasta
+`logs` dentro dos dados do Vitalis; a tela mostra o caminho completo.
+
 As rotas protegidas estão em `src/App.tsx`. A barra lateral oferece Dashboard, Pedidos, Clientes, Caixa do Dia, Produtos, Estoque, Fornecedores, Vasilhames, Fiados, Acertos de Gás, Relatórios, Usuários e Configurações.
 
 O app usa `HashRouter` para funcionar no Electron carregado a partir de arquivo. Não o substitua por `BrowserRouter` sem adaptar o empacotamento.

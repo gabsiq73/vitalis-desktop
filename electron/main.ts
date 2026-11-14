@@ -195,6 +195,15 @@ else {
       if (event.sender !== win?.webContents) throw Error('Janela desconhecida')
       return apiUrl
     })
+    ipcMain.handle('vitalis:logs-path', event => {
+      if (event.sender !== win?.webContents) throw Error('Janela desconhecida')
+      return logs
+    })
+    ipcMain.handle('vitalis:retry-startup', event => {
+      if (event.sender !== win?.webContents || !win.webContents.getURL().startsWith('data:text/html')) throw Error('Janela desconhecida')
+      app.relaunch()
+      app.quit()
+    })
     win = new BrowserWindow({
       title: 'Vitalis',
       icon: path.join(root, 'dist', 'icon_vitalis.ico'),
@@ -223,7 +232,13 @@ else {
       await backup(home, cfg, true)
     }, log, () => quitting)
   }).catch(error => {
-    if (!quitting) dialog.showErrorBox('Vitalis', error instanceof Error ? error.message : 'Falha na inicialização.')
-    app.quit()
+    if (quitting) return
+    const message = error instanceof Error ? error.message : 'Falha na inicialização.'
+    const logs = path.join(app.getPath('userData'), 'logs')
+    const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!))
+    void fs.appendFile(path.join(logs, 'main.log'), new Date().toISOString() + ' ' + message + '\n').catch(() => undefined)
+    if (win && !win.isDestroyed()) {
+      void win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<title>Vitalis</title><body style="font:16px system-ui;background:#f1f5f9;color:#334155;padding:3rem"><main style="max-width:560px;margin:8vh auto;background:white;padding:2rem;border-radius:12px" role="alert"><h1 style="color:#0056b3">Vitalis</h1><h2>Não foi possível iniciar o sistema</h2><p>${escape(message)}</p><p>Login e cadastro aguardam a API local. Consulte os logs em:</p><p style="overflow-wrap:anywhere">${escape(logs)}</p><button style="padding:12px 20px;background:#0056b3;color:white;border:0;border-radius:8px;cursor:pointer" onclick="this.disabled=true;window.vitalis.retryStartup()">Tentar de novo</button></main></body>`)).catch(() => app.quit())
+    } else app.quit()
   })
 }

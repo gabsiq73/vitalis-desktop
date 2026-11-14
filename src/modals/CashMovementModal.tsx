@@ -3,7 +3,7 @@ import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { useScrollToError } from '../hooks/useScrollToError';
-import type { CashMovementDirection, CashMovementType, FinancialReportDTO } from '../types';
+import type { CashMovementDirection, CashMovementType, FinancialReportDTO, GasPaymentMethod, WithdrawalKind } from '../types';
 import { buildCashMovement, cashDifference } from '../utils/cashMovement';
 import { cashMovementApiError } from '../utils/parseApiError';
 import { formatBRL } from '../utils/format';
@@ -27,6 +27,8 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
   const [baseBalance, setBaseBalance] = useState(balance);
   const [occurredAt, setOccurredAt] = useState(() => `${date}T${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`);
   const [note, setNote] = useState('');
+  const [withdrawalKind, setWithdrawalKind] = useState<WithdrawalKind>('RETIRADA');
+  const [paymentMethod, setPaymentMethod] = useState<GasPaymentMethod>('DINHEIRO');
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
   const [error, setError] = useState('');
@@ -42,6 +44,7 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
     try {
       if (occurredAt.slice(0, 10) !== date) throw new Error('Use a data selecionada no Caixa do Dia.');
       payload = buildCashMovement({ type, amount: amount === '' ? NaN : Number(amount), direction, occurredAt, note,
+        ...(type === 'WITHDRAWAL' ? { withdrawalKind, paymentMethod } : {}),
         ...(isConference ? { counted: amount === '' ? NaN : Number(amount), balance: baseBalance } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Revise os dados do lançamento.');
@@ -85,6 +88,16 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
         <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. Este lançamento movimenta apenas dinheiro físico.</p>
         {error && <p ref={errorRef} role="alert" className="p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</p>}
         <fieldset disabled={saving} className="space-y-4">
+          {type === 'WITHDRAWAL' && <>
+            <label className="block text-sm font-medium text-slate-700">Tipo da saída
+              <select aria-label="Tipo da saída" className={inputClass} value={withdrawalKind} onChange={e => setWithdrawalKind(e.target.value as WithdrawalKind)}>
+                <option value="RETIRADA">Retirada (informativa no fechamento)</option><option value="COMPRA">Compra de casa</option><option value="DESPESA">Despesa</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium text-slate-700">Forma da saída
+              <select aria-label="Forma da saída" className={inputClass} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as GasPaymentMethod)}><option value="DINHEIRO">Dinheiro</option><option value="PIX">PIX</option></select>
+            </label>
+          </>}
           {type === 'ADJUSTMENT' && <label className="block text-sm font-medium text-slate-700">Forma de ajuste
             <select className={inputClass} value={conference ? 'CONFERENCE' : 'MANUAL'} onChange={e => { setConference(e.target.value === 'CONFERENCE'); setAmount(''); }}>
               <option value="CONFERENCE">Por conferência de valor</option><option value="MANUAL">Informar entrada ou saída</option>

@@ -20,6 +20,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { GasSettlementsPage } from './pages/GasSettlementsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { CashRegisterPage } from './pages/CashRegisterPage';
+import { ClosingPage } from './pages/ClosingPage';
 import { DebtorsPage } from './pages/DebtorsPage';
 import { useDeliveryNotifications } from './hooks/useDeliveryNotifications';
 
@@ -73,6 +74,7 @@ function App() {
             <Route path="/gas-settlements" element={<GasSettlementsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/cash-register" element={<CashRegisterPage />} />
+            <Route path="/closing" element={<ClosingPage />} />
             <Route path="/debtors" element={<DebtorsPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

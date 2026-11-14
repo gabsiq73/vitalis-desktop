@@ -98,8 +98,8 @@ export function CashRegisterPage() {
   const ledgerRows = [
     ...(financial?.cashMovements ?? []).map(movement => ({
       ...movement, direction: cashMovementDirection(movement), key: `manual-${movement.id}`,
-      label: { ENTRY: 'Entrada manual', WITHDRAWAL: 'Retirada', ADJUSTMENT: 'Ajuste' }[movement.type],
-      paymentMethod: 'DINHEIRO',
+      label: movement.type === 'WITHDRAWAL' ? { RETIRADA: 'Retirada', COMPRA: 'Compra', DESPESA: 'Despesa' }[movement.withdrawalKind ?? 'RETIRADA'] : { ENTRY: 'Entrada manual', ADJUSTMENT: 'Ajuste' }[movement.type],
+      paymentMethod: movement.paymentMethod ?? 'DINHEIRO',
     })),
     ...(financial?.gasSettlementMovements ?? []).map(settlement => ({
       key: `gas-${settlement.id}`, occurredAt: settlement.settledDate, direction: settlement.direction,

@@ -1,4 +1,4 @@
-import type { CashMovementDirection, CashMovementRequestDTO, CashMovementResponseDTO, CashMovementType } from '../types';
+import type { CashMovementDirection, CashMovementRequestDTO, CashMovementResponseDTO, CashMovementType, GasPaymentMethod, WithdrawalKind } from '../types';
 
 export function cashMovementDirection(movement: Pick<CashMovementResponseDTO, 'type' | 'direction'>): CashMovementDirection | null {
   if (movement.type === 'ENTRY') return 'IN';
@@ -16,6 +16,8 @@ export function buildCashMovement(input: {
   direction: CashMovementDirection;
   occurredAt: string;
   note: string;
+  withdrawalKind?: WithdrawalKind;
+  paymentMethod?: GasPaymentMethod;
   counted?: number;
   balance?: number;
 }): CashMovementRequestDTO | null {
@@ -38,5 +40,8 @@ export function buildCashMovement(input: {
     throw new Error('Informe um valor positivo de até R$ 99.999.999,99.');
   }
   const common = { amount: Math.round(amount * 100) / 100, occurredAt, note: note || null };
-  return type === 'ADJUSTMENT' ? { ...common, type, direction } : { ...common, type };
+  return type === 'ADJUSTMENT' ? { ...common, type, direction } : { ...common, type,
+    ...(type === 'WITHDRAWAL' && input.withdrawalKind ? { withdrawalKind: input.withdrawalKind } : {}),
+    ...(type === 'WITHDRAWAL' && input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
+  };
 }

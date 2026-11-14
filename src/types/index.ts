@@ -286,8 +286,12 @@ export interface DailyReportDTO {
 
 export type CashMovementType = 'ENTRY' | 'ADJUSTMENT' | 'WITHDRAWAL';
 export type CashMovementDirection = 'IN' | 'OUT';
+export type WithdrawalKind = 'RETIRADA' | 'COMPRA' | 'DESPESA';
+export type { MonthlyClosingDTO, ClosingValues, ClosingMetric } from './closing';
 
 export type CashMovementRequestDTO = {
+  withdrawalKind?: WithdrawalKind;
+  paymentMethod?: GasPaymentMethod;
   amount: number;
   occurredAt: string;
   note: string | null;
@@ -297,6 +301,8 @@ export type CashMovementRequestDTO = {
 );
 
 export interface CashMovementResponseDTO {
+  withdrawalKind: WithdrawalKind;
+  paymentMethod: GasPaymentMethod;
   id: string;
   type: CashMovementType;
   amount: number;

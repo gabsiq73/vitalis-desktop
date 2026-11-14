@@ -23,5 +23,5 @@ declare namespace NodeJS {
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  vitalis?: { getApiUrl(): Promise<string> }
+  vitalis?: { getApiUrl(): Promise<string>; getLogsPath(): Promise<string>; retryStartup(): Promise<void> }
 }

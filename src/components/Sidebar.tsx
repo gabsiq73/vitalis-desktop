@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: 'shopping_cart', label: 'Pedidos', path: '/orders' },
       { icon: 'group', label: 'Clientes', path: '/clients' },
       { icon: 'point_of_sale', label: 'Caixa do Dia', path: '/cash-register' },
+      { icon: 'event_note', label: 'Fechamento', path: '/closing' },
     ],
   },
   {
