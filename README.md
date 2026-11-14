@@ -100,6 +100,28 @@ src/
 
 ## Integração com a API
 
+A tela de Pedidos pesquisa por cliente, número exibido (com ou sem `#`) ou
+observação em todas as páginas, respeitando os filtros de data, entrega e pagamento.
+Selecione **Todos** nas datas para procurar pedidos antigos. As observações aparecem
+na própria linha, com largura e altura limitadas e rolagem para textos longos.
+
+Em **Fiados → Registrar fiado**, cadastre o saldo ainda devido do caderno, com
+cliente, valor, data original e observação opcional. O cadastro não gera venda,
+estoque, acerto de gás ou recebimento. Ele aparece no histórico e nos pagamentos
+do cliente como **Fiado antigo**; o recebimento usa o fluxo existente, inclusive
+pagamento parcial e crédito excedente. Requer o backend com
+`GET /orders?search=...`, `POST /orders/manual-debts` e `manualDebt` na resposta.
+Atualize o backend antes do desktop. Validação dirigida do lote:
+`node tests/ordersAndDebts.electron.mjs` com Playwright disponível e
+`ORDERS_DEBTS_TEST_API` apontando para uma API real descartável.
+
+Lote validado em 14/11/2026: lint, TypeScript, build com empacotamento Windows,
+19 testes de relatórios/pagamentos/caixa e teste Electron com a API real em H2
+descartável. A verificação visual cobriu 1440 e 1024 pixels, observação longa,
+busca fora da primeira página, cadastro e pagamento parcial de fiado.
+O teste do backend cobre também quitação, excedente, FIFO por data original,
+validações e cancelamento. PostgreSQL e banco operacional não foram utilizados.
+
 No pedido, o campo de preço unitário da água permite informar um valor combinado
 somente para aquela venda. O valor manual positivo é enviado como `unitPrice`,
 prevalece sobre preço do produto, preço fixo do cliente, revenda e desconto de

@@ -8,6 +8,8 @@ import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
 import { applySortInMemory } from '../utils/sort';
+import { NewManualDebtModal } from '../modals/NewManualDebtModal';
+import { parseApiError } from '../utils/parseApiError';
 
 
 export function DebtorsPage() {
@@ -15,6 +17,9 @@ export function DebtorsPage() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showNewDebt, setShowNewDebt] = useState(false);
+  const [revision, setRevision] = useState(0);
   const [debtors, setDebtors] = useState<(ClientResponseDTO & { debt: number })[]>([]);
   const [filtered, setFiltered] = useState<(ClientResponseDTO & { debt: number })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,27 +30,34 @@ export function DebtorsPage() {
   useEffect(() => {
     if (!http) return;
     setLoading(true);
-    http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 1000 } })
-      .then(async (res) => {
-        const overdue = res.data.content.filter((c) => c.clientStatus === 'OVERDUE');
-        // Fetch real outstanding debt for each debtor in parallel
-        const withDebt = await Promise.all(
-          overdue.map(async (c) => {
-            try {
-              const r = await http.get<number>(`/clients/${c.id}/outstanding-debt`);
-              return { ...c, debt: Number(r.data) };
-            } catch {
-              return { ...c, debt: Math.abs(c.balance) };
-            }
-          })
-        );
-        const sorted = withDebt.sort((a, b) => b.debt - a.debt);
-        setDebtors(sorted);
-        setFiltered(sorted);
-      })
-      .catch(() => setDebtors([]))
-      .finally(() => setLoading(false));
-  }, [http]);
+    setError('');
+    let active = true;
+    async function loadDebtors() {
+      const clients: ClientResponseDTO[] = [];
+      let page = 0;
+      let pages = 1;
+      while (page < pages) {
+        const res = await http!.get<SpringPage<ClientResponseDTO>>('/clients', { params: { page, size: 100 } });
+        clients.push(...res.data.content);
+        pages = res.data.totalPages;
+        page += 1;
+      }
+      const overdue = clients.filter((c) => c.clientStatus === 'OVERDUE');
+      const withDebt = await Promise.all(
+        overdue.map(async (c) => {
+          const r = await http!.get<number>(`/clients/${c.id}/outstanding-debt`);
+          return { ...c, debt: Number(r.data) };
+        })
+      );
+      const sorted = withDebt.sort((a, b) => b.debt - a.debt);
+      if (!active) return;
+      setDebtors(sorted);
+      setFiltered(sorted);
+    }
+    loadDebtors().catch(err => { if (active) setError(parseApiError(err)); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [http, revision]);
 
   useEffect(() => {
     let result = debtors;
@@ -82,9 +94,13 @@ export function DebtorsPage() {
               )}
             </p>
           </div>
+          <button onClick={() => setShowNewDebt(true)} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] hover:brightness-110">
+            <span className="material-symbols-outlined" aria-hidden="true">add</span>Registrar fiado
+          </button>
         </div>
 
         {/* KPI strip */}
+        {error && <div role="alert" className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error} <button onClick={() => setRevision(value => value + 1)} className="underline font-semibold">Tentar novamente</button></div>}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
             <div className="flex items-center gap-3 mb-2">
@@ -288,6 +304,10 @@ export function DebtorsPage() {
           )}
         </div>
       </div>
+      {showNewDebt && <NewManualDebtModal onClose={() => setShowNewDebt(false)} onSuccess={() => {
+        setShowNewDebt(false);
+        setRevision(value => value + 1);
+      }} />}
     </>
   );
 }

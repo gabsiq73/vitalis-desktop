@@ -54,6 +54,7 @@ export interface OrderItemResponseDTO {
 }
 
 export interface OrderResponseDTO {
+  manualDebt?: boolean;
   id: string;
   deliveryDate?: string;
   status: OrderStatus;
@@ -65,6 +66,13 @@ export interface OrderResponseDTO {
   createDate: string;
   isDelivery?: boolean;
   loanedBottlesCount?: number;
+  notes?: string;
+}
+
+export interface ManualDebtRequestDTO {
+  clientId: string;
+  amount: number;
+  debtDate: string;
   notes?: string;
 }
 

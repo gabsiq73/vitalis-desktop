@@ -147,7 +147,7 @@ export function OrderDetailPage() {
                     {formatOrderId(order.id)}
                   </h1>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${orderBadge.className}`}>
-                    {orderBadge.label}
+                    {order.manualDebt ? 'Fiado antigo' : orderBadge.label}
                   </span>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${payBadge.className}`}>
                     {payBadge.label}
@@ -171,7 +171,7 @@ export function OrderDetailPage() {
                       <span className="text-slate-300">•</span>
                       <span className="flex items-center gap-1 text-[13px] text-slate-500">
                         <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>event_available</span>
-                        Entrega {new Date(order.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {order.manualDebt ? 'Data do fiado' : 'Entrega'} {new Date(order.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </>
                   )}
@@ -198,7 +198,9 @@ export function OrderDetailPage() {
               )}
             </div>
 
-            {!isCancelled ? (
+            {order.manualDebt ? (
+              <p className="text-sm text-slate-500">Saldo do caderno, sem movimentação de estoque ou venda.</p>
+            ) : !isCancelled ? (
               <div className="flex items-center gap-0 flex-shrink-0">
                 {STATUS_STEPS.map((step, idx) => {
                   const done = idx <= currentStepIdx;
@@ -242,7 +244,7 @@ export function OrderDetailPage() {
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>inventory_2</span>
-                  <h2 className="text-[15px] font-bold text-slate-800">Itens do Pedido</h2>
+                  <h2 className="text-[15px] font-bold text-slate-800">{order.manualDebt ? 'Fiado antigo' : 'Itens do Pedido'}</h2>
                   <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">
                     {order.items.length} {order.items.length === 1 ? 'item' : 'itens'}
                   </span>

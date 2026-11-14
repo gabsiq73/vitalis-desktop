@@ -56,7 +56,7 @@ export function ClientDetailPage() {
   const [client, setClient] = useState<ClientResponseDTO | null>(null);
   const [orders, setOrders] = useState<OrderResponseDTO[]>([]);
   const [bottles, setBottles] = useState<LoanedBottleResponseDTO[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('pedidos');
+  const [activeTab, setActiveTab] = useState<TabId>(() => searchParams.get('tab') === 'pagamentos' ? 'pagamentos' : 'pedidos');
 
   const [orderPayFilter, setOrderPayFilter] = useState<OrderPayFilter>(
     () => (searchParams.get('filter') as OrderPayFilter) ?? 'all'
@@ -425,7 +425,7 @@ export function ClientDetailPage() {
                     return visibleOrders.map((order) => {
                         const statusBadge = getOrderStatusBadge(order.status, order.deliveryDate);
                         const payBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
-                        const itemsSummary = order.items.slice(0, 3).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
+                        const itemsSummary = order.manualDebt ? 'Fiado antigo' : order.items.slice(0, 3).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
                           + (order.items.length > 3 ? ` +${order.items.length - 3}` : '');
                         return (
                           <tr
@@ -434,13 +434,13 @@ export function ClientDetailPage() {
                             className="hover:bg-slate-50/70 transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 font-mono font-semibold text-[13px] text-primary">{formatOrderId(order.id)}</td>
-                            <td className="px-4 py-3 text-[12px] text-slate-500 whitespace-nowrap">{formatDateTime(order.createDate)}</td>
+                            <td className="px-4 py-3 text-[12px] text-slate-500 whitespace-nowrap">{formatDateTime(order.manualDebt && order.deliveryDate ? order.deliveryDate : order.createDate)}</td>
                             <td className="px-4 py-3 text-[12px] text-slate-600 max-w-[180px]">
                               <span className="line-clamp-1">{itemsSummary || '—'}</span>
                             </td>
                             <td className="px-4 py-3 text-[13px] font-bold text-slate-800 whitespace-nowrap">{formatBRL(order.totalValue)}</td>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge.className}`}>{statusBadge.label}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge.className}`}>{order.manualDebt ? 'Fiado antigo' : statusBadge.label}</span>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${payBadge.className}`}>{payBadge.label}</span>
@@ -476,8 +476,8 @@ export function ClientDetailPage() {
                       {pendingOrders.slice(0, 6).map((order) => (
                         <div key={order.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                           <div>
-                            <p className="font-semibold text-[13px] text-slate-700">{formatOrderId(order.id)}</p>
-                            <p className="text-[11px] text-slate-400">{formatDateTime(order.createDate)}</p>
+                            <p className="font-semibold text-[13px] text-slate-700">{order.manualDebt ? 'Fiado antigo · ' : ''}{formatOrderId(order.id)}</p>
+                            <p className="text-[11px] text-slate-400">{formatDateTime(order.manualDebt && order.deliveryDate ? order.deliveryDate : order.createDate)}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-[14px] text-slate-800">{formatBRL(order.totalValue)}</p>
