@@ -107,7 +107,7 @@ export function OrderDetailPage() {
   if (!order) return null;
 
   const orderBadge = getOrderStatusBadge(order.status);
-  const payBadge = getPaymentStatusBadge(order.paymentStatus);
+  const payBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
   const remaining = balance?.remainingBalance ?? 0;
   const totalPaid = balance?.totalPaid ?? 0;
   const totalValue = balance?.totalValue ?? order.totalValue;

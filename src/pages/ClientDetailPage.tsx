@@ -424,7 +424,7 @@ export function ClientDetailPage() {
                     );
                     return visibleOrders.map((order) => {
                         const statusBadge = getOrderStatusBadge(order.status, order.deliveryDate);
-                        const payBadge = getPaymentStatusBadge(order.paymentStatus);
+                        const payBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
                         const itemsSummary = order.items.slice(0, 3).map((i) => `${i.productName} ×${i.quantity}`).join(', ')
                           + (order.items.length > 3 ? ` +${order.items.length - 3}` : '');
                         return (
@@ -481,8 +481,8 @@ export function ClientDetailPage() {
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-[14px] text-slate-800">{formatBRL(order.totalValue)}</p>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getPaymentStatusBadge(order.paymentStatus).className}`}>
-                              {getPaymentStatusBadge(order.paymentStatus).label}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getPaymentStatusBadge(order.paymentStatus, order.status).className}`}>
+                              {getPaymentStatusBadge(order.paymentStatus, order.status).label}
                             </span>
                           </div>
                         </div>

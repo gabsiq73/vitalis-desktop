@@ -348,7 +348,7 @@ export function DashboardPage() {
                   <tbody className="divide-y divide-slate-50">
                     {filteredOrders.map((order) => {
                       const badge = getOrderStatusBadge(order.status, order.deliveryDate);
-                      const payBadge = getPaymentStatusBadge(order.paymentStatus);
+                      const payBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
                       const isDelivered = order.status === 'DELIVERED';
                       const isCancelled = order.status === 'CANCELLED';
                       const isLoadingThis = actionLoading === order.id;
