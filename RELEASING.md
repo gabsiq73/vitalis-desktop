@@ -38,3 +38,17 @@ configurado em ambos os builds. Verifique o dump antes do download, feche pelo
 botao ou confirme o reinicio, confirme que o java anterior saiu e confira o
 cadastro e o historico do Flyway na nova versao. Repita com a rede desligada e
 com pg_dump indisponivel para verificar que o app continua utilizavel.
+
+## 1.0.3: reabertura depois de fechar
+
+O Vitalis remove api.pid quando a API encerra. Se o Windows interromper
+o aplicativo antes da limpeza, a proxima abertura verifica o executavel
+e o argumento do JAR antes de encerrar um processo anterior. Uma falha nessa
+verificacao e registrada no log e a abertura continua.
+
+Para testar a instalacao por cima da 1.0.1, use uma conta e um banco de teste.
+Guarde os hashes de config.json e de um backup existente e crie um registro
+identificavel no banco. Feche a 1.0.1, instale a 1.0.3 com a mesma conta e
+confirme os hashes e o registro. Depois abra e feche tres vezes, teste
+encerramento forcado e abra duas instancias. Confira o PID do Java da API
+e a remocao de api.pid em cada fechamento normal.

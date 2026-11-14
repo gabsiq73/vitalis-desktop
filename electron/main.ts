@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { startUpdates } from './updates'
+import { cleanPrevious, stopPreviousApi } from './api-pid'
 
 const execute = promisify(execFile)
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -87,28 +88,9 @@ async function backup(home: string, cfg: DatabaseConfig, force = false) {
   await Promise.all(list.slice(6).map(name => fs.rm(path.join(dir, name), { force: true })))
 }
 
-async function cleanPrevious(file: string) {
-  const saved = await fs.readFile(file, 'utf8').catch(() => '')
-  const pid = Number(saved.trim())
-  if (!Number.isSafeInteger(pid) || pid <= 0) return
-  const script = [
-    '$p = Get-CimInstance Win32_Process -Filter "ProcessId = ' + pid + '"',
-    'if ($p -and $p.ExecutablePath -eq $env:VITALIS_EXPECTED_JAVA -and',
-    '$p.CommandLine -like ("*" + $env:VITALIS_EXPECTED_JAR + "*") -and',
-    '$p.CommandLine -like "*--vitalis.desktop=true*") {',
-    'Stop-Process -Id ' + pid + ' -ErrorAction Stop',
-    '}',
-  ].join(' ')
-  await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    env: { ...process.env, VITALIS_EXPECTED_JAVA: java, VITALIS_EXPECTED_JAR: jar },
-    windowsHide: true,
-  })
-  await fs.rm(file, { force: true })
-}
-
 async function startApi(home: string, cfg: DatabaseConfig, log: (message: string) => Promise<void>) {
   const file = path.join(home, 'api.pid')
-  await cleanPrevious(file)
+  await cleanPrevious(file, pid => stopPreviousApi(pid, java, jar), log)
   if (quitting) return
   const port = await freePort()
   if (quitting) return
@@ -130,13 +112,22 @@ async function startApi(home: string, cfg: DatabaseConfig, log: (message: string
     },
   })
   const child = api
-  apiClosed = new Promise(resolve => child.once('close', () => resolve()))
+  const pidWritten = child.pid
+    ? fs.writeFile(file, String(child.pid)).catch(() =>
+        log('Não foi possível salvar o PID da API.').catch(() => undefined))
+    : Promise.resolve()
+  const exited = new Promise<void>(resolve => child.once('close', () => resolve()))
+  apiClosed = exited.then(async () => {
+    await pidWritten
+    await fs.rm(file, { force: true }).catch(() =>
+      log('Não foi possível remover o PID da API.').catch(() => undefined))
+  })
   child.on('error', error => { lastApiOutput += error.message })
   child.stdin?.on('error', () => undefined)
   const capture = (output: Buffer) => { lastApiOutput = (lastApiOutput + output.toString()).slice(-32000) }
   child.stdout?.on('data', capture)
   child.stderr?.on('data', capture)
-  if (child.pid) await fs.writeFile(file, String(child.pid))
+  await pidWritten
   await log('Iniciando API local na porta ' + port)
   const until = Date.now() + 60000
   while (!quitting && Date.now() < until && child.exitCode === null && child.pid) {
