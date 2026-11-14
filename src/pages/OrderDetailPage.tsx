@@ -361,7 +361,7 @@ export function OrderDetailPage() {
                         </div>
                         <div>
                           <p className="text-[13px] font-semibold text-slate-700">
-                            {METHOD_LABELS[pay.paymentMethod] ?? pay.paymentMethod}
+                            {METHOD_LABELS[pay.paymentMethod] ?? 'Não informado'}
                           </p>
                           <p className="text-[11px] text-slate-400">
                             {formatDateTime(pay.paymentDate)}

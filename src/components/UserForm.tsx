@@ -96,7 +96,7 @@ export function UserForm({ initial, onSubmit, onClose, publicRegistration = fals
 
         <div>
           <label htmlFor="user-username" className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
-            Username *
+            Nome de usuário *
           </label>
           <input
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"

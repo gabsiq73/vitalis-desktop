@@ -206,7 +206,7 @@ export function DebtorsPage() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             isRetail ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'
                           }`}>
-                            {isRetail ? 'Varejo' : 'Revendedor'}
+                            {isRetail ? 'Varejo' : 'Revenda'}
                           </span>
                         </td>
 

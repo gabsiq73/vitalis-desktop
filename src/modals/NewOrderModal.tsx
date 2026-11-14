@@ -674,7 +674,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               {c.name}
                             </p>
                             <p className={`text-[11px] font-medium ${c.clientType === 'RESELLER' ? 'text-amber-600' : 'text-slate-500'}`}>
-                              {c.clientType === 'RETAIL' ? 'Varejo' : '★ Revendedor'}
+                              {c.clientType === 'RETAIL' ? 'Varejo' : 'Revenda'}
                             </p>
                           </div>
                           <span className={`text-[12px] font-bold ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>

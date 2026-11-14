@@ -138,8 +138,8 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
               onChange={(e) => set('clientType', e.target.value as ClientType)}
               className={inputClass}
             >
-              <option value="RETAIL">Varejo (RETAIL)</option>
-              <option value="RESELLER">Revendedor (RESELLER)</option>
+              <option value="RETAIL">Varejo</option>
+              <option value="RESELLER">Revenda</option>
             </select>
           </div>
         </div>

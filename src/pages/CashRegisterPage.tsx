@@ -257,7 +257,7 @@ export function CashRegisterPage() {
                           <td className="px-4 py-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${m.bg} ${m.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
-                              {METHOD_LABEL[p.paymentMethod] ?? p.paymentMethod}
+                              {METHOD_LABEL[p.paymentMethod] ?? 'Não informado'}
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-right font-bold text-[14px] text-slate-800 tabular-nums whitespace-nowrap">
@@ -322,7 +322,7 @@ export function CashRegisterPage() {
               )}
               <div className="mt-4 pt-3 border-t border-slate-100 text-[13px] text-purple-700">
                 <div className="flex justify-between gap-2">
-                  <span>Crédito utilizado (SALDO)</span>
+                  <span>Crédito utilizado</span>
                   <span className="font-bold">{displayAmount(saldoUsado)}</span>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Consumo de crédito existente; não compõe novas entradas.</p>
@@ -369,7 +369,7 @@ export function CashRegisterPage() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-slate-500">Saldo do Caixa retornado pela API para a data selecionada: recebimentos PIX/Dinheiro + entradas + ajustes líquidos − retiradas + comissões de gás liquidadas − repasses de gás liquidados. Acertos já incluídos no saldo. Não representa apenas dinheiro físico nem saldo acumulado de outros dias.</p>
+            <p className="text-xs text-slate-500">Saldo do dia, incluindo recebimentos, entradas, retiradas e acertos de gás. O total inclui PIX e dinheiro.</p>
             {!loading && financial && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
               <span>Entradas manuais: {formatBRL(financial.totalEntries)}</span>
               <span>Ajustes líquidos: {formatBRL(financial.totalAdjustments)}</span>
@@ -384,7 +384,7 @@ export function CashRegisterPage() {
             : <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-slate-50 text-left text-xs text-slate-500">
-                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Direção</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
+                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Entrada / saída</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">{ledgerRows.map(row => <tr key={row.key}>
                   <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">{formatTime(row.occurredAt)}</td>
