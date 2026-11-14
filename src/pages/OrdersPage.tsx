@@ -5,7 +5,10 @@ import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
+import { EditCompletedOrderModal } from '../modals/EditCompletedOrderModal';
+import { NewGasWaterPromotionModal } from '../modals/NewGasWaterPromotionModal';
 import { hasOrderDraft } from '../utils/orderDraft';
+import { parseApiError } from '../utils/parseApiError';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
@@ -101,6 +104,15 @@ export function OrdersPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchQuery(search.trim());
+      setCurrentPage(0);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const [paymentFilter, setPaymentFilter] = useState('');
   const [dateStart, setDateStart] = useState(todayStr());
   const [dateEnd, setDateEnd] = useState(todayStr());
@@ -111,6 +123,7 @@ export function OrdersPage() {
   const [pageSize, setPageSize] = useState(15);
 
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [showPromotion, setShowPromotion] = useState(false);
   const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
 
   useEffect(() => {
@@ -160,6 +173,7 @@ export function OrdersPage() {
 
   function fetchOrders() {
     if (!http) return;
+    let active = true;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: pageSize };
     if (statusFilter === 'SCHEDULED') {
@@ -173,22 +187,32 @@ export function OrdersPage() {
       if (dp.end)   params.end   = dp.end;
     }
     if (paymentFilter) params.paymentStatus = paymentFilter;
+    if (searchQuery) params.search = searchQuery;
     if (statusFilter === 'SCHEDULED') params.sort = 'deliveryDate,asc';
     else if (sort) params.sort = `${sort.field},${sort.dir}`;
     http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
       .then((res) => {
+        if (!active) return;
         setOrders(res.data.content);
         setTotalElements(res.data.totalElements);
         setTotalPages(res.data.totalPages);
       })
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!active) return;
+        setOrders([]);
+        setTotalElements(0);
+        setTotalPages(0);
+        notify(parseApiError(err), 'error');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }
 
   useEffect(() => {
-    fetchOrders();
+    const cancel = fetchOrders();
     fetchCounts();
-  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+    return cancel;
+  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
     setStatusFilter(key);
@@ -196,6 +220,8 @@ export function OrdersPage() {
   }
 
   function clearFilters() {
+    setSearch('');
+    setSearchQuery('');
     setStatusFilter('');
     setPaymentFilter('');
     setDateMode('today');
@@ -221,7 +247,7 @@ export function OrdersPage() {
     }
   }
 
-  const hasActiveFilters = !!(statusFilter || paymentFilter || dateMode !== 'today');
+  const hasActiveFilters = !!(search || statusFilter || paymentFilter || dateMode !== 'today');
   const totalActive = (counts['PENDING'] ?? 0) + (counts['SHIPPED'] ?? 0);
 
   return (
@@ -231,7 +257,7 @@ export function OrdersPage() {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex justify-between items-end">
+        <div className="flex flex-wrap gap-3 justify-between items-end">
           <div>
             <h1 className="text-h1 text-slate-800">Pedidos</h1>
             <p className="text-body-lg text-slate-500">
@@ -240,6 +266,7 @@ export function OrdersPage() {
                 : 'Gerencie todos os pedidos do sistema.'}
             </p>
           </div>
+          <button onClick={() => setShowPromotion(true)} className="px-4 py-2.5 border border-primary text-primary rounded-lg font-semibold text-sm">Promoção Gás + água</button>
           <button
             onClick={() => setShowNewOrder(true)}
             className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
@@ -253,6 +280,14 @@ export function OrdersPage() {
         </div>
 
         {/* Date filter */}
+        <label className="relative block max-w-lg">
+          <span className="sr-only">Pesquisar pedidos</span>
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">search</span>
+          <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por cliente, número ou observação..."
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          <span className="block mt-1 text-[11px] text-slate-500">A busca respeita os filtros abaixo. Escolha Todos para buscar em outras datas.</span>
+        </label>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setDateMode('today'); setCurrentPage(0); }}
@@ -432,6 +467,11 @@ export function OrdersPage() {
                             </div>
                             <span className="text-[13px] font-medium text-slate-700">{order.clientName}</span>
                           </div>
+                          {order.notes?.trim() && (
+                            <p title={order.notes} className="mt-1.5 max-w-[240px] max-h-16 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[11px] leading-4 text-amber-800 bg-amber-50 rounded px-2 py-1">
+                              <span className="font-semibold">Obs.: </span>{order.notes}
+                            </p>
+                          )}
                         </td>
 
                         <td className="px-5 py-3.5">
@@ -439,7 +479,7 @@ export function OrdersPage() {
                             {order.items.slice(0, 2).map((item) => {
                               return (
                                 <span key={item.id} className="text-[11px] text-slate-500 leading-tight flex items-center gap-1">
-                                  {item.productName} <span className="font-bold text-slate-700">×{item.quantity}</span>
+                                  {item.productName} {item.bottleMode === 'EXPIRED' ? '(vencido sem água)' : item.bottleMode === 'FULL' ? '(completo)' : item.promotionWaterValue != null ? '(promoção)' : ''} <span className="font-bold text-slate-700">×{item.quantity}</span>
 
                                 </span>
                               );
@@ -494,7 +534,7 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
-                            {!isDelivered && !isCancelled && (
+                            {!isCancelled && !order.manualDebt && (
                               <button
                                 title="Editar pedido"
                                 onClick={() => setEditTarget(order)}
@@ -597,7 +637,9 @@ export function OrdersPage() {
         onClose={() => setCancelTarget(null)}
       />
 
-      {editTarget && (
+      {showPromotion && <NewGasWaterPromotionModal onClose={() => setShowPromotion(false)} onSuccess={() => { setShowPromotion(false); fetchOrders(); fetchCounts(); }} />}
+      {editTarget && (editTarget.status === 'DELIVERED' || editTarget.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={editTarget} onClose={() => setEditTarget(null)} onSuccess={() => { setEditTarget(null); fetchOrders(); fetchCounts(); }} />}
+      {editTarget && editTarget.status !== 'DELIVERED' && !editTarget.items.some(i => i.promotionWaterValue != null) && (
         <NewOrderModal
           open
           editOrder={editTarget}

@@ -5,6 +5,7 @@ import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
+import { EditCompletedOrderModal } from '../modals/EditCompletedOrderModal';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { parseApiError } from '../utils/parseApiError';
 import type { OrderResponseDTO, PaymentResponseDTO, OrderBalanceDTO, LoanedBottleResponseDTO } from '../types';
@@ -147,7 +148,7 @@ export function OrderDetailPage() {
                     {formatOrderId(order.id)}
                   </h1>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${orderBadge.className}`}>
-                    {orderBadge.label}
+                    {order.manualDebt ? 'Fiado antigo' : orderBadge.label}
                   </span>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${payBadge.className}`}>
                     {payBadge.label}
@@ -171,7 +172,7 @@ export function OrderDetailPage() {
                       <span className="text-slate-300">•</span>
                       <span className="flex items-center gap-1 text-[13px] text-slate-500">
                         <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>event_available</span>
-                        Entrega {new Date(order.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {order.manualDebt ? 'Data do fiado' : 'Entrega'} {new Date(order.deliveryDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </>
                   )}
@@ -182,12 +183,15 @@ export function OrderDetailPage() {
                     <span className="whitespace-pre-wrap">{order.notes}</span>
                   </div>
                 )}
+                {order.items.filter(item => item.supplierId && item.promotionWaterValue != null).map(item => <p key={item.id} className="mt-2 text-sm text-blue-800 bg-blue-50 px-3 py-2 rounded-lg">
+                  Promoção Gás + água: água de referência {formatBRL(item.promotionWaterValue!)} por conjunto. Margem do gás após a água: {item.gasCostPrice == null ? 'indisponível' : formatBRL((item.unitPrice - item.gasCostPrice - item.promotionWaterValue!) * item.quantity)}.
+                </p>)}
               </div>
             </div>
 
             {/* Edit button + step tracker */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {!isCancelled && !isDelivered && (
+              {!isCancelled && !order.manualDebt && (
                 <button
                   onClick={() => setShowEditOrder(true)}
                   className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-primary/30 transition-all"
@@ -198,7 +202,9 @@ export function OrderDetailPage() {
               )}
             </div>
 
-            {!isCancelled ? (
+            {order.manualDebt ? (
+              <p className="text-sm text-slate-500">Saldo do caderno, sem movimentação de estoque ou venda.</p>
+            ) : !isCancelled ? (
               <div className="flex items-center gap-0 flex-shrink-0">
                 {STATUS_STEPS.map((step, idx) => {
                   const done = idx <= currentStepIdx;
@@ -242,7 +248,7 @@ export function OrderDetailPage() {
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>inventory_2</span>
-                  <h2 className="text-[15px] font-bold text-slate-800">Itens do Pedido</h2>
+                  <h2 className="text-[15px] font-bold text-slate-800">{order.manualDebt ? 'Fiado antigo' : 'Itens do Pedido'}</h2>
                   <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">
                     {order.items.length} {order.items.length === 1 ? 'item' : 'itens'}
                   </span>
@@ -500,7 +506,8 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {showEditOrder && (
+      {showEditOrder && (isDelivered || order.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
+      {showEditOrder && !isDelivered && !order.items.some(i => i.promotionWaterValue != null) && (
         <EditOrderModal
           open={showEditOrder}
           order={order}

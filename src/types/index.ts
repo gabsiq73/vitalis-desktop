@@ -11,6 +11,7 @@ export type ClientStatus = 'PAID' | 'OVERDUE';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS';
+export type BottleMode = 'REFILL' | 'FULL' | 'EXPIRED';
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
 export type GasPaymentMethod = Extract<PaymentMethod, 'PIX' | 'DINHEIRO'>;
 
@@ -39,6 +40,8 @@ export interface ProductResponseDTO {
 }
 
 export interface OrderItemResponseDTO {
+  bottleMode?: BottleMode;
+  promotionWaterValue?: number;
   id: string;
   productId: string;
   productName: string;
@@ -54,6 +57,7 @@ export interface OrderItemResponseDTO {
 }
 
 export interface OrderResponseDTO {
+  manualDebt?: boolean;
   id: string;
   deliveryDate?: string;
   status: OrderStatus;
@@ -65,6 +69,13 @@ export interface OrderResponseDTO {
   createDate: string;
   isDelivery?: boolean;
   loanedBottlesCount?: number;
+  notes?: string;
+}
+
+export interface ManualDebtRequestDTO {
+  clientId: string;
+  amount: number;
+  debtDate: string;
   notes?: string;
 }
 
@@ -126,6 +137,7 @@ export interface GasSupplierResponseDTO {
 export type SettlementType = 'YOU_OWE' | 'SUPPLIER_OWE';
 
 export interface GasSettlementResponseDTO {
+  paymentMethod: GasPaymentMethod | null;
   id: string;
   supplierName: string;
   amount: number;
@@ -295,6 +307,7 @@ export interface CashMovementResponseDTO {
 }
 
 export interface GasSettlementMovementDTO {
+  paymentMethod: GasPaymentMethod | null;
   id: string;
   supplierName: string;
   type: SettlementType;
@@ -304,6 +317,11 @@ export interface GasSettlementMovementDTO {
 }
 
 export interface FinancialReportDTO {
+  depotDeliveredSales: number;
+  cashBalance: number;
+  pixBalance: number;
+  unclassifiedGasNet: number;
+  unclassifiedGasCount: number;
   totalInvoiced: number;
   totalReceived: number;
   gasGrossProfit: number;
@@ -319,6 +337,8 @@ export interface FinancialReportDTO {
 }
 
 export interface OrderItemRequestBody {
+  itemId?: string;
+  bottleMode?: BottleMode;
   productId: string;
   quantity: number;
   unitPrice?: number;
@@ -335,10 +355,20 @@ export interface InitialPaymentRequestBody {
 }
 
 export interface OrderRequestBody {
+  promotion?: { waterProductId: string; bundleUnitPrice: number; waterUnitValue: number };
   clientId: string;
   items: OrderItemRequestBody[];
   initialPayments?: InitialPaymentRequestBody[];
   isDelivery: boolean;
   deliveryDate?: string;
   notes?: string;
+}
+
+export interface BottleInventoryResponseDTO {
+  configured: boolean;
+  validQuantity: number;
+  expiredQuantity: number;
+  filledQuantity: number;
+  emptyValidQuantity: number;
+  totalQuantity: number;
 }

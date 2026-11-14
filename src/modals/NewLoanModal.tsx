@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { parseApiError } from '../utils/parseApiError';
 import type { ClientResponseDTO, ProductResponseDTO, LoanedBottleRequestDTO, SpringPage } from '../types';
 
 interface NewLoanModalProps {
+  loan?: import('../types').LoanedBottleResponseDTO;
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
+export function NewLoanModal({ open, onClose, onSuccess, loan }: NewLoanModalProps) {
   const { http } = useAuth();
   const [clients, setClients] = useState<ClientResponseDTO[]>([]);
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
@@ -23,6 +25,9 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
+  useEffect(() => {
+    if (open && loan) { setClientId(loan.clientId); setProductId(loan.productId); setQuantity(loan.quantity); setLoanDate(loan.loanDate?.slice(0, 10) ?? new Date().toLocaleDateString('en-CA')); setError(''); }
+  }, [open, loan]);
 
   useEffect(() => {
     if (!open || !http) return;
@@ -33,8 +38,9 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
     ])
       .then(([clientsRes, productsRes]) => {
         setClients(clientsRes.data.content);
-        setProducts(productsRes.data.content.filter((p) => p.isActive));
+        setProducts(productsRes.data.content.filter((p) => p.isActive && p.type === 'WATER'));
       })
+      .catch(err => setError(parseApiError(err)))
       .finally(() => setLoadingOptions(false));
   }, [open, http]);
 
@@ -61,18 +67,19 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
         quantity,
         loanDate: `${loanDate}T00:00:00`,
       };
-      await http!.post('/bottles', payload);
+      if (loan) await http!.put(`/bottles/${loan.id}`, payload);
+      else await http!.post('/bottles', payload);
       onSuccess();
       handleClose();
-    } catch {
-      setError('Erro ao registrar empréstimo. Verifique os dados e tente novamente.');
+    } catch (err) {
+      setError(parseApiError(err));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Registrar Novo Empréstimo" maxWidth="max-w-lg">
+    <Modal open={open} onClose={() => { if (!loading) handleClose(); }} title={loan ? 'Editar empréstimo' : 'Registrar Novo Empréstimo'} maxWidth="max-w-lg">
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         <div>
           <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Cliente *</label>
@@ -152,7 +159,7 @@ export function NewLoanModal({ open, onClose, onSuccess }: NewLoanModalProps) {
             disabled={loading || loadingOptions}
             className="px-6 py-2.5 bg-primary text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all disabled:opacity-70"
           >
-            {loading ? 'Registrando...' : 'Confirmar Empréstimo'}
+            {loading ? 'Salvando...' : loan ? 'Salvar empréstimo' : 'Confirmar Empréstimo'}
           </button>
         </div>
       </form>

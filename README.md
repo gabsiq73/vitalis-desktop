@@ -100,6 +100,61 @@ src/
 
 ## Integração com a API
 
+Em **Estoque → Garrafões do depósito**, informe a contagem física inicial de válidos
+e vencidos (vazios e cheios). A quantidade de água cheia usa parte dos válidos;
+o restante é mostrado como válido vazio. Os estoques anteriores ficam preservados
+até informar essa contagem. Para realocar água entre produtos, reduza uma alocação
+e aumente outra, sem exceder os garrafões válidos disponíveis.
+
+No item de água do pedido, selecione **Troca de água**, **Garrafão completo** ou
+**Vencido, sem água** e informe o preço da venda. A entrega de troca baixa apenas
+a água; completo baixa água e total válido; vencido baixa apenas o total vencido.
+Cancelamento recompõe os efeitos aplicados. Vencidos não contam como água vendida.
+O cadastro de empréstimos continua separado da alocação física de águas.
+
+**Pedidos → Promoção Gás + água** permite escolher água, valor de referência, custo
+do gás e preço do conjunto. Uma promoção de R$ 127 com custo de gás R$ 110 e água
+de referência R$ 9 gera margem de gás R$ 8. Se a água vale R$ 8, a margem é R$ 9.
+Quando o entregador recebe, o repasse é R$ 17 (água + margem). A água é inclusa,
+sem segunda cobrança, e baixa normalmente na entrega. Pedidos comuns mistos
+continuam gerando seus subpedidos; a promoção mantém gás e água juntos.
+
+Pedidos concluídos podem ser corrigidos pela lista ou pelo detalhe. O formulário
+mantém cliente, IDs e linhas existentes, permitindo corrigir produto do mesmo tipo,
+quantidade, preço, custo do gás, recebedor, data e observação. Estoque e acertos são
+recalculados na mesma transação. Pagamentos avulsos recebidos a mais viram crédito,
+mantendo o total recebido no caixa. Acertos já liquidados podem editar valor,
+data, meio e situação; empréstimos pendentes podem editar cliente, produto,
+quantidade e data. Os registros são atualizados sem excluir e recriar.
+
+Requer os contratos `/bottle-inventory`, `/orders/{id}/correction`,
+`PUT /gas-settlements/{id}`, `PUT /bottles/{id}`, `bottleMode` e `promotion` do backend.
+Atualize o backend antes do desktop. Teste dirigido do fluxo:
+`node tests/correctionsBottlesPromotion.electron.mjs`, com Playwright e
+`OPERATION_CORRECTIONS_TEST_API` apontando para uma API real descartável.
+
+A tela de Pedidos pesquisa por cliente, número exibido (com ou sem `#`) ou
+observação em todas as páginas, respeitando os filtros de data, entrega e pagamento.
+Selecione **Todos** nas datas para procurar pedidos antigos. As observações aparecem
+na própria linha, com largura e altura limitadas e rolagem para textos longos.
+
+Em **Fiados → Registrar fiado**, cadastre o saldo ainda devido do caderno, com
+cliente, valor, data original e observação opcional. O cadastro não gera venda,
+estoque, acerto de gás ou recebimento. Ele aparece no histórico e nos pagamentos
+do cliente como **Fiado antigo**; o recebimento usa o fluxo existente, inclusive
+pagamento parcial e crédito excedente. Requer o backend com
+`GET /orders?search=...`, `POST /orders/manual-debts` e `manualDebt` na resposta.
+Atualize o backend antes do desktop. Validação dirigida do lote:
+`node tests/ordersAndDebts.electron.mjs` com Playwright disponível e
+`ORDERS_DEBTS_TEST_API` apontando para uma API real descartável.
+
+Lote validado em 14/11/2026: lint, TypeScript, build com empacotamento Windows,
+19 testes de relatórios/pagamentos/caixa e teste Electron com a API real em H2
+descartável. A verificação visual cobriu 1440 e 1024 pixels, observação longa,
+busca fora da primeira página, cadastro e pagamento parcial de fiado.
+O teste do backend cobre também quitação, excedente, FIFO por data original,
+validações e cancelamento. PostgreSQL e banco operacional não foram utilizados.
+
 No pedido, o campo de preço unitário da água permite informar um valor combinado
 somente para aquela venda. O valor manual positivo é enviado como `unitPrice`,
 prevalece sobre preço do produto, preço fixo do cliente, revenda e desconto de
@@ -107,7 +162,8 @@ retirada e atualiza total e pagamento sugerido. Na criação, deixe o campo em b
 para voltar ao cálculo habitual. O preço permanece no
 rascunho e no pedido gravado, sem alterar cadastros. Na edição,
 deixar o campo em branco mantém o preço já gravado; itens históricos a zero
-continuam preservados. Pedidos entregues/cancelados mantêm as restrições existentes.
+continuam preservados. Concluídos usam o formulário de correção; cancelados não
+permitem alteração de itens.
 
 Teste do fluxo no Electron: `node tests/waterPrice.electron.mjs`, com Playwright
 instalado (ou `PLAYWRIGHT_MODULE`), desktop em `localhost:5173` e
@@ -194,6 +250,11 @@ salvar pagamento, acerto e entrega na mesma transação. Pagamentos parciais
 legados são preservados; alterações de recebedor com pagamentos avulsos ou
 acertos já liquidados são recusadas pelo backend.
 
+No Caixa do Dia, **Vendas entregues (valor bruto)** usa `depotDeliveredSales` do
+relatório diário: exclui o gás recebido pelo entregador e inclui o valor bruto do
+gás recebido pelo depósito. Margens e acertos seguem separados; o faturamento
+geral (`totalInvoiced`) continua incluindo todas as vendas entregues.
+
 Relatórios e Caixa do Dia distinguem valor bruto vendido, dinheiro recebido no
 depósito e margem do gás. A margem entregue pode estar pendente de repasse:
 ela não é uma entrada adicional de caixa. Os movimentos de acertos no livro-caixa
@@ -217,16 +278,31 @@ totais e contagens indisponíveis até uma nova consulta. Teste dirigido:
 `node --experimental-strip-types --test tests/dailyCashTotals.test.mjs`.
 
 O livro-caixa usa os detalhes `cashMovements` e `gasSettlementMovements` do
-financeiro diário e exibe `finalBalance` sem recalcular ou duplicar acertos.
+financeiro diário. **Saldo do Caixa** usa `cashBalance`, apenas dinheiro físico;
+**Saldo do PIX** usa `pixBalance`. Recebimentos incluem créditos novos de clientes,
+mas SALDO utilizado não é nova entrada. `finalBalance` permanece como total
+combinado no contrato e não é usado para conferir o dinheiro físico.
 Administradores podem registrar entrada, retirada com motivo e ajuste em
 `POST /cash-movements`. A direção é enviada somente para ajustes; nas respostas,
 entradas e retiradas têm direção nula e seu sinal é determinado pelo tipo.
-A conferência compara o valor informado com o saldo do dia retornado pela API
-(PIX/Dinheiro, movimentos manuais e acertos liquidados), não apenas o dinheiro
-físico nem o saldo acumulado. A diferença zero não gera lançamento; se a base
+A conferência compara o valor contado com `cashBalance` da data selecionada.
+Entradas, retiradas e ajustes manuais movimentam apenas dinheiro físico.
+Acertos individuais ou por distribuidora exigem escolher PIX ou Dinheiro e alteram
+apenas o saldo escolhido, na data da liquidação. `paymentMethod` aparece nos
+acertos e no livro-caixa. Registros antigos sem meio informado ficam separados,
+com aviso no caixa; use **Informar meio do acerto antigo** em Acertos de Gás para
+classificá-los preservando sua data. A diferença zero não gera lançamento; se a base
 mudar antes de confirmar, o operador deve revisá-la. Exclusão de movimentos e
 mudanças nas regras de fechamento não fazem parte desse fluxo.
 Teste dirigido: `node --experimental-strip-types --test tests/cashMovement.test.mjs`.
+
+A busca por nome em Clientes e Novo Pedido ignora acentos e maiúsculas no backend,
+antes da paginação e preservando os filtros de tipo e clientes ativos. Não exige
+extensão PostgreSQL ou alteração dos nomes cadastrados. Atualize o backend antes
+do desktop: acertos exigem `paymentMethod=PIX|DINHEIRO` nos endpoints de liquidação,
+e o financeiro diário acrescenta os saldos separados e a contagem de acertos antigos.
+Teste completo: `node tests/cashMethodsAndSearch.electron.mjs`, com Playwright e
+`CASH_METHODS_TEST_API` apontando para uma API real descartável.
 
 O contrato coordenado da descontinuação remove `fidelityPoints` e
 `pendingBonusWater` de clientes e `pointsPerWaterItem`/`pointsPerFreeWater` de

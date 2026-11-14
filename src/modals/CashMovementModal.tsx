@@ -52,8 +52,12 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
     try {
       if (isConference) {
         const response = await http.get<FinancialReportDTO>('/reports/performance/daily', { params: { date } });
-        if (response.data.finalBalance !== baseBalance) {
-          setBaseBalance(response.data.finalBalance);
+        if (!Number.isFinite(response.data.cashBalance)) {
+          setError('Saldo em dinheiro indisponível. Atualize o backend antes de conferir o caixa.');
+          return;
+        }
+        if (response.data.cashBalance !== baseBalance) {
+          setBaseBalance(response.data.cashBalance);
           setError('O saldo do caixa mudou. Confira o valor atualizado e a diferença antes de confirmar.');
           return;
         }
@@ -78,7 +82,7 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
   return (
     <Modal open onClose={() => { if (!submitting.current) onClose(); }} title={TITLES[type]} maxWidth="max-w-lg">
       <form onSubmit={submit} className="overflow-y-auto p-6 space-y-4">
-        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. O lançamento pertence a esta data.</p>
+        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. Este lançamento movimenta apenas dinheiro físico.</p>
         {error && <p ref={errorRef} role="alert" className="p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</p>}
         <fieldset disabled={saving} className="space-y-4">
           {type === 'ADJUSTMENT' && <label className="block text-sm font-medium text-slate-700">Forma de ajuste
@@ -87,8 +91,8 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
             </select>
           </label>}
           {isConference && <div className="p-3 rounded-lg bg-blue-50 text-sm text-slate-700">
-            <p>Saldo do dia: <strong>{formatBRL(baseBalance)}</strong></p>
-            <p className="mt-1 text-xs">Inclui PIX, dinheiro e acertos de gás desta data.</p>
+            <p>Saldo em dinheiro do dia: <strong>{formatBRL(baseBalance)}</strong></p>
+            <p className="mt-1 text-xs">Confira apenas o dinheiro físico, incluindo acertos de gás em dinheiro desta data.</p>
           </div>}
           <label className="block text-sm font-medium text-slate-700">{isConference ? 'Valor conferido (R$)' : 'Valor (R$)'}
             <input autoFocus type="number" min={isConference ? '0' : '0.01'} max="99999999.99" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className={inputClass} />

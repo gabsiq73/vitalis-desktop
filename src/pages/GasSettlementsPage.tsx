@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import type { GasSettlementResponseDTO, GasSupplierResponseDTO, SpringPage } from '../types';
+import type { GasPaymentMethod, GasSettlementResponseDTO, GasSupplierResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
+import { Modal } from '../components/Modal';
+import { parseApiError } from '../utils/parseApiError';
+import { useNotification } from '../hooks/useNotification';
+import { EditGasSettlementModal } from '../modals/EditGasSettlementModal';
 
 type StatusFilter = 'all' | 'pending' | 'settled';
 
@@ -37,6 +41,13 @@ function defaultEnd(): string {
 
 export function GasSettlementsPage() {
   const { http } = useAuth();
+  const { notify } = useNotification();
+  const [editSettlement, setEditSettlement] = useState<GasSettlementResponseDTO | null>(null);
+  const [target, setTarget] = useState<{ kind: 'single' | 'bulk' | 'legacy'; id: string; label: string; start?: string; end?: string } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<GasPaymentMethod | ''>('');
+  const [actionError, setActionError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const submitting = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState<string | null>(null);
@@ -51,6 +62,7 @@ export function GasSettlementsPage() {
   const fetchData = useCallback(async () => {
     if (!http) return;
     setLoading(true);
+    setLoadError('');
     try {
       const [settlementsRes, suppliersRes] = await Promise.allSettled([
         http.get<GasSettlementResponseDTO[]>('/gas-settlements', {
@@ -63,7 +75,9 @@ export function GasSettlementsPage() {
         http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 200, page: 0 } }),
       ]);
       if (settlementsRes.status === 'fulfilled') setSettlements(settlementsRes.value.data ?? []);
+      else { setSettlements([]); setLoadError(parseApiError(settlementsRes.reason)); }
       if (suppliersRes.status === 'fulfilled') setSuppliers(suppliersRes.value.data.content ?? []);
+      else { setSuppliers([]); setLoadError(parseApiError(suppliersRes.reason)); }
     } finally {
       setLoading(false);
     }
@@ -71,35 +85,35 @@ export function GasSettlementsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  async function settleOne(id: string) {
-    if (!http) return;
-    setSettling(id);
-    try {
-      await http.patch(`/gas-settlements/${id}/settle`);
-      setSettlements(prev =>
-        prev.map(s => s.id === id ? { ...s, settled: true, settledDate: new Date().toISOString() } : s)
-      );
-    } finally {
-      setSettling(null);
-    }
+  function openSettlement(next: NonNullable<typeof target>) {
+    setPaymentMethod('');
+    setActionError('');
+    setTarget(next);
   }
 
-  async function bulkSettle(supplierId: string) {
-    if (!http) return;
-    setBulkSettling(supplierId);
+  async function confirmSettlement(event: React.FormEvent) {
+    event.preventDefault();
+    if (!http || !target || !paymentMethod || submitting.current) return;
+    submitting.current = true;
+    setActionError('');
+    if (target.kind === 'bulk') setBulkSettling(target.id);
+    else setSettling(target.id);
     try {
-      await http.patch('/gas-settlements/bulk-settle', null, {
-        params: { supplierId, start: startDate, end: endDate },
-      });
-      setSettlements(prev =>
-        prev.map(s =>
-          s.id && !s.settled && (settlements.find(x => x.id === s.id)?.supplierName === suppliers.find(x => x.id === supplierId)?.name)
-            ? { ...s, settled: true, settledDate: new Date().toISOString() }
-            : s
-        )
-      );
+      if (target.kind === 'bulk') {
+        await http.patch('/gas-settlements/bulk-settle', null, {
+          params: { supplierId: target.id, start: target.start, end: target.end, paymentMethod },
+        });
+      } else {
+        await http.patch(`/gas-settlements/${target.id}/${target.kind === 'legacy' ? 'payment-method' : 'settle'}`, null, { params: { paymentMethod } });
+      }
+      notify(target.kind === 'legacy' ? 'Meio do acerto registrado.' : 'Acerto registrado.', 'success');
+      setTarget(null);
       await fetchData();
+    } catch (err) {
+      setActionError(parseApiError(err));
     } finally {
+      submitting.current = false;
+      setSettling(null);
       setBulkSettling(null);
     }
   }
@@ -145,6 +159,7 @@ export function GasSettlementsPage() {
       <TopBar title="Acertos de Gás" subtitle="Controle financeiro com distribuidoras" />
 
       <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+        {loadError && <p role="alert" className="p-4 rounded-lg bg-red-50 text-red-700 text-sm">{loadError} Use Atualizar para tentar novamente.</p>}
 
         {/* Filters */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-card p-4">
@@ -308,7 +323,7 @@ export function GasSettlementsPage() {
                             </div>
                             {sup && (
                               <button
-                                onClick={() => bulkSettle(sup.id)}
+                                onClick={() => openSettlement({ kind: 'bulk', id: sup.id, label: `${name}: pagar ${formatBRL(toPay)} e receber ${formatBRL(toReceive)}`, start: startDate, end: endDate })}
                                 disabled={!!isLoading}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-all whitespace-nowrap"
                               >
@@ -360,6 +375,7 @@ export function GasSettlementsPage() {
                         <th className="text-right px-3 py-3 font-medium">A Pagar</th>
                         <th className="text-right px-3 py-3 font-medium">A Receber</th>
                         <th className="text-center px-4 py-3 font-medium">Status</th>
+                        <th className="text-center px-4 py-3 font-medium">Meio do acerto</th>
                         <th className="text-center px-4 py-3 font-medium">Ação</th>
                       </tr>
                     </thead>
@@ -415,18 +431,20 @@ export function GasSettlementsPage() {
                                 </span>
                               )}
                             </td>
+                            <td className="px-4 py-3 text-center text-xs">{s.settled ? s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado' : '—'}</td>
                             <td className="px-4 py-3 text-center">
-                              {!s.settled && (
+                              <button title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg"><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span></button>
+                              {(!s.settled || !s.paymentMethod) && (
                                 <button
-                                  onClick={() => settleOne(s.id)}
+                                  onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
                                   disabled={isThisSettling}
-                                  title="Marcar como acertado"
+                                  title={s.settled ? 'Informar meio do acerto antigo' : 'Marcar como acertado'}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-40 transition-all"
                                 >
                                   {isThisSettling ? (
                                     <span className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin inline-block" />
                                   ) : (
-                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>task_alt</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{s.settled ? 'edit' : 'task_alt'}</span>
                                   )}
                                 </button>
                               )}
@@ -445,6 +463,24 @@ export function GasSettlementsPage() {
           </>
         )}
       </main>
+      {editSettlement && <EditGasSettlementModal settlement={editSettlement} onClose={() => setEditSettlement(null)} onSuccess={() => { setEditSettlement(null); fetchData(); }} />}
+      {target && <Modal open title={target.kind === 'legacy' ? 'Informar meio do acerto' : 'Confirmar acerto de gás'} onClose={() => { if (!submitting.current) setTarget(null); }} maxWidth="max-w-lg">
+        <form onSubmit={confirmSettlement} className="p-6 space-y-4 overflow-y-auto">
+          <p className="text-sm text-slate-700">{target.label}</p>
+          {target.kind === 'bulk' && <p className="text-xs text-slate-500">Todos os pendentes deste fornecedor entre {target.start?.split('-').reverse().join('/')} e {target.end?.split('-').reverse().join('/')} serão acertados no meio selecionado.</p>}
+          <p className="text-sm text-slate-500">PIX movimenta o saldo PIX. Dinheiro movimenta o saldo físico do caixa.{target.kind === 'legacy' ? ' A data original do acerto será preservada.' : ''}</p>
+          {actionError && <p role="alert" className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">{actionError}</p>}
+          <label className="block text-sm font-medium text-slate-700">Meio do acerto
+            <select required disabled={!!settling || !!bulkSettling} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as GasPaymentMethod | '')} className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20">
+              <option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option>
+            </select>
+          </label>
+          <div className="flex justify-end gap-3">
+            <button type="button" disabled={!!settling || !!bulkSettling} onClick={() => setTarget(null)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
+            <button type="submit" disabled={!paymentMethod || !!settling || !!bulkSettling} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold disabled:opacity-50">{settling || bulkSettling ? 'Registrando...' : target.kind === 'legacy' ? 'Salvar meio' : 'Confirmar acerto'}</button>
+          </div>
+        </form>
+      </Modal>}
     </div>
   );
 }
