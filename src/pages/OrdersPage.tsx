@@ -266,17 +266,19 @@ export function OrdersPage() {
                 : 'Gerencie todos os pedidos do sistema.'}
             </p>
           </div>
-          <button onClick={() => setShowPromotion(true)} className="px-4 py-2.5 border border-primary text-primary rounded-lg font-semibold text-sm">Promoção Gás + água</button>
-          <button
-            onClick={() => setShowNewOrder(true)}
-            className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-            Novo Pedido
-            {hasDraft && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
-            )}
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <button onClick={() => setShowPromotion(true)} className="px-4 py-2.5 border border-primary text-primary rounded-lg font-semibold text-sm">Promoção Gás + Água</button>
+            <button
+              onClick={() => setShowNewOrder(true)}
+              className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              Novo Pedido
+              {hasDraft && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Date filter */}
