@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useRevealSection } from '../hooks/useRevealSection';
 import { parseApiError } from '../utils/parseApiError';
 import type { GasSettlementResponseDTO, GasSettlementUpdateDTO } from '../types';
 import { formatBRL } from '../utils/format';
 
 export function EditGasSettlementModal({ settlement, onClose, onSuccess }: { settlement: GasSettlementResponseDTO; onClose: () => void; onSuccess: () => void }) {
   const { http } = useAuth();
+  const revealSection = useRevealSection();
   const [amount, setAmount] = useState(String(settlement.amount)); const [settled, setSettled] = useState(settlement.settled);
   const [salePrice, setSalePrice] = useState(String(settlement.salePrice ?? ''));
   const [costPrice, setCostPrice] = useState(String(settlement.costPrice ?? ''));
@@ -28,7 +30,7 @@ export function EditGasSettlementModal({ settlement, onClose, onSuccess }: { set
   return <Modal open title="Editar acerto de gás" onClose={() => { if (!busy.current) onClose(); }} maxWidth="max-w-lg"><form onSubmit={submit} className="p-6 space-y-4 overflow-y-auto">
     <p className="text-sm text-slate-600">{settlement.supplierName}. O registro será mantido. Alterar valor, meio ou data atualiza o caixa nas datas correspondentes.</p>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-    <fieldset disabled={saving} className="space-y-3">
+    <fieldset data-reveal-section disabled={saving} className="space-y-3">
       {hasSale ? <>
         <label className="block text-sm">Preço de custo unitário (R$)<input required type="number" min="0" step="0.01" value={costPrice} onChange={e => setCostPrice(e.target.value)} className={cls} /></label>
         <label className="block text-sm">Preço de venda unitário (R$)<input required type="number" min="0" step="0.01" value={salePrice} onChange={e => setSalePrice(e.target.value)} className={cls} /></label>
@@ -36,8 +38,8 @@ export function EditGasSettlementModal({ settlement, onClose, onSuccess }: { set
         <p className="text-sm text-slate-700">Valor unitário do acerto: {formatBRL(unitAmount)}</p>
       </> : <label className="block text-sm">Valor unitário do acerto (R$)<input required type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className={cls} /></label>}
       <p className="text-xs text-slate-500">Quantidade: {settlement.quantity ?? 1}. Total: {formatBRL(unitAmount * (settlement.quantity ?? 1))}</p>
-      <label className="flex gap-2 text-sm"><input type="checkbox" checked={settled} onChange={e => setSettled(e.target.checked)} />Acertado</label>
-      {settled && <><label className="block text-sm">Data do acerto<input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className={cls} /></label><label className="block text-sm">Meio do acerto<select required value={method} onChange={e => setMethod(e.target.value)} className={cls}><option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option></select></label></>}
+      <label className="flex gap-2 text-sm"><input type="checkbox" checked={settled} onChange={e => { setSettled(e.target.checked); if (e.target.checked) revealSection(e.currentTarget); }} />Acertado</label>
+      {settled && <div data-reveal-content className="space-y-3"><label className="block text-sm">Data do acerto<input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className={cls} /></label><label className="block text-sm">Meio do acerto<select required value={method} onChange={e => setMethod(e.target.value)} className={cls}><option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option></select></label></div>}
     </fieldset><div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={onClose} className="px-4 py-2 border rounded-lg">Cancelar</button><button disabled={saving} className="px-4 py-2 bg-primary text-white rounded-lg">{saving ? 'Salvando...' : 'Salvar acerto'}</button></div>
   </form></Modal>;
 }

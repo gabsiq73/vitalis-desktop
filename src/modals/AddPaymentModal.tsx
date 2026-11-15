@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { PaymentRequestDTO, PaymentMethod, OrderBalanceDTO } from '../types';
 import { formatBRL } from '../utils/format';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { useRevealSection } from '../hooks/useRevealSection';
 import { parseApiError } from '../utils/parseApiError';
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
@@ -30,6 +31,7 @@ function nowPaymentDate() {
 
 export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery = false, onFiado }: AddPaymentModalProps) {
   const { http } = useAuth();
+  const revealSection = useRevealSection();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<PaymentMethod>('PIX');
   const [cashReceived, setCashReceived] = useState('');
@@ -237,7 +239,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
           )}
 
           {/* Payment 1 */}
-          <fieldset disabled={loading || balanceLoading || !balance || (forDelivery && balance.remainingBalance <= 0)} className="space-y-5 disabled:opacity-60">
+          <fieldset data-reveal-section disabled={loading || balanceLoading || !balance || (forDelivery && balance.remainingBalance <= 0)} className="space-y-5 disabled:opacity-60">
           <div className="space-y-3">
             {combine && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">1º meio de pagamento</p>}
             <div>
@@ -306,7 +308,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
 
           {/* Payment 2 */}
           {combine && (
-            <div className="space-y-3 pt-3 border-t border-slate-100">
+            <div data-reveal-content className="space-y-3 pt-3 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">2º meio de pagamento</p>
                 <button
@@ -386,7 +388,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
           {!combine && (
             <button
               type="button"
-              onClick={addSecondPayment}
+              onClick={(e) => { addSecondPayment(); revealSection(e.currentTarget); }}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-slate-300 rounded-lg text-[12px] font-semibold text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_circle</span>

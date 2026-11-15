@@ -5,6 +5,7 @@ import { parseApiError } from '../utils/parseApiError';
 import type { GasPaymentMethod, OrderItemRequestBody, OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { useRevealSection } from '../hooks/useRevealSection';
 
 interface EditOrderModalProps {
   open: boolean;
@@ -62,6 +63,7 @@ function localDatetimeOf(isoStr?: string | null): string {
 
 export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderModalProps) {
   const { http } = useAuth();
+  const revealSection = useRevealSection();
 
   const isShipped = order.status === 'SHIPPED';
   const isItemsReadOnly = order.status === 'DELIVERED' || order.status === 'CANCELLED';
@@ -192,15 +194,15 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
             </div>
           )}
           {isShipped && items.map((item, idx) => (item.supplierId || item.gasCostPrice != null || item.receivedByUs != null || item.gasPaymentMethod != null) && (
-            <div key={idx}>
+            <div key={idx} data-reveal-section>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                 Pagamento do gás recebido — {item.productName}
               </label>
               <label className="flex items-center gap-1.5 text-[11px] text-slate-600 mb-2">
-                <input type="checkbox" checked={item.receivedByUs === true} disabled={isItemsReadOnly} onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed" />
+                <input type="checkbox" checked={item.receivedByUs === true} disabled={isItemsReadOnly} onChange={(e) => { updateItem(idx, 'receivedByUs', e.target.checked); if (e.target.checked) revealSection(e.currentTarget); }} className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed" />
                 Recebido por nós
               </label>
-              {item.receivedByUs === true && <div className="flex gap-2">
+              {item.receivedByUs === true && <div data-reveal-content className="flex gap-2">
                 {gasMethods.map((m) => (
                   <button
                     key={m.value}
@@ -327,19 +329,19 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                           </>}
                           {products.find(p => p.id === item.productId)?.type === 'FULL_BOTTLE' && <select required aria-label={`Água do garrafão completo no item ${idx + 1}`} value={item.waterProductId ?? ''} onChange={e => updateItem(idx, 'waterProductId', e.target.value)} className={inputCls + ' mt-2'}><option value="">Escolha a água...</option>{products.filter(p => p.type === 'WATER').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
                           {(item.receivedByUs || products.find((p) => p.id === item.productId)?.type === 'GAS') && (
-                            <div className="mt-2 space-y-2">
+                            <div data-reveal-section className="mt-2 space-y-2">
                               <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
                                 <input
                                   type="checkbox"
                                   checked={item.receivedByUs === true}
                                   disabled={isItemsReadOnly}
-                                  onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
+                                  onChange={(e) => { updateItem(idx, 'receivedByUs', e.target.checked); if (e.target.checked) revealSection(e.currentTarget); }}
                                   className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
                                 />
                                 Recebido por nós
                               </label>
                               {item.receivedByUs && (
-                                <div className="flex gap-2">
+                                <div data-reveal-content className="flex gap-2">
                                   {gasMethods.map((m) => (
                                     <button
                                       key={m.value}

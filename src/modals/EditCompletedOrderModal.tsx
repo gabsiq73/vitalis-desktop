@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useRevealSection } from '../hooks/useRevealSection';
 import { parseApiError } from '../utils/parseApiError';
 import type { BottleMode, GasPaymentMethod, OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 
 export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: OrderResponseDTO; onClose: () => void; onSuccess: () => void }) {
   const { http } = useAuth();
+  const revealSection = useRevealSection();
   const [items, setItems] = useState(order.items.map(i => ({ ...i })));
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   useEffect(() => {
@@ -44,7 +46,7 @@ export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: 
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <fieldset disabled={saving} className="space-y-4">
         <label className="block text-sm">Data da entrega<input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className={cls} /></label>
-        {items.map((item, index) => <div key={item.id} className="p-3 border border-slate-200 rounded-lg space-y-2">
+        {items.map((item, index) => <div key={item.id} data-reveal-section className="p-3 border border-slate-200 rounded-lg space-y-2">
           <p className="font-semibold text-sm">{item.productName}</p>
           <label className="block text-sm">Produto<select aria-label={`Produto do item ${index + 1}`} value={item.productId} onChange={e => {
             const selected = products.find(p => p.id === e.target.value);
@@ -58,8 +60,8 @@ export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: 
           <div className="grid grid-cols-2 gap-3"><label className="text-sm">Quantidade<input aria-label={`Quantidade de ${item.productName}`} required type="number" min="1" step="1" value={item.quantity} onChange={e => change(index, { quantity: Number(e.target.value) })} className={cls} /></label>
             <label className="text-sm">Preço unitário<input aria-label={`Preço de ${item.productName}`} required type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => change(index, { unitPrice: Number(e.target.value) })} className={cls} /></label></div>
           {item.supplierId ? <><label className="block text-sm">Custo do gás<input required type="number" min="0" step="0.01" value={item.gasCostPrice ?? ''} onChange={e => change(index, { gasCostPrice: Number(e.target.value) })} className={cls} /></label>
-            <label className="flex gap-2 text-sm"><input type="checkbox" checked={item.receivedByUs ?? false} onChange={e => change(index, { receivedByUs: e.target.checked })} />Recebido pelo depósito</label>
-            {item.receivedByUs && <label className="block text-sm">Meio do recebimento<select required value={item.gasPaymentMethod ?? ''} onChange={e => change(index, { gasPaymentMethod: e.target.value as GasPaymentMethod })} className={cls}><option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option></select></label>}
+            <label className="flex gap-2 text-sm"><input type="checkbox" checked={item.receivedByUs ?? false} onChange={e => { change(index, { receivedByUs: e.target.checked }); if (e.target.checked) revealSection(e.currentTarget); }} />Recebido pelo depósito</label>
+            {item.receivedByUs && <label data-reveal-content className="block text-sm">Meio do recebimento<select required value={item.gasPaymentMethod ?? ''} onChange={e => change(index, { gasPaymentMethod: e.target.value as GasPaymentMethod })} className={cls}><option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option></select></label>}
           </> : (products.find(p => p.id === item.productId)?.type ?? 'WATER') === 'WATER' ? <label className="block text-sm">Tipo da venda<select value={item.bottleMode ?? 'REFILL'} onChange={e => change(index, { bottleMode: e.target.value as BottleMode })} className={cls}><option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Venda de garrafão vencido</option></select></label> : null}
         </div>)}
         {isPromotion && <label className="block text-sm">Valor de referência da água na promoção<input required type="number" min="0.01" step="0.01" value={waterValue} onChange={e => setWaterValue(e.target.value)} className={cls} /></label>}

@@ -5,6 +5,7 @@ import { useNotification } from '../hooks/useNotification';
 import { parseApiError } from '../utils/parseApiError';
 import { ORDER_DRAFT_KEY, clearOrderDraft, restoreOrderDraftItems } from '../utils/orderDraft';
 import { useScrollToError } from '../hooks/useScrollToError';
+import { useRevealSection } from '../hooks/useRevealSection';
 import type {
   ClientResponseDTO,
   ProductResponseDTO,
@@ -66,6 +67,7 @@ function nowDatetimeLocal() {
 export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrder }: NewOrderModalProps) {
   const isEditMode = !!editOrder;
   const { http } = useAuth();
+  const revealSection = useRevealSection();
   const { notify } = useNotification();
 
   const [isAvulso, setIsAvulso] = useState(false);
@@ -892,16 +894,16 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           {hasGasItem && (
                             <td className="px-3 py-2 text-center">
                               {isGas ? (
-                                <div className="space-y-2">
+                                <div data-reveal-section className="space-y-2">
                                   <input
                                     type="checkbox"
                                     checked={item.receivedByUs}
-                                    onChange={(e) => updateItem(idx, 'receivedByUs', e.target.checked)}
+                                    onChange={(e) => { updateItem(idx, 'receivedByUs', e.target.checked); if (e.target.checked) revealSection(e.currentTarget); }}
                                     aria-label="Recebido por nós"
                                     className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
                                   />
                                   {item.receivedByUs && (
-                                    <div className="flex gap-1">
+                                    <div data-reveal-content className="flex gap-1">
                                       {PAYMENT_METHODS.filter((m) => m.value !== 'SALDO').map((m) => (
                                         <button
                                           key={m.value}
@@ -998,7 +1000,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
             {/* ── Empréstimo de Vasilhame (apenas criação, cliente identificado) ── */}
             {!isEditMode && selectedClient && !isAvulso && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div data-reveal-section className="border border-slate-200 rounded-xl overflow-hidden">
                 <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 ${loanEnabled ? 'border-b border-slate-200' : ''}`}>
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>water_drop</span>
@@ -1011,7 +1013,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                       type="button"
                       aria-label="Registrar empréstimo"
                       aria-pressed={loanEnabled}
-                      onClick={() => setLoanEnabled((v) => !v)}
+                      onClick={(e) => { setLoanEnabled((v) => !v); if (!loanEnabled) revealSection(e.currentTarget); }}
                       className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${loanEnabled ? 'bg-primary' : 'bg-slate-300'}`}
                     >
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${loanEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -1019,7 +1021,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                   </div>
                 </div>
                 {loanEnabled && (
-                  <div className="p-4">
+                  <div data-reveal-content className="p-4">
                     <div>
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -1041,7 +1043,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
             )}
 
             {/* ── Pagamento (apenas no modo criação) ── */}
-            {!isEditMode && <div className="border border-slate-200 rounded-xl overflow-hidden">
+            {!isEditMode && <div data-reveal-section className="border border-slate-200 rounded-xl overflow-hidden">
               <div className={`flex items-center justify-between px-4 py-3 bg-slate-50 ${registerPayment ? 'border-b border-slate-200' : ''}`}>
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-slate-500" style={{ fontSize: '18px' }}>payments</span>
@@ -1050,19 +1052,22 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <span className="text-[12px] text-slate-500 font-medium">Registrar agora</span>
-                  <div
-                    onClick={() => setRegisterPayment((v) => !v)}
+                  <button
+                    type="button"
+                    aria-label="Registrar pagamento"
+                    aria-pressed={registerPayment}
+                    onClick={(e) => { setRegisterPayment((v) => !v); if (!registerPayment) revealSection(e.currentTarget); }}
                     className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${registerPayment ? 'bg-primary' : 'bg-slate-300'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${registerPayment ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </div>
+                  </button>
                 </label>
               </div>
 
               {items.some((item) => getProduct(item.productId)?.type === 'GAS') && (
                 <p className="px-4 py-2 text-[11px] text-slate-500">O pagamento do gás é definido nos itens acima e registrado junto com o pedido.</p>
               )}
-              {registerPayment && <div className="p-4 space-y-4">
+              {registerPayment && <div data-reveal-content className="p-4 space-y-4">
                 {/* Progress strip — same Total/Alocado/Restante pattern used when registering a payment on an existing order */}
                 {payableTotal > 0 && (() => {
                   const allocated = (parseFloat(paymentAmount) || 0) + (combinePayment ? (parseFloat(paymentAmount2) || 0) : 0);
@@ -1156,7 +1161,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
                 {/* 2º meio de pagamento */}
                 {combinePayment && (
-                  <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div data-reveal-second-payment className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">2º meio de pagamento</p>
                       <button
@@ -1236,7 +1241,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                 {!combinePayment && (
                   <button
                     type="button"
-                    onClick={addSecondPayment}
+                    onClick={(e) => { addSecondPayment(); revealSection(e.currentTarget, '[data-reveal-second-payment]'); }}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-slate-300 rounded-lg text-[12px] font-semibold text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_circle</span>
