@@ -100,6 +100,25 @@ src/
 
 ## Integração com a API
 
+Em **Produtos → Novo Produto**, escolha **Garrafão completo** ou **Garrafão
+vencido** para cadastrá-los com nome e preço próprios. No pedido, o completo pede
+a água que vai nele; seu preço é o valor completo da venda, sem segunda cobrança
+pela água. A entrega reduz uma água escolhida e um garrafão válido por unidade.
+O produto vencido não pede água e reduz somente a quantidade de vencidos.
+Requer a migration V5 e `waterProductId` no item. Pedidos antigos continuam válidos.
+
+No pedido de gás, o campo de preço agora altera o **preço de venda**. O custo vem
+de **Produtos → Último Custo** e fica congelado na venda. A promoção também usa
+o custo cadastrado, mantendo preço do conjunto e água ajustáveis.
+
+**Vasilhames → Registrar Empréstimo** pede somente cliente e quantidade; a data
+é automática e não é necessário ter água/produto cadastrado. No Novo Pedido,
+ative **Registrar empréstimo** e informe somente a quantidade para o cliente
+já selecionado. Edição preserva a data e o produto dos empréstimos históricos.
+Requer o backend com a migration V4 e `productId` opcional em `/bottles`.
+Novos registros sem produto aparecem como **Garrafão**. Devolução e exclusão
+mantêm seus fluxos existentes.
+
 Em **Estoque → Garrafões do depósito**, informe a contagem física inicial de válidos
 e vencidos (vazios e cheios). A quantidade de água cheia usa parte dos válidos;
 o restante é mostrado como válido vazio. Os estoques anteriores ficam preservados

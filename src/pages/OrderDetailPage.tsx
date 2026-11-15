@@ -283,7 +283,7 @@ export function OrderDetailPage() {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-semibold text-slate-700">{item.productName}</span>
+                                <span className="text-[13px] font-semibold text-slate-700">{item.productName}{item.waterProductName ? ` — ${item.waterProductName}` : ''}</span>
 
                               </div>
                             </div>

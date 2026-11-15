@@ -328,7 +328,7 @@ export function BottlesPage() {
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant">
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Cliente" field="clientName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
-                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Produto" field="productName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
+                  <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Vasilhame" field="productName" sort={sort} onSort={setSort} defaultDir="asc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Qtd" field="quantity" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase"><SortableHeader label="Data Empréstimo" field="loanDate" sort={sort} onSort={setSort} defaultDir="desc" /></th>
                   <th className="px-6 py-4 text-label-sm text-on-surface-variant uppercase">Dias em Aberto</th>
@@ -370,7 +370,7 @@ export function BottlesPage() {
                             <span className="material-symbols-outlined text-primary-container" style={{ fontSize: '18px' }}>
                               propane_tank
                             </span>
-                            {b.productName}
+                            {b.productName ?? 'Garrafão'}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-bold text-on-surface">{b.quantity}</td>

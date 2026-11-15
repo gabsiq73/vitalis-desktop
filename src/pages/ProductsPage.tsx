@@ -23,6 +23,8 @@ import { PageSizeSelector } from '../components/PageSizeSelector';
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string; bg: string }> = {
   GAS:   { icon: 'propane_tank', label: 'Gás GLP',  color: 'text-orange-600', bg: 'bg-orange-50' },
   WATER: { icon: 'water_drop',  label: 'Água',       color: 'text-blue-600',   bg: 'bg-blue-50' },
+  FULL_BOTTLE: { icon: 'water_full', label: 'Garrafão completo', color: 'text-teal-700', bg: 'bg-teal-50' },
+  EXPIRED_BOTTLE: { icon: 'inventory_2', label: 'Garrafão vencido', color: 'text-amber-700', bg: 'bg-amber-50' },
 };
 
 interface ProductFormProps {
@@ -98,14 +100,15 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
 
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Tipo *</label>
-        <div className="flex gap-2">
-          {(['GAS', 'WATER'] as ProductType[]).map(t => {
+        <div className="grid grid-cols-2 gap-2">
+          {(['GAS', 'WATER', 'FULL_BOTTLE', 'EXPIRED_BOTTLE'] as ProductType[]).map(t => {
             const cfg = TYPE_CONFIG[t];
             return (
               <button
                 key={t}
                 type="button"
-                onClick={() => { setType(t); if (t === 'WATER') setDefaultSupplierId(''); }}
+                onClick={() => { setType(t); if (t !== 'GAS') setDefaultSupplierId(''); }}
+                aria-pressed={type === t}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
                   type === t ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-600 hover:border-primary/40 hover:bg-slate-50'
                 }`}
@@ -119,6 +122,8 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        {type === 'FULL_BOTTLE' && <p className="col-span-2 text-sm text-slate-500">Cadastre o preço completo da venda. A água será escolhida ao montar o pedido.</p>}
+        {type === 'EXPIRED_BOTTLE' && <p className="col-span-2 text-sm text-slate-500">Vasilhame vencido, vendido sem água. A venda baixa somente os garrafões vencidos.</p>}
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Preço de Venda *</label>
           <input type="number" step="0.01" min="0.01" className={inputCls} placeholder="0,00" value={basePrice} onChange={e => setBasePrice(e.target.value)} />
@@ -284,6 +289,8 @@ export function ProductsPage() {
                 { value: '',      label: 'Todos' },
                 { value: 'GAS',   label: 'Gás GLP' },
                 { value: 'WATER', label: 'Água' },
+                { value: 'FULL_BOTTLE', label: 'Garrafão completo' },
+                { value: 'EXPIRED_BOTTLE', label: 'Garrafão vencido' },
               ].map(opt => (
                 <button
                   key={opt.value}

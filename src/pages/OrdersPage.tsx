@@ -481,7 +481,7 @@ export function OrdersPage() {
                             {order.items.slice(0, 2).map((item) => {
                               return (
                                 <span key={item.id} className="text-[11px] text-slate-500 leading-tight flex items-center gap-1">
-                                  {item.productName} {item.bottleMode === 'EXPIRED' ? '(vencido sem água)' : item.bottleMode === 'FULL' ? '(completo)' : item.promotionWaterValue != null ? '(promoção)' : ''} <span className="font-bold text-slate-700">×{item.quantity}</span>
+                                  {item.productName}{item.waterProductName ? ` — ${item.waterProductName}` : ''} {item.bottleMode === 'EXPIRED' ? '(vencido sem água)' : item.bottleMode === 'FULL' ? '(completo)' : item.promotionWaterValue != null ? '(promoção)' : ''} <span className="font-bold text-slate-700">×{item.quantity}</span>
 
                                 </span>
                               );

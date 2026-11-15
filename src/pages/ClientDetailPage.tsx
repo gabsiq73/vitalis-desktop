@@ -631,7 +631,7 @@ export function ClientDetailPage() {
                             <span className="material-symbols-outlined text-primary" style={{ fontSize: '20px' }}>propane_tank</span>
                           </div>
                           <div>
-                            <p className="text-[13px] font-semibold text-slate-700">{bottle.productName}</p>
+                            <p className="text-[13px] font-semibold text-slate-700">{bottle.productName ?? 'Garrafão'}</p>
                             {bottle.loanDate && (
                               <p className="text-[11px] text-slate-400">Emprestado em {formatDateTime(bottle.loanDate)}</p>
                             )}

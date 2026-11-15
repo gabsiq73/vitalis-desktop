@@ -14,6 +14,7 @@ interface EditOrderModalProps {
 }
 
 interface EditItem {
+  waterProductId?: string;
   bottleMode?: import('../types').BottleMode;
   productId: string;
   quantity: number;
@@ -34,6 +35,7 @@ const gasMethods: { value: GasPaymentMethod; label: string; icon: string }[] = [
 
 function toEditItem(i: OrderResponseDTO['items'][number]): EditItem {
   return {
+    waterProductId: i.waterProductId,
     bottleMode: i.bottleMode,
     productId: i.productId,
     quantity: i.quantity,
@@ -105,7 +107,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
       if (i !== idx) return item;
       if (field === 'productId') {
         const p = products.find((p) => p.id === value);
-        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0, waterUnitPrice: undefined, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true };
+        return { ...item, productId: String(value), productName: p?.name ?? '', unitPrice: p?.basePrice ?? 0, waterUnitPrice: undefined, waterProductId: undefined, bottleMode: undefined, supplierId: '', gasCostPrice: undefined, receivedByUs: false, gasPaymentMethod: null, gasFinancialChanged: true };
       }
       return { ...item, [field]: value, ...((field === 'receivedByUs' || field === 'gasPaymentMethod') ? { gasFinancialChanged: true } : {}) };
     }));
@@ -124,7 +126,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
       return;
     }
     if (validItems.some((item) => item.waterUnitPrice && (!Number.isFinite(Number(item.waterUnitPrice)) || Number(item.waterUnitPrice) <= 0))) {
-      setError('Informe um preço da água maior que zero ou deixe em branco para manter o preço atual.');
+      setError('Informe um preço de venda maior que zero ou deixe em branco para manter o preço atual.');
       return;
     }
     if (validItems.some((i) => i.receivedByUs === true && !i.gasPaymentMethod && i.gasFinancialChanged)) {
@@ -149,6 +151,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
         items: validItems.map((i): OrderItemRequestBody => ({
           bottleMode: i.bottleMode,
           productId: i.productId,
+          ...(i.waterProductId ? { waterProductId: i.waterProductId } : {}),
           quantity: i.quantity,
           unitPrice: itemPrice(i),
           ...(i.supplierId ? { supplierId: i.supplierId } : {}),
@@ -318,6 +321,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                             ))}
                           </select>
                           {products.find(p => p.id === item.productId)?.type === 'WATER' && <select aria-label="Tipo da venda de garrafão" value={item.bottleMode ?? 'REFILL'} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={inputCls + ' mt-2'}><option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido sem água</option></select>}
+                          {products.find(p => p.id === item.productId)?.type === 'FULL_BOTTLE' && <select required aria-label={`Água do garrafão completo no item ${idx + 1}`} value={item.waterProductId ?? ''} onChange={e => updateItem(idx, 'waterProductId', e.target.value)} className={inputCls + ' mt-2'}><option value="">Escolha a água...</option>{products.filter(p => p.type === 'WATER').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
                           {(item.receivedByUs || products.find((p) => p.id === item.productId)?.type === 'GAS') && (
                             <div className="mt-2 space-y-2">
                               <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
@@ -370,7 +374,7 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {products.find((p) => p.id === item.productId)?.type === 'WATER' ? (
+                          {products.find((p) => p.id === item.productId)?.type !== 'GAS' ? (
                             <input
                               type="number"
                               step="0.01"

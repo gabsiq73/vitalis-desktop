@@ -3,7 +3,7 @@ import { Modal } from '../components/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { useScrollToError } from '../hooks/useScrollToError';
 import { parseApiError } from '../utils/parseApiError';
-import type { ClientResponseDTO, ProductResponseDTO, LoanedBottleRequestDTO, SpringPage } from '../types';
+import type { ClientResponseDTO, LoanedBottleRequestDTO, SpringPage } from '../types';
 
 interface NewLoanModalProps {
   loan?: import('../types').LoanedBottleResponseDTO;
@@ -15,40 +15,29 @@ interface NewLoanModalProps {
 export function NewLoanModal({ open, onClose, onSuccess, loan }: NewLoanModalProps) {
   const { http } = useAuth();
   const [clients, setClients] = useState<ClientResponseDTO[]>([]);
-  const [products, setProducts] = useState<ProductResponseDTO[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
   const [clientId, setClientId] = useState('');
-  const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [loanDate, setLoanDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
   useEffect(() => {
-    if (open && loan) { setClientId(loan.clientId); setProductId(loan.productId); setQuantity(loan.quantity); setLoanDate(loan.loanDate?.slice(0, 10) ?? new Date().toLocaleDateString('en-CA')); setError(''); }
+    if (open) { setClientId(loan?.clientId ?? ''); setQuantity(loan?.quantity ?? 1); setError(''); }
   }, [open, loan]);
 
   useEffect(() => {
     if (!open || !http) return;
     setLoadingOptions(true);
-    Promise.all([
-      http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 200 } }),
-      http.get<SpringPage<ProductResponseDTO>>('/products', { params: { size: 200 } }),
-    ])
-      .then(([clientsRes, productsRes]) => {
-        setClients(clientsRes.data.content);
-        setProducts(productsRes.data.content.filter((p) => p.isActive && p.type === 'WATER'));
-      })
+    http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 200 } })
+      .then(clientsRes => setClients(clientsRes.data.content))
       .catch(err => setError(parseApiError(err)))
       .finally(() => setLoadingOptions(false));
   }, [open, http]);
 
   function handleClose() {
     setClientId('');
-    setProductId('');
     setQuantity(1);
-    setLoanDate(new Date().toISOString().slice(0, 10));
     setError('');
     onClose();
   }
@@ -56,16 +45,14 @@ export function NewLoanModal({ open, onClose, onSuccess, loan }: NewLoanModalPro
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!clientId) { setError('Selecione um cliente.'); return; }
-    if (!productId) { setError('Selecione um produto.'); return; }
-    if (quantity < 1) { setError('Quantidade deve ser maior que zero.'); return; }
+    if (!Number.isInteger(quantity) || quantity < 1) { setError('Informe uma quantidade inteira maior que zero.'); return; }
     setLoading(true);
     setError('');
     try {
       const payload: LoanedBottleRequestDTO = {
         clientId,
-        productId,
         quantity,
-        loanDate: `${loanDate}T00:00:00`,
+        loanDate: loan?.loanDate ?? null,
       };
       if (loan) await http!.put(`/bottles/${loan.id}`, payload);
       else await http!.post('/bottles', payload);
@@ -82,8 +69,10 @@ export function NewLoanModal({ open, onClose, onSuccess, loan }: NewLoanModalPro
     <Modal open={open} onClose={() => { if (!loading) handleClose(); }} title={loan ? 'Editar empréstimo' : 'Registrar Novo Empréstimo'} maxWidth="max-w-lg">
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Cliente *</label>
+          <label htmlFor="loan-client" className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Cliente *</label>
           <select
+            id="loan-client"
+            required
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
@@ -95,52 +84,26 @@ export function NewLoanModal({ open, onClose, onSuccess, loan }: NewLoanModalPro
             {clients.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
+            {loan && !clients.some(c => c.id === loan.clientId) && <option value={loan.clientId}>{loan.clientName}</option>}
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Produto *</label>
-            <select
-              className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              disabled={loadingOptions}
-            >
-              <option value="">
-                {loadingOptions ? 'Carregando...' : 'Selecione...'}
-              </option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Quantidade *</label>
+        <div>
+            <label htmlFor="loan-quantity" className="block text-label-sm text-on-surface-variant uppercase mb-1.5">Quantidade *</label>
             <input
+              id="loan-quantity"
               type="number"
               min={1}
+              step={1}
+              required
               className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
             />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-label-sm text-on-surface-variant uppercase mb-1.5">
-            Data do Empréstimo *
-          </label>
-          <input
-            type="date"
-            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg text-body-md bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            value={loanDate}
-            onChange={(e) => setLoanDate(e.target.value)}
-          />
         </div>
 
         <div className="p-3 bg-surface-container rounded-lg border border-dashed border-outline text-[12px] text-on-surface-variant">
-          Ao registrar este empréstimo, o histórico do cliente será atualizado automaticamente.
+          O empréstimo registra o garrafão, independentemente da água. A data é registrada automaticamente.
         </div>
 
         {error && <p ref={errorRef} className="text-sm text-error">{error}</p>}

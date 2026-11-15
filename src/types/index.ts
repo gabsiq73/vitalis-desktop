@@ -10,7 +10,7 @@ export type ClientType = 'RETAIL' | 'RESELLER' | 'AVULSO';
 export type ClientStatus = 'PAID' | 'OVERDUE';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
-export type ProductType = 'WATER' | 'GAS';
+export type ProductType = 'WATER' | 'GAS' | 'FULL_BOTTLE' | 'EXPIRED_BOTTLE';
 export type BottleMode = 'REFILL' | 'FULL' | 'EXPIRED';
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
 export type GasPaymentMethod = Extract<PaymentMethod, 'PIX' | 'DINHEIRO'>;
@@ -40,6 +40,8 @@ export interface ProductResponseDTO {
 }
 
 export interface OrderItemResponseDTO {
+  waterProductId?: string;
+  waterProductName?: string;
   bottleMode?: BottleMode;
   promotionWaterValue?: number;
   id: string;
@@ -101,8 +103,8 @@ export interface LoanedBottleResponseDTO {
   id: string;
   clientId: string;
   clientName: string;
-  productId: string;
-  productName: string;
+  productId: string | null;
+  productName: string | null;
   quantity: number;
   loanDate?: string;
   returnDate?: string;
@@ -159,7 +161,7 @@ export interface GasSupplierRequestDTO {
 }
 
 export interface LoanedBottleRequestDTO {
-  productId: string;
+  productId?: string;
   clientId: string;
   quantity: number;
   loanDate: string | null;
@@ -343,6 +345,7 @@ export interface FinancialReportDTO {
 }
 
 export interface OrderItemRequestBody {
+  waterProductId?: string;
   itemId?: string;
   bottleMode?: BottleMode;
   productId: string;

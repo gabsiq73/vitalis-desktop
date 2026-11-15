@@ -31,7 +31,7 @@ export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: 
     try {
       const gas = items.find(i => i.supplierId); const water = items.find(i => !i.supplierId);
       await http.put(`/orders/${order.id}/correction`, { clientId: order.clientId, isDelivery: true, deliveryDate: date ? `${date}:00` : undefined, notes,
-        items: items.map(i => ({ itemId: i.id, productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice, bottleMode: i.bottleMode ?? 'REFILL', supplierId: i.supplierId, gasCostPrice: i.gasCostPrice, receivedByUs: i.receivedByUs, gasPaymentMethod: i.gasPaymentMethod })),
+        items: items.map(i => ({ itemId: i.id, productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice, bottleMode: i.bottleMode ?? 'REFILL', waterProductId: i.waterProductId, supplierId: i.supplierId, gasCostPrice: i.gasCostPrice, receivedByUs: i.receivedByUs, gasPaymentMethod: i.gasPaymentMethod })),
         ...(waterValue && gas && water ? { promotion: { waterProductId: water.productId, waterUnitValue: Number(waterValue), bundleUnitPrice: gas.unitPrice } } : {}),
       });
       onSuccess();
@@ -51,14 +51,15 @@ export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: 
             if (selected) change(index, { productId: selected.id, productName: selected.name, ...(selected.type === 'GAS' ? { supplierId: selected.defaultSupplierId ?? item.supplierId, gasCostPrice: selected.lastCostPrice ?? item.gasCostPrice } : {}) });
           }} className={cls}>
             {!products.some(p => p.id === item.productId) && <option value={item.productId}>{item.productName}</option>}
-            {products.filter(p => p.type === (item.supplierId ? 'GAS' : 'WATER')).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {products.filter(p => p.type === (products.find(original => original.id === item.productId)?.type ?? (item.supplierId ? 'GAS' : 'WATER'))).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select></label>
+          {item.waterProductId && <label className="block text-sm">Água do garrafão completo<select required aria-label={`Água do garrafão completo no item ${index + 1}`} value={item.waterProductId} onChange={e => change(index, { waterProductId: e.target.value })} className={cls}><option value={item.waterProductId}>{item.waterProductName ?? 'Água atual'}</option>{products.filter(p => p.type === 'WATER' && p.isActive && p.id !== item.waterProductId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
           <div className="grid grid-cols-2 gap-3"><label className="text-sm">Quantidade<input aria-label={`Quantidade de ${item.productName}`} required type="number" min="1" step="1" value={item.quantity} onChange={e => change(index, { quantity: Number(e.target.value) })} className={cls} /></label>
             <label className="text-sm">Preço unitário<input aria-label={`Preço de ${item.productName}`} required type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => change(index, { unitPrice: Number(e.target.value) })} className={cls} /></label></div>
           {item.supplierId ? <><label className="block text-sm">Custo do gás<input required type="number" min="0" step="0.01" value={item.gasCostPrice ?? ''} onChange={e => change(index, { gasCostPrice: Number(e.target.value) })} className={cls} /></label>
             <label className="flex gap-2 text-sm"><input type="checkbox" checked={item.receivedByUs ?? false} onChange={e => change(index, { receivedByUs: e.target.checked })} />Recebido pelo depósito</label>
             {item.receivedByUs && <label className="block text-sm">Meio do recebimento<select required value={item.gasPaymentMethod ?? ''} onChange={e => change(index, { gasPaymentMethod: e.target.value as GasPaymentMethod })} className={cls}><option value="">Selecione...</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option></select></label>}
-          </> : <label className="block text-sm">Tipo da venda<select value={item.bottleMode ?? 'REFILL'} onChange={e => change(index, { bottleMode: e.target.value as BottleMode })} className={cls}><option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido sem água</option></select></label>}
+          </> : (products.find(p => p.id === item.productId)?.type ?? 'WATER') === 'WATER' ? <label className="block text-sm">Tipo da venda<select value={item.bottleMode ?? 'REFILL'} onChange={e => change(index, { bottleMode: e.target.value as BottleMode })} className={cls}><option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido sem água</option></select></label> : null}
         </div>)}
         {isPromotion && <label className="block text-sm">Valor de referência da água na promoção<input required type="number" min="0.01" step="0.01" value={waterValue} onChange={e => setWaterValue(e.target.value)} className={cls} /></label>}
         <label className="block text-sm">Observação<textarea maxLength={2000} rows={2} value={notes} onChange={e => setNotes(e.target.value)} className={cls} /></label>
