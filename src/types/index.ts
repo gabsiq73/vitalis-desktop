@@ -12,6 +12,7 @@ export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS' | 'FULL_BOTTLE' | 'EXPIRED_BOTTLE';
 export type BottleMode = 'REFILL' | 'FULL' | 'EXPIRED';
+// EXPIRED_BOTTLE + REFILL usa waterProductId e preserva o total de vasilhames.
 export type PaymentMethod = 'PIX' | 'DINHEIRO' | 'SALDO';
 export type GasPaymentMethod = Extract<PaymentMethod, 'PIX' | 'DINHEIRO'>;
 

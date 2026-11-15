@@ -104,7 +104,15 @@ Em **Produtos → Novo Produto**, escolha **Garrafão completo** ou **Garrafão
 vencido** para cadastrá-los com nome e preço próprios. No pedido, o completo pede
 a água que vai nele; seu preço é o valor completo da venda, sem segunda cobrança
 pela água. A entrega reduz uma água escolhida e um garrafão válido por unidade.
-O produto vencido não pede água e reduz somente a quantidade de vencidos.
+No produto vencido, escolha **Venda do vasilhame** para reduzir os vencidos ou
+**Troca de água** e selecione a água utilizada. A troca baixa somente a água,
+mantendo os totais de garrafões válidos e vencidos. A opção também está disponível
+na edição e na correção de pedidos concluídos; cancelamento recompõe a água.
+Requer o backend com suporte a `EXPIRED_BOTTLE` + `bottleMode: REFILL` e
+`waterProductId`. Vendas antigas continuam como venda do vasilhame.
+Teste dirigido: `node tests/expiredRefill.electron.mjs`, com desktop em
+`localhost:5173`, Playwright (ou `PLAYWRIGHT_MODULE`) e
+`EXPIRED_REFILL_TEST_API` apontando para uma API real descartável.
 Requer a migration V5 e `waterProductId` no item. Pedidos antigos continuam válidos.
 
 No pedido de gás, o campo de preço agora altera o **preço de venda**. O custo vem
@@ -126,7 +134,7 @@ até informar essa contagem. Para realocar água entre produtos, reduza uma aloc
 e aumente outra, sem exceder os garrafões válidos disponíveis.
 
 No item de água do pedido, selecione **Troca de água**, **Garrafão completo** ou
-**Vencido, sem água** e informe o preço da venda. A entrega de troca baixa apenas
+**Venda de garrafão vencido** e informe o preço da venda. A entrega de troca baixa apenas
 a água; completo baixa água e total válido; vencido baixa apenas o total vencido.
 Cancelamento recompõe os efeitos aplicados. Vencidos não contam como água vendida.
 O cadastro de empréstimos continua separado da alocação física de águas.
