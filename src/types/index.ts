@@ -139,6 +139,15 @@ export interface GasSupplierResponseDTO {
 
 export type SettlementType = 'YOU_OWE' | 'SUPPLIER_OWE';
 
+export interface GasSettlementUpdateDTO {
+  amount: number;
+  settled: boolean;
+  settledDate: string | null;
+  paymentMethod: GasPaymentMethod | null;
+  salePrice?: number;
+  costPrice?: number;
+}
+
 export interface GasSettlementResponseDTO {
   paymentMethod: GasPaymentMethod | null;
   id: string;

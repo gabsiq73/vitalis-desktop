@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
 import { EditCompletedOrderModal } from '../modals/EditCompletedOrderModal';
@@ -52,6 +53,8 @@ export function OrderDetailPage() {
   const [showDelivery, setShowDelivery] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchAll = useCallback(() => {
     if (!http || !id) return;
@@ -95,6 +98,16 @@ export function OrderDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  async function deleteOrder() {
+    if (!http || !id) return false;
+    setDeleteError('');
+    try {
+      await http.delete(`/orders/${id}/permanent`);
+      notify('Pedido apagado.', 'success'); navigate('/orders');
+      return true;
+    } catch (err) { setDeleteError(parseApiError(err)); return false; }
   }
 
   if (loading) {
@@ -191,6 +204,9 @@ export function OrderDetailPage() {
 
             {/* Edit button + step tracker */}
             <div className="flex items-center gap-3 flex-shrink-0">
+              <button aria-label="Apagar pedido" onClick={() => { setDeleteError(''); setShowDelete(true); }} className="flex items-center gap-1.5 px-4 py-2 border border-red-200 rounded-lg text-[13px] font-semibold text-red-600 hover:bg-red-50">
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>Apagar pedido
+              </button>
               {!isCancelled && !order.manualDebt && (
                 <button
                   onClick={() => setShowEditOrder(true)}
@@ -506,6 +522,9 @@ export function OrderDetailPage() {
         </div>
       </div>
 
+      <ConfirmModal open={showDelete} title="Apagar pedido" danger confirmLabel="Apagar pedido" error={deleteError}
+        message={`Apagar definitivamente o pedido ${formatOrderId(order.id)}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. Outros pedidos são mantidos. A exclusão não pode ser desfeita.`}
+        onConfirm={deleteOrder} onClose={() => setShowDelete(false)} />
       {showEditOrder && (isDelivered || order.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
       {showEditOrder && !isDelivered && !order.items.some(i => i.promotionWaterValue != null) && (
         <EditOrderModal

@@ -130,6 +130,8 @@ export function OrdersPage() {
     if (!showNewOrder) setHasDraft(hasOrderDraft());
   }, [showNewOrder]);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OrderResponseDTO | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<OrderResponseDTO | null>(null);
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
@@ -245,6 +247,19 @@ export function OrdersPage() {
     } finally {
       setActionLoading(null);
     }
+  }
+
+  async function deleteOrder() {
+    if (!http || !deleteTarget) return false;
+    setDeleteError('');
+    setActionLoading(deleteTarget.id);
+    try {
+      await http.delete(`/orders/${deleteTarget.id}/permanent`);
+      notify('Pedido apagado.', 'success');
+      fetchOrders(); fetchCounts();
+      return true;
+    } catch (err) { setDeleteError(parseApiError(err)); return false; }
+    finally { setActionLoading(null); }
   }
 
   const hasActiveFilters = !!(search || statusFilter || paymentFilter || dateMode !== 'today');
@@ -563,6 +578,9 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>cancel</span>
                             </button>
+                            <button title="Apagar pedido" disabled={isLoadingThis} onClick={() => { setDeleteError(''); setDeleteTarget(order); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-25">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -649,6 +667,10 @@ export function OrdersPage() {
           onSuccess={() => { setEditTarget(null); fetchOrders(); fetchCounts(); }}
         />
       )}
+
+      <ConfirmModal open={deleteTarget !== null} title="Apagar pedido" danger confirmLabel="Apagar pedido" error={deleteError}
+        message={`Apagar definitivamente o pedido ${deleteTarget ? formatOrderId(deleteTarget.id) : ''} de ${deleteTarget?.clientName ?? ''}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. Outros pedidos são mantidos. A exclusão não pode ser desfeita.`}
+        onConfirm={deleteOrder} onClose={() => setDeleteTarget(null)} />
 
       {statusMenu && (() => {
         const currentOrder = orders.find((o) => o.id === statusMenu.id);

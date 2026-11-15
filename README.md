@@ -119,6 +119,26 @@ No pedido de gás, o campo de preço agora altera o **preço de venda**. O custo
 de **Produtos → Último Custo** e fica congelado na venda. A promoção também usa
 o custo cadastrado, mantendo preço do conjunto e água ajustáveis.
 
+Em **Acertos de Gás → Editar**, os preços unitários de custo e de venda podem
+ser corrigidos, inclusive em acertos liquidados. A correção atualiza o pedido,
+seu histórico, pagamentos e acerto na mesma transação, preservando os cadastros.
+Na promoção, o preço de venda é o valor do conjunto.
+
+**Apagar pedido**, na lista ou no detalhe, exclui definitivamente o pedido
+selecionado, seus itens, pagamentos, empréstimos e acertos. **Apagar acerto de gás**
+exclui também o pedido vinculado inteiro, conforme a confirmação exibida.
+O estoque é recomposto, SALDO utilizado é devolvido e o saldo do cliente é
+recalculado. Outros subpedidos de uma venda mista são mantidos. Pedidos já
+cancelados também podem ser apagados, sem recompor estoque novamente.
+A exclusão exige administrador; o cancelamento anterior continua disponível.
+
+Requer o backend com `salePrice` e `costPrice` opcionais em
+`PUT /gas-settlements/{id}`, `DELETE /gas-settlements/{id}` e
+`DELETE /orders/{id}/permanent`. Atualize backend e desktop juntos.
+Teste do fluxo: `node tests/gasPricesAndDeletion.electron.mjs`, com desktop em
+`localhost:5173`, Playwright (ou `PLAYWRIGHT_MODULE`) e
+`GAS_OPERATIONS_TEST_API` apontando para uma API real descartável.
+
 **Vasilhames → Registrar Empréstimo** pede somente cliente e quantidade; a data
 é automática e não é necessário ter água/produto cadastrado. No Novo Pedido,
 ative **Registrar empréstimo** e informe somente a quantidade para o cliente
