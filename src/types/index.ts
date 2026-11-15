@@ -312,6 +312,13 @@ export interface DailyReportDTO {
   totalGasSold: number;
 }
 
+export interface BottleReportDTO {
+  fullBottlesSold: number;
+  brokenBottles: number;
+  brokenValidBottles: number;
+  brokenExpiredBottles: number;
+}
+
 export type CashMovementType = 'ENTRY' | 'ADJUSTMENT' | 'WITHDRAWAL';
 export type CashMovementDirection = 'IN' | 'OUT';
 export type WithdrawalKind = 'RETIRADA' | 'COMPRA' | 'DESPESA';

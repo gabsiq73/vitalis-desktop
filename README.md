@@ -113,6 +113,14 @@ sem modificar os dados existentes. Teste dirigido:
 `node tests/bottleBreakage.electron.mjs`, com Electron/Vite em 5173,
 Playwright e `BOTTLE_BREAKAGE_TEST_API=http://127.0.0.1:18090` descartável.
 
+Em **Relatórios**, o card **Garrafões no período** mostra completos vendidos
+pela data de entrega e quebras pela data do registro, com divisão entre válidos
+e vencidos. Acompanha os filtros de 7/30/90 dias; não inclui trocas ou pedidos
+cancelados nas vendas. Requer `GET /reports/bottles?start=...&end=...`, retornando
+`fullBottlesSold`, `brokenBottles`, `brokenValidBottles`, `brokenExpiredBottles`.
+Teste real: `node tests/bottleReport.electron.mjs`, com desktop/Vite em 5173,
+Playwright e `BOTTLE_REPORT_TEST_API=http://127.0.0.1:18091` descartável.
+
 Na ficha de **Clientes**, use **Adicionar saldo** para registrar um recebimento
 em reais por PIX ou Dinheiro. O valor quita primeiro os fiados mais antigos,
 como o pagamento em lote; o restante fica disponível para os próximos pedidos

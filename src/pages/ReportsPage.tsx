@@ -5,7 +5,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import type { FinancialReportDTO, OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
+import type { BottleReportDTO, FinancialReportDTO, OrderResponseDTO, ClientResponseDTO, StockResponseDTO, SpringPage } from '../types';
 import { formatBRL } from '../utils/format';
 import { buildOrderReport } from '../utils/orderReport';
 import { getStockStatus, isStockLow } from '../utils/stock';
@@ -45,6 +45,24 @@ export function ReportsPage() {
   const [financialError, setFinancialError] = useState('');
   const [financialLoading, setFinancialLoading] = useState(true);
   const [financialRefresh, setFinancialRefresh] = useState(0);
+  const [bottles, setBottles] = useState<BottleReportDTO | null>(null);
+  const [bottlesError, setBottlesError] = useState('');
+  const [bottlesLoading, setBottlesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!http) return;
+    const controller = new AbortController();
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (period === '7d' ? 6 : period === '30d' ? 29 : 89));
+    const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    setBottlesLoading(true); setBottles(null); setBottlesError('');
+    http.get<BottleReportDTO>('/reports/bottles', { params: { start: localDate(start), end: localDate(end) }, signal: controller.signal })
+      .then(response => { if (!controller.signal.aborted) setBottles(response.data); })
+      .catch(err => { if (!controller.signal.aborted) setBottlesError(parseApiError(err)); })
+      .finally(() => { if (!controller.signal.aborted) setBottlesLoading(false); });
+    return () => controller.abort();
+  }, [http, period, financialRefresh]);
 
   useEffect(() => {
     if (!http) return;
@@ -152,7 +170,7 @@ export function ReportsPage() {
             onClick={() => { fetchData(); setFinancialRefresh(value => value + 1); }}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
+            <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
             Atualizar
           </button>
         </div>
@@ -172,6 +190,28 @@ export function ReportsPage() {
               <p className="text-xs text-slate-500">{item.label}</p>
               <p className="text-xl font-bold text-slate-800 mt-1">{financialLoading ? '—' : item.value === undefined ? 'Indisponível' : formatBRL(item.value)}</p>
             </div>)}
+          </div>
+        </section>
+
+        <section aria-label="Garrafões no período" className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-card">
+          <div className="flex items-start gap-3">
+            <span aria-hidden="true" className="material-symbols-outlined rounded-lg bg-blue-50 p-2 text-primary">water_full</span>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-700">Garrafões no período</h2>
+              <p className="text-xs text-slate-500 mt-1">Vendas pela data da entrega e quebras pela data do registro. Trocas de água e pedidos cancelados não entram nas vendas.</p>
+            </div>
+          </div>
+          {bottlesError && <p role="alert" className="text-sm text-error">Não foi possível consultar os garrafões: {bottlesError}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" aria-busy={bottlesLoading}>
+            <div className="rounded-lg bg-blue-50 p-4">
+              <p className="text-xs font-medium text-slate-600">Garrafões completos vendidos</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-800">{bottlesLoading ? '—' : bottles ? bottles.fullBottlesSold.toLocaleString('pt-BR') : 'Indisponível'}</p>
+            </div>
+            <div className="rounded-lg bg-rose-50 p-4">
+              <p className="text-xs font-medium text-slate-600">Garrafões quebrados</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-800">{bottlesLoading ? '—' : bottles ? bottles.brokenBottles.toLocaleString('pt-BR') : 'Indisponível'}</p>
+              {bottles && <p className="mt-1 text-xs text-slate-600">Válidos: {bottles.brokenValidBottles.toLocaleString('pt-BR')} · Vencidos: {bottles.brokenExpiredBottles.toLocaleString('pt-BR')}</p>}
+            </div>
           </div>
         </section>
 
