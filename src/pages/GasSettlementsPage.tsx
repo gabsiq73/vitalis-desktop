@@ -10,6 +10,7 @@ import { Modal } from '../components/Modal';
 import { parseApiError } from '../utils/parseApiError';
 import { useNotification } from '../hooks/useNotification';
 import { EditGasSettlementModal } from '../modals/EditGasSettlementModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 type StatusFilter = 'all' | 'pending' | 'settled';
 
@@ -43,6 +44,8 @@ export function GasSettlementsPage() {
   const { http } = useAuth();
   const { notify } = useNotification();
   const [editSettlement, setEditSettlement] = useState<GasSettlementResponseDTO | null>(null);
+  const [deleteSettlement, setDeleteSettlement] = useState<GasSettlementResponseDTO | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [target, setTarget] = useState<{ kind: 'single' | 'bulk' | 'legacy'; id: string; label: string; start?: string; end?: string } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<GasPaymentMethod | ''>('');
   const [actionError, setActionError] = useState('');
@@ -89,6 +92,17 @@ export function GasSettlementsPage() {
     setPaymentMethod('');
     setActionError('');
     setTarget(next);
+  }
+
+  async function confirmDelete() {
+    if (!http || !deleteSettlement) return false;
+    setDeleteError('');
+    try {
+      await http.delete(`/gas-settlements/${deleteSettlement.id}`);
+      notify(deleteSettlement.orderItemId ? 'Acerto e pedido vinculado apagados.' : 'Acerto apagado.', 'success');
+      await fetchData();
+      return true;
+    } catch (err) { setDeleteError(parseApiError(err)); return false; }
   }
 
   async function confirmSettlement(event: React.FormEvent) {
@@ -159,6 +173,9 @@ export function GasSettlementsPage() {
       <TopBar title="Acertos de Gás" subtitle="Controle financeiro com distribuidoras" />
 
       <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+        <ConfirmModal open={deleteSettlement !== null} title="Apagar acerto de gás" danger confirmLabel={deleteSettlement?.orderItemId ? 'Apagar acerto e pedido' : 'Apagar acerto'} error={deleteError}
+          message={deleteSettlement?.orderItemId ? `Apagar o acerto de ${deleteSettlement.clientName ?? 'este cliente'} e o pedido vinculado inteiro? Todos os itens, pagamentos, empréstimos e acertos desse pedido serão removidos. O estoque será recomposto e o saldo do cliente recalculado. A exclusão não pode ser desfeita.` : 'Apagar este acerto definitivamente? Ele será removido do caixa e dos relatórios. A exclusão não pode ser desfeita.'}
+          onConfirm={confirmDelete} onClose={() => setDeleteSettlement(null)} />
         {loadError && <p role="alert" className="p-4 rounded-lg bg-red-50 text-red-700 text-sm">{loadError} Use Atualizar para tentar novamente.</p>}
 
         {/* Filters */}
@@ -434,6 +451,7 @@ export function GasSettlementsPage() {
                             <td className="px-4 py-3 text-center text-xs">{s.settled ? s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado' : '—'}</td>
                             <td className="px-4 py-3 text-center">
                               <button title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg"><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span></button>
+                              <button title="Apagar acerto de gás" onClick={() => { setDeleteError(''); setDeleteSettlement(s); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span></button>
                               {(!s.settled || !s.paymentMethod) && (
                                 <button
                                   onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
