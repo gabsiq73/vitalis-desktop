@@ -390,7 +390,7 @@ export interface InitialPaymentRequestBody {
 }
 
 export interface OrderRequestBody {
-  promotion?: { waterProductId: string; bundleUnitPrice: number; waterUnitValue: number };
+  promotion?: { waterProductId: string; bundleUnitPrice: number; waterUnitValue: number; waterAsCredit?: boolean };
   clientId: string;
   items: OrderItemRequestBody[];
   initialPayments?: InitialPaymentRequestBody[];
@@ -406,4 +406,25 @@ export interface BottleInventoryResponseDTO {
   filledQuantity: number;
   emptyValidQuantity: number;
   totalQuantity: number;
+  brokenValidQuantity: number;
+  brokenExpiredQuantity: number;
+}
+
+export type BottleValidity = 'VALID' | 'EXPIRED';
+export interface BottleBreakageRequestDTO {
+  validity: BottleValidity;
+  quantity: number;
+  occurredAt?: string;
+  notes?: string;
+  waterProductId?: string;
+}
+export interface BottleBreakageResponseDTO {
+  id: string;
+  validity: BottleValidity;
+  quantity: number;
+  occurredAt: string;
+  notes: string | null;
+  waterProductId: string | null;
+  waterProductName: string | null;
+  createdBy: string | null;
 }

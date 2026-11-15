@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
+import { RegisterBottleBreakageModal } from '../modals/RegisterBottleBreakageModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
@@ -9,8 +10,9 @@ import { PageSizeSelector } from '../components/PageSizeSelector';
 import { useScrollToError } from '../hooks/useScrollToError';
 import { getStockStatus, isStockLow } from '../utils/stock';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
-import type { BottleInventoryResponseDTO } from '../types';
+import type { BottleInventoryResponseDTO, BottleBreakageResponseDTO } from '../types';
 import { parseApiError } from '../utils/parseApiError';
+import { formatDateTime } from '../utils/format';
 
 function getStockStatusBadge(status: string): { label: string; className: string; dot: string } {
   const s = status.toUpperCase();
@@ -138,6 +140,12 @@ export function StockPage() {
   const [inventory, setInventory] = useState<BottleInventoryResponseDTO | null>(null);
   const [inventoryError, setInventoryError] = useState('');
   const [showInventory, setShowInventory] = useState(false);
+  const [showBreakage, setShowBreakage] = useState(false);
+  const [breakages, setBreakages] = useState<SpringPage<BottleBreakageResponseDTO> | null>(null);
+  const [breakagePage, setBreakagePage] = useState(0);
+  const [breakageRefresh, setBreakageRefresh] = useState(0);
+  const [breakagesLoading, setBreakagesLoading] = useState(true);
+  const [breakagesError, setBreakagesError] = useState('');
   const [validCount, setValidCount] = useState('0'); const [expiredCount, setExpiredCount] = useState('0');
   const [savingInventory, setSavingInventory] = useState(false);
 
@@ -178,6 +186,21 @@ export function StockPage() {
 
   useEffect(() => { fetchStock(); }, [http, currentPage, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!http) return;
+    const controller = new AbortController();
+    setBreakagesLoading(true); setBreakagesError('');
+    http.get<SpringPage<BottleBreakageResponseDTO>>('/bottle-inventory/breakages', {
+      params: { page: breakagePage, size: 15 }, signal: controller.signal,
+    }).then(r => {
+      if (controller.signal.aborted) return;
+      if (breakagePage > 0 && breakagePage >= r.data.totalPages) setBreakagePage(Math.max(0, r.data.totalPages - 1));
+      else setBreakages(r.data);
+    }).catch(err => { if (!controller.signal.aborted) setBreakagesError(parseApiError(err)); })
+      .finally(() => { if (!controller.signal.aborted) setBreakagesLoading(false); });
+    return () => controller.abort();
+  }, [http, breakagePage, breakageRefresh]);
+
   async function handleAdjust(productId: string, quantity: number) {
     await http!.patch(`/stocks/products/${productId}`, quantity, {
       headers: { 'Content-Type': 'application/json' },
@@ -207,13 +230,25 @@ export function StockPage() {
           </div>
         </div>
 
-        <section className="p-5 bg-white border border-slate-200 rounded-xl space-y-3">
-          <div className="flex flex-wrap gap-3 items-center justify-between"><h2 className="font-bold text-slate-800">Garrafões do depósito</h2><button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button></div>
+        <section aria-labelledby="bottle-inventory-title" className="p-5 bg-white border border-slate-200 rounded-xl space-y-3">
+          <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="bottle-inventory-title" className="font-bold text-slate-800">Garrafões do depósito</h2><div className="flex flex-wrap items-center gap-4"><button disabled={!inventory?.configured} onClick={() => setShowBreakage(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">remove_circle</span>Registrar quebra</button><button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button></div></div>
           {inventoryError && !showInventory && <p role="alert" className="text-sm text-red-700">{inventoryError}</p>}
           {inventory?.configured ? <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{[
             ['Total de garrafões', inventory.totalQuantity], ['Válidos (vazios + cheios)', inventory.validQuantity], ['Vencidos', inventory.expiredQuantity], ['Águas cheias', inventory.filledQuantity], ['Válidos vazios', inventory.emptyValidQuantity],
           ].map(([label,count]) => <div key={label} className="p-3 bg-slate-50 rounded-lg"><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold">{count}</p></div>)}</div> : <p className="text-sm text-amber-800">Informe a contagem física de garrafões válidos e vencidos para ativar o controle total. Os estoques existentes de água serão preservados.</p>}
           <p className="text-xs text-slate-500">As águas cheias usam os garrafões válidos. Para realocar entre águas, reduza uma e aumente outra. A troca comum mantém o total; completo e vencido vendidos saem do total correspondente.</p>
+          {inventory && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">Quebras registradas: <strong>{inventory.brokenValidQuantity} válido(s)</strong> · <strong>{inventory.brokenExpiredQuantity} vencido(s)</strong></p>}
+        </section>
+        <section aria-labelledby="breakages-title" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4"><h2 id="breakages-title" className="font-semibold text-slate-800">Histórico de quebras</h2><button onClick={() => { setBreakageRefresh(v => v + 1); void fetchStock(); }} disabled={breakagesLoading} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">Atualizar quebras</button></div>
+          {breakagesLoading ? <p role="status" className="p-6 text-center text-sm text-slate-500">Carregando quebras...</p>
+            : breakagesError ? <p role="alert" className="p-5 text-sm text-red-700">{breakagesError}</p>
+            : !breakages?.content.length ? <p className="p-6 text-center text-sm text-slate-500">Nenhuma quebra registrada.</p>
+            : <div role="region" aria-label="Registros de garrafões quebrados" tabIndex={0} className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-primary"><table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-xs text-slate-600"><tr>{['Data', 'Garrafão', 'Quantidade', 'Água baixada', 'Observação', 'Registrado por'].map(label => <th scope="col" key={label} className="px-5 py-3 font-semibold">{label}</th>)}</tr></thead>
+              <tbody className="divide-y divide-slate-100">{breakages.content.map(b => <tr key={b.id} className="hover:bg-slate-50"><td className="whitespace-nowrap px-5 py-4 text-slate-600">{formatDateTime(b.occurredAt)}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${b.validity === 'VALID' ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>{b.validity === 'VALID' ? 'Válido' : 'Vencido'}</span></td><td className="px-5 py-4 font-bold tabular-nums text-red-700">{b.quantity}</td><td className="px-5 py-4 text-slate-600">{b.waterProductName ?? 'Garrafão vazio'}</td><td className="max-w-xs break-words whitespace-pre-wrap px-5 py-4 text-slate-600">{b.notes || '—'}</td><td className="px-5 py-4 text-slate-600">{b.createdBy || '—'}</td></tr>)}</tbody>
+            </table></div>}
+          {!breakagesLoading && !breakagesError && breakages && breakages.totalElements > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-3 text-sm text-slate-600"><span>{breakages.totalElements} registro(s) de quebra</span>{breakages.totalPages > 1 && <div className="flex items-center gap-3"><button disabled={breakagePage === 0} onClick={() => setBreakagePage(v => v - 1)} className="rounded-lg border border-slate-200 px-3 py-2 disabled:opacity-30">Anterior</button><span>Página {breakagePage + 1} de {breakages.totalPages}</span><button disabled={breakagePage >= breakages.totalPages - 1} onClick={() => setBreakagePage(v => v + 1)} className="rounded-lg border border-slate-200 px-3 py-2 disabled:opacity-30">Próxima</button></div>}</div>}
         </section>
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-surface border border-outline-variant rounded-xl p-5 shadow-sm">
@@ -389,6 +424,7 @@ export function StockPage() {
         <label className="block text-sm">Garrafões vencidos<input required disabled={savingInventory} type="number" min="0" step="1" value={expiredCount} onChange={e => setExpiredCount(e.target.value)} className="w-full mt-1 border rounded-lg px-3 py-2" /></label>
         <button disabled={savingInventory} className="px-4 py-2 bg-primary text-white rounded-lg">{savingInventory ? 'Salvando...' : 'Salvar totais'}</button>
       </form></Modal>}
+      {showBreakage && inventory && <RegisterBottleBreakageModal inventory={inventory} onClose={() => setShowBreakage(false)} onSuccess={() => { setShowBreakage(false); setBreakagePage(0); setBreakageRefresh(v => v + 1); void fetchStock(); }} />}
       {adjustTarget && (
         <Modal
           open={adjustTarget !== null}

@@ -100,6 +100,19 @@ src/
 
 ## Integração com a API
 
+Em **Estoque → Garrafões do depósito → Registrar quebra**, informe se o
+garrafão é válido ou vencido e a quantidade. Para garrafão cheio, marque essa
+opção e escolha a água: a mesma quantidade sai da água e dos garrafões.
+Para vazio, somente os garrafões saem. Não há venda ou movimentação de caixa.
+O resumo mostra totais quebrados por categoria e o Histórico de quebras mantém
+data, quantidade, observação e operador. Exige contagem física inicial.
+
+Requer a API com V6 e `POST/GET /bottle-inventory/breakages`; o resumo acrescenta
+`brokenValidQuantity` e `brokenExpiredQuantity`. A migration cria o histórico
+sem modificar os dados existentes. Teste dirigido:
+`node tests/bottleBreakage.electron.mjs`, com Electron/Vite em 5173,
+Playwright e `BOTTLE_BREAKAGE_TEST_API=http://127.0.0.1:18090` descartável.
+
 Na ficha de **Clientes**, use **Adicionar saldo** para registrar um recebimento
 em reais por PIX ou Dinheiro. O valor quita primeiro os fiados mais antigos,
 como o pagamento em lote; o restante fica disponível para os próximos pedidos
