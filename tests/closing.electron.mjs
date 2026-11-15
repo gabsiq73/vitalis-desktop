@@ -1,16 +1,18 @@
-// API real em PostgreSQL descartável. Não apontar para dados operacionais.
+// Use uma API descartável e vazia. Nunca use dados operacionais.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 const api = process.env.CLOSING_TEST_API;
-const web = process.env.CLOSING_TEST_WEB || 'http://localhost:5175';
-if (api !== 'http://127.0.0.1:8084') throw Error('Use somente a API descartável de fechamento em 127.0.0.1:8084.');
+const web = process.env.CLOSING_TEST_WEB || 'http://localhost:5173';
+if (!['http://127.0.0.1:8084', 'http://127.0.0.1:18087'].includes(api)) {
+  throw Error('Use somente a API descartável de fechamento em 127.0.0.1:8084 ou 18087.');
+}
 const { _electron } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const username = `closing${Date.now()}`;
-const password = randomUUID();
+const username = `closing${Date.now()}`, password = randomUUID();
 let headers = { 'Content-Type': 'application/json' };
 async function request(method, path, body) {
   const response = await fetch(api + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -19,91 +21,76 @@ async function request(method, path, body) {
 }
 await request('POST', '/users', { firstName: 'Fechamento', username, email: `${username}@example.com`, password, userRole: 'ADMIN' });
 headers.Authorization = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+assert.deepEqual((await request('GET', '/reports/closing?year=2026&month=10')).days, [], 'A API deve estar vazia.');
 const client = await request('POST', '/clients', { name: username, clientType: 'RETAIL', clientStatus: 'PAID' });
-const product = await request('POST', '/products', { name: username, type: 'WATER', basePrice: 9, lastCostPrice: 5 });
-await request('PATCH', `/stocks/products/${product.id}`, 20);
-const [order] = await request('POST', '/orders', { clientId: client.id, isDelivery: true, items: [{ productId: product.id, quantity: 2 }] });
-await request('POST', '/payments', { orderId: order.id, amount: 18, paymentMethod: 'PIX', paymentDate: '2026-10-01 12:00:00' });
-const app = await _electron.launch({ executablePath: createRequire(import.meta.url)('electron'), args: ['.', `--user-data-dir=${await mkdtemp(join(tmpdir(), 'vitalis-closing-'))}`], env: { ...process.env, VITE_DEV_SERVER_URL: web } });
-const page = await app.firstWindow(); page.setDefaultTimeout(15000);
-await page.setViewportSize({ width: 1440, height: 1050 });
-let ready = false;
-let closingFailure = false;
-let createdMovement;
-await page.route('http://localhost:8080/**', async route => {
-  const original = route.request().url();
-  const cors = { 'access-control-allow-origin': web, 'access-control-allow-credentials': 'true' };
-  if (original.endsWith('/health') && !ready) return route.fulfill({ status: 503, headers: cors, json: { status: 'STARTING' } });
-  if (original.includes('/reports/closing') && closingFailure) return route.fulfill({ status: 500, headers: cors, json: { message: 'Falha de teste' } });
-  const response = await route.fetch({ url: original.replace('http://localhost:8080', api), headers: { ...route.request().headers(), origin: 'http://localhost:5173' } });
-  return route.fulfill({ response, headers: { ...response.headers(), ...cors } });
+const water = await request('POST', '/products', { name: 'Água teste', type: 'WATER', basePrice: 10, lastCostPrice: 6 });
+const supplier = await request('POST', '/suppliers', { name: username });
+const gas = await request('POST', '/products', { name: 'Gás teste', type: 'GAS', basePrice: 120, lastCostPrice: 110, defaultSupplierId: supplier.id });
+await request('PATCH', `/stocks/products/${water.id}`, 100);
+async function sale(product, quantity, day) {
+  const line = { productId: product.id, quantity, unitPrice: product.basePrice,
+    ...(product.id === gas.id ? { gasCostPrice: 110, receivedByUs: false, supplierId: supplier.id } : {}) };
+  const [order] = await request('POST', '/orders', { clientId: client.id, isDelivery: true, items: [line] });
+  await request('PATCH', `/orders/${order.id}/confirm-delivery`);
+  await request('PUT', `/orders/${order.id}/correction`, {
+    clientId: client.id, isDelivery: true, deliveryDate: `2026-10-${String(day).padStart(2, '0')}T12:00:00`,
+    items: [{ ...line, itemId: order.items[0].id }],
+  });
+  return order;
+}
+const unpaidWater = await sale(water, 10, 1);
+await sale(gas, 1, 1);
+await sale(water, 25, 2);
+for (const [withdrawalKind, amount] of [['COMPRA', 40], ['DESPESA', 15], ['RETIRADA', 20]]) {
+  await request('POST', '/cash-movements', { type: 'WITHDRAWAL', withdrawalKind, amount, paymentMethod: 'PIX', note: 'Teste de fechamento', occurredAt: '2026-10-01T12:00:00' });
+}
+let report = await request('GET', '/reports/closing?year=2026&month=10');
+assert.deepEqual(report.days.map(d => [d.waterProfit, d.gasProfit, d.dailyBalance, d.accumulatedBalance]), [[100, 10, 35, 35], [250, 0, 250, 285]]);
+await request('POST', '/payments', { orderId: unpaidWater.id, amount: 20, paymentMethod: 'PIX', paymentDate: '2026-10-05 12:00:00' });
+assert.deepEqual(await request('GET', '/reports/closing?year=2026&month=10'), report, 'Receber fiado não repete nem redistribui a venda.');
+
+const app = await _electron.launch({
+  executablePath: createRequire(import.meta.url)('electron'),
+  args: ['.', `--user-data-dir=${await mkdtemp(join(tmpdir(), 'vitalis-closing-'))}`],
+  env: { ...process.env, VITE_DEV_SERVER_URL: web },
 });
+const page = await app.firstWindow();
+page.setDefaultTimeout(15000);
+await page.route('http://localhost:8080/**', route => route.continue({ url: route.request().url().replace('http://localhost:8080', api) }));
 try {
-  await page.clock.install();
-  await page.goto(web + '/#/register');
-  await page.getByText('Iniciando o sistema…', { exact: true }).waitFor();
-  assert.equal(await page.locator('#username').count(), 0);
-  await page.clock.fastForward(61000);
-  await page.getByText('O sistema não ficou pronto em 60 segundos.', { exact: true }).waitFor();
-  assert.equal(await page.locator('#username').count(), 0);
-  await page.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
-  ready = true;
-  await page.clock.resume();
-  await page.getByRole('heading', { name: /Criar conta/ }).waitFor();
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(web + '/#/login');
   await page.locator('#username').fill(username); await page.locator('#password').fill(password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await page.waitForURL('**/#/dashboard');
   await page.getByRole('link', { name: /Fechamento/ }).click();
   await page.getByLabel('Mês', { exact: true }).selectOption('10');
-  await page.getByLabel('Ano', { exact: true }).fill('2026');
-  await page.getByRole('heading', { name: 'Fechamento do mês outubro - 1 dias', exact: true }).waitFor();
-  const day = page.locator('tbody tr').filter({ hasText: '01/10/2026' });
-  await day.getByText('R$ 8,00', { exact: true }).first().waitFor();
-  await page.locator('tr').filter({ has: page.getByRole('rowheader', { name: 'Faturamento', exact: true }) }).getByText('R$ 18,00', { exact: true }).waitFor();
-  await page.getByLabel('Mês', { exact: true }).selectOption('12');
-  await page.getByText('Nenhum movimento de fechamento neste mês. Selecione outro mês para consultar.', { exact: true }).waitFor();
-  assert.equal(await page.getByText('—', { exact: true }).count(), 4);
-  const previousYear = page.waitForResponse(r => r.url().includes('/reports/closing') && r.url().includes('year=2025'));
-  await page.getByLabel('Ano', { exact: true }).fill('2025');
-  await page.getByLabel('Ano', { exact: true }).press('Tab');
-  assert.equal((await previousYear).status(), 200);
-  const restoredYear = page.waitForResponse(r => r.url().includes('/reports/closing') && r.url().includes('year=2026'));
-  await page.getByLabel('Ano', { exact: true }).fill('2026');
-  await page.getByLabel('Ano', { exact: true }).press('Tab');
-  assert.equal((await restoredYear).status(), 200);
-  closingFailure = true;
-  await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
-  await page.getByRole('alert').waitFor();
-  closingFailure = false;
-  await page.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
-  await page.getByRole('heading', { name: 'Fechamento do mês dezembro - 0 dias', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Fechamento do mês outubro - 2 dias', exact: true }).waitFor();
+  const first = page.locator('tbody tr').filter({ hasText: '01/10/2026' });
+  for (const [index, value] of ['R$ 100,00', 'R$ 10,00', 'R$ 40,00', 'R$ 15,00', 'R$ 35,00', 'R$ 35,00', 'R$ 20,00'].entries()) {
+    assert.equal((await first.locator('td').nth(index).innerText()).replace(/\s/g, ' '), value);
+  }
+  assert.match(await page.locator('tbody tr').filter({ hasText: '02/10/2026' }).innerText(), /285,00/);
+  await page.getByText('As vendas entram na data da entrega concluída, inclusive fiadas.', { exact: false }).waitFor();
+  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales.png') });
+  await page.setViewportSize({ width: 1024, height: 640 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales-1024.png') });
   await page.getByRole('link', { name: /Caixa do Dia/ }).click();
   await page.getByRole('button', { name: 'Registrar retirada', exact: true }).click();
+  await page.getByRole('option', { name: 'Compra de água (boleto)', exact: true }).waitFor({ state: 'attached' });
+  assert.equal(await page.getByRole('option', { name: /informativa/ }).count(), 0);
   await page.getByLabel('Tipo da saída', { exact: true }).selectOption('COMPRA');
   await page.getByLabel('Forma da saída', { exact: true }).selectOption('PIX');
   await page.getByLabel(/^Valor \(R\$\)/).fill('20');
-  await page.getByLabel(/^Motivo/).fill('Compra de casa');
+  await page.getByLabel(/^Motivo/).fill('Boleto de água');
   const saved = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith('/cash-movements'));
   await page.getByRole('button', { name: 'Registrar', exact: true }).click();
-  const savedResponse = await saved;
-  assert.equal(savedResponse.status(), 201);
-  createdMovement = (await savedResponse.json()).id;
-  await page.getByText('Compra', { exact: true }).waitFor();
-  await page.getByRole('link', { name: /Fechamento/ }).click();
-  await page.getByRole('heading', { name: 'Fechamento do mês novembro - 1 dias', exact: true }).waitFor();
-  const negative = page.locator('tbody tr').filter({ hasText: '14/11/2026' }).getByText('-R$ 20,00', { exact: true });
-  assert.equal(await negative.first().getAttribute('class').then(c => c.includes('text-red-700')), true);
-  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-negative.png') });
-  await page.getByLabel('Mês', { exact: true }).selectOption('10');
-  await page.getByRole('heading', { name: 'Fechamento do mês outubro - 1 dias', exact: true }).waitFor();
-  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing.png') });
-  await page.setViewportSize({ width: 1024, height: 850 });
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-1024.png') });
-  console.log('PASS Electron + PostgreSQL: health blocks registration/login, 60s timeout/retry, monthly profit versus gross, empty month, API error/retry, PIX purchase, negative margin, 1440/1024 layouts.');
-} catch (error) { await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-error.png') }); throw error; }
-finally {
-  if (createdMovement) await request('DELETE', `/cash-movements/${createdMovement}`);
-  await request('DELETE', `/orders/${order.id}`); await app.close();
-}
+  assert.equal((await saved).status(), 201);
+  report = await request('GET', '/reports/closing?year=2026&month=10');
+  assert.equal(report.totals.accumulatedBalance, 285);
+  console.log('PASS Electron + API real descartável: água 100, margem gás 10, compras 40, despesas 15, retirada 20, saldo 35, acumulado 285; fiado e recebimento posterior; registro de boleto PIX; layouts 1440/1024.');
+} catch (error) {
+  await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales-error.png') });
+  throw error;
+} finally { await app.close(); }

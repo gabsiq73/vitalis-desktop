@@ -1,4 +1,5 @@
 export interface ClosingValues {
+  /** Valor de venda da água, sem desconto de custo; nome legado da API. */
   waterProfit: number;
   gasProfit: number;
   purchases: number;

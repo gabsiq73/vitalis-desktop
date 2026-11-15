@@ -53,7 +53,12 @@ export function ClosingPage() {
         </label>
         <button className={`${selectClass} ml-auto disabled:opacity-50`} disabled={loading} onClick={() => setRefresh(v => v + 1)}>Atualizar</button>
       </div>
-      <p className="text-sm text-slate-600">O fechamento conta o dinheiro no dia em que é recebido; fiado só entra quando pago. As colunas de vendas mostram lucro, não faturamento. Retirada é apenas informativa.</p>
+      <div className="text-sm text-slate-600 space-y-1">
+        <p>Vendas água: valor de venda, sem descontar custo. Vendas gás: preço de venda menos custo.</p>
+        <p>Compras: pagamentos de compras de água (boletos) registrados no Caixa do Dia. Despesas e retiradas também vêm do caixa.</p>
+        <p>Saldo do dia = (Vendas água − Compras) + Vendas gás − Despesas − Retirada. Saldo do mês = soma dos saldos do dia até a data.</p>
+        <p>As vendas entram na data da entrega concluída, inclusive fiadas. Receber um fiado depois não conta a venda novamente.</p>
+      </div>
       {loading && <p role="status" className="p-8 text-center text-slate-500">Carregando fechamento…</p>}
       {error && <div role="alert" className="p-4 rounded-lg bg-red-50 text-red-700 text-sm">{error}<button className="ml-3 underline font-semibold" onClick={() => setRefresh(v => v + 1)}>Tentar de novo</button></div>}
       {report && <>

@@ -229,13 +229,23 @@ A autenticação usa HTTP Basic e a sessão é guardada localmente. Respostas pa
 ## Navegação
 
 **Fechamento** consulta `GET /reports/closing?year=...&month=...` (administrador).
-Mostra lucro de água/gás na data do pagamento, compras/despesas, saldo diário e
-acumulado, retirada informativa, totais e quadro de faturamento bruto/percentuais.
+Conta vendas concluídas na data da entrega, inclusive fiadas, sem repetir a venda
+ao receber o pagamento. Vendas água é o preço de venda total sem descontar custo;
+Vendas gás é venda menos custo congelado do item. Compras são pagamentos de boletos
+de água classificados como Compra de água no Caixa do Dia. Despesas e retiradas
+também vêm do caixa. Saldo do dia = (água − compras) + margem do gás − despesas −
+retiradas; saldo do mês acumula os saldos diários desde o início do mês.
 Todos os cálculos vêm da API; o desktop apenas formata. Avisos do backend indicam
-custos antigos estimados, crédito sem rastreio e outras situações não apropriadas.
+custos antigos estimados e outras situações não apropriadas.
 No Caixa do Dia, **Registrar retirada** mantém o padrão antigo e permite escolher
-Compra de casa ou Despesa e dinheiro/PIX. A listagem mostra tipo e meio da saída.
+Compra de água (boleto) ou Despesa e dinheiro/PIX. A listagem mostra tipo e meio da saída.
 Requer as novas migrations do backend, sem editar a V1 nem alterar dados antigos.
+
+Teste dirigido: `node tests/closing.electron.mjs`, com Playwright
+(`PLAYWRIGHT_MODULE` aceita uma URL de arquivo no Windows), desktop em
+`localhost:5173` e `CLOSING_TEST_API=http://127.0.0.1:18087` apontando para uma
+API descartável e vazia. Valida água bruta, margem do gás, fiado sem duplicar
+recebimentos, compras/despesas/retiradas, acumulado e registro de boleto PIX.
 
 Login/cadastro só são liberados após `/health` responder UP. Falha em 60 segundos
 mostra erro, logs e botão de nova tentativa. Os logs da instalação ficam na pasta

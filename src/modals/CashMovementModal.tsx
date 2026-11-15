@@ -85,13 +85,13 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
   return (
     <Modal open onClose={() => { if (!submitting.current) onClose(); }} title={TITLES[type]} maxWidth="max-w-lg">
       <form onSubmit={submit} className="overflow-y-auto p-6 space-y-4">
-        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. Este lançamento movimenta apenas dinheiro físico.</p>
+        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. {type === 'WITHDRAWAL' ? 'A saída movimenta dinheiro ou PIX, conforme a forma selecionada.' : 'Este lançamento movimenta apenas dinheiro físico.'}</p>
         {error && <p ref={errorRef} role="alert" className="p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</p>}
         <fieldset disabled={saving} className="space-y-4">
           {type === 'WITHDRAWAL' && <>
             <label className="block text-sm font-medium text-slate-700">Tipo da saída
               <select aria-label="Tipo da saída" className={inputClass} value={withdrawalKind} onChange={e => setWithdrawalKind(e.target.value as WithdrawalKind)}>
-                <option value="RETIRADA">Retirada (informativa no fechamento)</option><option value="COMPRA">Compra de casa</option><option value="DESPESA">Despesa</option>
+                <option value="RETIRADA">Retirada</option><option value="COMPRA">Compra de água (boleto)</option><option value="DESPESA">Despesa</option>
               </select>
             </label>
             <label className="block text-sm font-medium text-slate-700">Forma da saída
