@@ -235,8 +235,9 @@ Vendas gás é venda menos custo congelado do item. Compras são pagamentos de b
 de água classificados como Compra de água no Caixa do Dia. Despesas e retiradas
 também vêm do caixa. Saldo do dia = (água − compras) + margem do gás − despesas −
 retiradas; saldo do mês acumula os saldos diários desde o início do mês.
-Todos os cálculos vêm da API; o desktop apenas formata. Avisos do backend indicam
-custos antigos estimados e outras situações não apropriadas.
+Todos os cálculos vêm da API; o desktop apenas formata. A tabela separa vendas,
+saídas e resultado, mantém a data visível na rolagem horizontal e destaca saldos
+e totais. Textos explicativos e observações mensais não são exibidos na tela.
 No Caixa do Dia, **Registrar retirada** mantém o padrão antigo e permite escolher
 Compra de água (boleto) ou Despesa e dinheiro/PIX. A listagem mostra tipo e meio da saída.
 Requer as novas migrations do backend, sem editar a V1 nem alterar dados antigos.

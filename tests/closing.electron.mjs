@@ -67,11 +67,11 @@ try {
   await page.getByLabel('Mês', { exact: true }).selectOption('10');
   await page.getByRole('heading', { name: 'Fechamento do mês outubro - 2 dias', exact: true }).waitFor();
   const first = page.locator('tbody tr').filter({ hasText: '01/10/2026' });
-  for (const [index, value] of ['R$ 100,00', 'R$ 10,00', 'R$ 40,00', 'R$ 15,00', 'R$ 35,00', 'R$ 35,00', 'R$ 20,00'].entries()) {
+  for (const [index, value] of ['R$ 100,00', 'R$ 10,00', 'R$ 40,00', 'R$ 15,00', 'R$ 20,00', 'R$ 35,00', 'R$ 35,00'].entries()) {
     assert.equal((await first.locator('td').nth(index).innerText()).replace(/\s/g, ' '), value);
   }
   assert.match(await page.locator('tbody tr').filter({ hasText: '02/10/2026' }).innerText(), /285,00/);
-  await page.getByText('As vendas entram na data da entrega concluída, inclusive fiadas.', { exact: false }).waitFor();
+  assert.equal(await page.getByText(/As vendas entram na data|Vendas água:|Saldo do dia =|Observações deste mês/).count(), 0);
   await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales.png') });
   await page.setViewportSize({ width: 1024, height: 640 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
