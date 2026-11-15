@@ -484,6 +484,7 @@ export function OrdersPage() {
                             </div>
                             <span className="text-[13px] font-medium text-slate-700">{order.clientName}</span>
                           </div>
+                          {(order.waterCredit || order.deferredWaterPromotion) && <p className="mt-1 text-xs font-semibold text-primary">{order.waterCredit ? (isDelivered ? 'Resgate de água da promoção' : 'Água da promoção em crédito') : 'Promoção com água em crédito'}</p>}
                           {order.notes?.trim() && (
                             <p title={order.notes} className="mt-1.5 max-w-[240px] max-h-16 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[11px] leading-4 text-amber-800 bg-amber-50 rounded px-2 py-1">
                               <span className="font-semibold">Obs.: </span>{order.notes}
@@ -551,7 +552,7 @@ export function OrdersPage() {
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
                             </button>
-                            {!isCancelled && !order.manualDebt && (
+                            {!isCancelled && !order.manualDebt && !order.waterCredit && (
                               <button
                                 title="Editar pedido"
                                 onClick={() => setEditTarget(order)}
@@ -572,15 +573,15 @@ export function OrdersPage() {
                             )}
                             <button
                               title="Cancelar pedido"
-                              disabled={isDelivered || isCancelled || isLoadingThis}
+                              disabled={isDelivered || isCancelled || isLoadingThis || order.waterCredit}
                               onClick={() => setCancelTarget(order.id)}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-25 disabled:cursor-not-allowed"
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>cancel</span>
                             </button>
-                            <button title="Apagar pedido" disabled={isLoadingThis} onClick={() => { setDeleteError(''); setDeleteTarget(order); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-25">
+                            {!order.waterCredit && <button title="Apagar pedido" disabled={isLoadingThis} onClick={() => { setDeleteError(''); setDeleteTarget(order); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-25">
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>
@@ -669,7 +670,7 @@ export function OrdersPage() {
       )}
 
       <ConfirmModal open={deleteTarget !== null} title="Apagar pedido" danger confirmLabel="Apagar pedido" error={deleteError}
-        message={`Apagar definitivamente o pedido ${deleteTarget ? formatOrderId(deleteTarget.id) : ''} de ${deleteTarget?.clientName ?? ''}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. Outros pedidos são mantidos. A exclusão não pode ser desfeita.`}
+        message={`Apagar definitivamente o pedido ${deleteTarget ? formatOrderId(deleteTarget.id) : ''} de ${deleteTarget?.clientName ?? ''}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. ${deleteTarget?.deferredWaterPromotion ? 'As águas em crédito e os resgates desta promoção também serão removidos.' : 'Outros pedidos são mantidos.'} A exclusão não pode ser desfeita.`}
         onConfirm={deleteOrder} onClose={() => setDeleteTarget(null)} />
 
       {statusMenu && (() => {

@@ -174,7 +174,7 @@ export function GasSettlementsPage() {
 
       <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
         <ConfirmModal open={deleteSettlement !== null} title="Apagar acerto de gás" danger confirmLabel={deleteSettlement?.orderItemId ? 'Apagar acerto e pedido' : 'Apagar acerto'} error={deleteError}
-          message={deleteSettlement?.orderItemId ? `Apagar o acerto de ${deleteSettlement.clientName ?? 'este cliente'} e o pedido vinculado inteiro? Todos os itens, pagamentos, empréstimos e acertos desse pedido serão removidos. O estoque será recomposto e o saldo do cliente recalculado. A exclusão não pode ser desfeita.` : 'Apagar este acerto definitivamente? Ele será removido do caixa e dos relatórios. A exclusão não pode ser desfeita.'}
+          message={deleteSettlement?.orderItemId ? `Apagar o acerto de ${deleteSettlement.clientName ?? 'este cliente'} e o pedido vinculado inteiro? Todos os itens, pagamentos, empréstimos e acertos desse pedido serão removidos. Se houver água em crédito nesta promoção, o crédito e os resgates também serão removidos. O estoque será recomposto e o saldo do cliente recalculado. A exclusão não pode ser desfeita.` : 'Apagar este acerto definitivamente? Ele será removido do caixa e dos relatórios. A exclusão não pode ser desfeita.'}
           onConfirm={confirmDelete} onClose={() => setDeleteSettlement(null)} />
         {loadError && <p role="alert" className="p-4 rounded-lg bg-red-50 text-red-700 text-sm">{loadError} Use Atualizar para tentar novamente.</p>}
 

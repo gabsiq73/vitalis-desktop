@@ -5,6 +5,9 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
+import { AddClientCreditModal } from '../modals/AddClientCreditModal';
+import { RedeemWaterCreditModal } from '../modals/RedeemWaterCreditModal';
+import { parseApiError } from '../utils/parseApiError';
 import { useScrollToError } from '../hooks/useScrollToError';
 import type {
   ClientResponseDTO,
@@ -15,6 +18,7 @@ import type {
   ClientPriceRequestDTO,
   SpringPage,
   PaymentMethod,
+  WaterCreditResponseDTO,
 } from '../types';
 import {
   formatBRL,
@@ -62,6 +66,11 @@ export function ClientDetailPage() {
     () => (searchParams.get('filter') as OrderPayFilter) ?? 'all'
   );
   const [showEditClient, setShowEditClient] = useState(false);
+  const [showAddCredit, setShowAddCredit] = useState(false);
+  const [waterCredits, setWaterCredits] = useState<WaterCreditResponseDTO[]>([]);
+  const [waterCreditsError, setWaterCreditsError] = useState('');
+  const [creditsRefresh, setCreditsRefresh] = useState(0);
+  const [redeemCredit, setRedeemCredit] = useState<WaterCreditResponseDTO | null>(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [hasDraft, setHasDraft] = useState(() => hasOrderDraft());
 
@@ -89,6 +98,16 @@ export function ClientDetailPage() {
     if (!http || !id) return;
     http.get<ClientResponseDTO>(`/clients/${id}`).then((r) => setClient(r.data)).catch(() => {});
   }
+
+  useEffect(() => {
+    if (!http || !id) return;
+    const controller = new AbortController();
+    setWaterCredits([]); setWaterCreditsError('');
+    http.get<WaterCreditResponseDTO[]>('/orders/client/' + id + '/water-credits', { signal: controller.signal })
+      .then(r => { if (!controller.signal.aborted) setWaterCredits(r.data); })
+      .catch(err => { if (!controller.signal.aborted) setWaterCreditsError(parseApiError(err)); });
+    return () => controller.abort();
+  }, [http, id, creditsRefresh]);
   function fetchOrders() {
     if (!http || !id) return;
     http.get<SpringPage<OrderResponseDTO>>(`/orders/client/${id}`, { params: { size: 50 } })
@@ -292,6 +311,7 @@ export function ClientDetailPage() {
             <p className={`text-[26px] font-black leading-none ${creditBalance > 0 ? 'text-green-600' : 'text-slate-400'}`}>
               {formatBRL(creditBalance)}
             </p>
+            {client.clientType !== 'AVULSO' && <button onClick={() => setShowAddCredit(true)} className="mt-4 inline-flex items-center gap-1 rounded-lg border border-primary/20 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5"><span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>Adicionar saldo</button>}
           </div>
 
           {/* Débito */}
@@ -328,6 +348,15 @@ export function ClientDetailPage() {
             </p>
           </div>
         </div>
+
+        {waterCreditsError && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">Não foi possível consultar águas em crédito: {waterCreditsError}<button onClick={() => setCreditsRefresh(v => v + 1)} className="ml-2 font-semibold underline">Tentar de novo</button></p>}
+        {waterCredits.length > 0 && <section aria-labelledby="water-credits-title" className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50 px-5 py-4"><h2 id="water-credits-title" className="font-semibold text-blue-900">Águas da promoção em crédito</h2><span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-primary">{waterCredits.reduce((sum, credit) => sum + credit.quantity, 0)} água(s)</span></div>
+          <div className="divide-y divide-slate-100">{waterCredits.map(credit => <div key={credit.orderId} className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <div><p className="font-semibold text-slate-800">{credit.productName} · {credit.quantity} água(s)</p><p className="mt-1 text-xs text-slate-500">{credit.available ? 'Já paga na promoção. Resgate sem nova cobrança.' : 'Disponível após concluir a entrega do gás.'}</p></div>
+            <button disabled={!credit.available} onClick={() => setRedeemCredit(credit)} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Resgatar água</button>
+          </div>)}</div>
+        </section>}
 
         {/* Tabs + content */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">
@@ -659,7 +688,9 @@ export function ClientDetailPage() {
       </div>
 
       <NewOrderModal open={showNewOrder} onClose={() => setShowNewOrder(false)}
-        onSuccess={() => { fetchOrders(); fetchClient(); }} defaultClient={client} />
+        onSuccess={() => { fetchOrders(); fetchClient(); setCreditsRefresh(v => v + 1); }} defaultClient={client} />
+      {showAddCredit && <AddClientCreditModal clientId={client.id} clientName={client.name} onClose={() => setShowAddCredit(false)} onSuccess={() => { setShowAddCredit(false); fetchClient(); fetchOrders(); fetchDebt(); }} />}
+      {redeemCredit && <RedeemWaterCreditModal orderId={redeemCredit.orderId} productName={redeemCredit.productName} quantity={redeemCredit.quantity} onClose={() => setRedeemCredit(null)} onSuccess={() => { setRedeemCredit(null); setCreditsRefresh(v => v + 1); fetchOrders(); fetchClient(); fetchDebt(); }} />}
       <NewClientModal open={showEditClient} onClose={() => setShowEditClient(false)}
         onSuccess={() => { setShowEditClient(false); fetchClient(); }} client={client} />
       <ConfirmModal open={returnTarget !== null} title="Registrar Devolução"

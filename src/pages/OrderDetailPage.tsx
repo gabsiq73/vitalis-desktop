@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { RedeemWaterCreditModal } from '../modals/RedeemWaterCreditModal';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
@@ -50,6 +51,8 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showEditOrder, setShowEditOrder] = useState(false);
+  const [showRedeemWater, setShowRedeemWater] = useState(false);
+  const [showUndoWater, setShowUndoWater] = useState(false);
   const [showDelivery, setShowDelivery] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -85,7 +88,7 @@ export function OrderDetailPage() {
     try {
       if (status === 'CANCELLED') {
         await http!.delete(`/orders/${id}`);
-        notify('Pedido cancelado.', 'warning');
+        notify(order?.waterCredit ? 'Resgate desfeito. A água voltou ao crédito do cliente.' : 'Pedido cancelado.', 'warning');
         navigate('/orders');
         return;
       } else {
@@ -204,10 +207,12 @@ export function OrderDetailPage() {
 
             {/* Edit button + step tracker */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <button aria-label="Apagar pedido" onClick={() => { setDeleteError(''); setShowDelete(true); }} className="flex items-center gap-1.5 px-4 py-2 border border-red-200 rounded-lg text-[13px] font-semibold text-red-600 hover:bg-red-50">
+              {order.waterCredit && !isCancelled && !isDelivered && <button onClick={() => setShowRedeemWater(true)} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white">Resgatar água</button>}
+              {order.waterCredit && isDelivered && <button onClick={() => setShowUndoWater(true)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Desfazer resgate</button>}
+              {!order.waterCredit && <button aria-label="Apagar pedido" onClick={() => { setDeleteError(''); setShowDelete(true); }} className="flex items-center gap-1.5 px-4 py-2 border border-red-200 rounded-lg text-[13px] font-semibold text-red-600 hover:bg-red-50">
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>Apagar pedido
-              </button>
-              {!isCancelled && !order.manualDebt && (
+              </button>}
+              {!isCancelled && !order.manualDebt && !order.waterCredit && (
                 <button
                   onClick={() => setShowEditOrder(true)}
                   className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-primary/30 transition-all"
@@ -449,7 +454,7 @@ export function OrderDetailPage() {
             </section>
 
             {/* Status actions */}
-            {!isCancelled && !isDelivered && (
+            {!isCancelled && !isDelivered && !order.waterCredit && (
               <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
                 <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Alterar Status</h3>
                 {actionError && (
@@ -523,7 +528,7 @@ export function OrderDetailPage() {
       </div>
 
       <ConfirmModal open={showDelete} title="Apagar pedido" danger confirmLabel="Apagar pedido" error={deleteError}
-        message={`Apagar definitivamente o pedido ${formatOrderId(order.id)}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. Outros pedidos são mantidos. A exclusão não pode ser desfeita.`}
+        message={`Apagar definitivamente o pedido ${formatOrderId(order.id)}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. ${order.deferredWaterPromotion ? 'As águas em crédito e os resgates desta promoção também serão removidos.' : 'Outros pedidos são mantidos.'} A exclusão não pode ser desfeita.`}
         onConfirm={deleteOrder} onClose={() => setShowDelete(false)} />
       {showEditOrder && (isDelivered || order.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
       {showEditOrder && !isDelivered && !order.items.some(i => i.promotionWaterValue != null) && (
@@ -542,6 +547,8 @@ export function OrderDetailPage() {
         onSuccess={() => setShowAddPayment(false)}
       />
       {showDelivery && <ConfirmDeliveryModal orderId={order.id} onClose={() => { setShowDelivery(false); fetchAll(); }} onSuccess={() => { setShowDelivery(false); fetchAll(); }} />}
+      {showRedeemWater && <RedeemWaterCreditModal orderId={order.id} productName={order.items[0].productName} quantity={order.items[0].quantity} onClose={() => setShowRedeemWater(false)} onSuccess={() => { setShowRedeemWater(false); fetchAll(); }} />}
+      <ConfirmModal open={showUndoWater} title="Desfazer resgate da água" message="A água volta ao estoque e fica disponível novamente no crédito do cliente. O pedido de gás será mantido." confirmLabel="Desfazer resgate" onClose={() => setShowUndoWater(false)} onConfirm={() => handleChangeStatus('CANCELLED')} />
     </>
   );
 }

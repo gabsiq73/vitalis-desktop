@@ -100,6 +100,30 @@ src/
 
 ## Integração com a API
 
+Na ficha de **Clientes**, use **Adicionar saldo** para registrar um recebimento
+em reais por PIX ou Dinheiro. O valor quita primeiro os fiados mais antigos,
+como o pagamento em lote; o restante fica disponível para os próximos pedidos
+com o meio **Saldo**. O recebimento entra no Caixa do Dia uma única vez.
+
+Em **Promoção Gás + água**, **Destino da água** permite entregar junto ou deixar
+água em crédito. A opção de crédito mantém o gás e uma entrega de água já paga
+separados, sem baixar água do estoque na entrega do gás. Na ficha do cliente,
+**Águas da promoção em crédito → Resgatar água** permite entregar uma parte ou
+toda a quantidade, após concluir a entrega do gás, sem nova cobrança.
+O detalhe do resgate permite desfazê-lo, devolvendo água ao estoque e ao crédito.
+Cancelar ou apagar a promoção de gás também desfaz seus créditos e resgates;
+a confirmação de exclusão informa essa abrangência.
+
+Vasilhames emprestados aparecem antes dos garrafões devidos aos clientes.
+
+Requer os endpoints `POST /payments/credits/{clientId}`,
+`GET /orders/client/{id}/water-credits` e `POST /orders/{id}/redeem-water`.
+`promotion.waterAsCredit` é opcional (padrão: entregar junto).
+`OrderResponseDTO` acrescenta `waterCredit` e `deferredWaterPromotion`.
+Não exige mudança de schema, migrations nem alterações nos registros antigos.
+Teste: `node tests/clientCreditAndPromotion.electron.mjs`, com Playwright,
+desktop em 5173 e `CLIENT_CREDIT_TEST_API=http://127.0.0.1:18089` descartável.
+
 Em **Produtos → Novo Produto**, escolha **Garrafão completo** ou **Garrafão
 vencido** para cadastrá-los com nome e preço próprios. No pedido, o completo pede
 a água que vai nele; seu preço é o valor completo da venda, sem segunda cobrança

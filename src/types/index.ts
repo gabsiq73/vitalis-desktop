@@ -60,6 +60,8 @@ export interface OrderItemResponseDTO {
 }
 
 export interface OrderResponseDTO {
+  waterCredit?: boolean;
+  deferredWaterPromotion?: boolean;
   manualDebt?: boolean;
   id: string;
   deliveryDate?: string;
@@ -260,6 +262,20 @@ export interface PaymentRequestDTO {
   orderId: string;
   paymentMethod: PaymentMethod;
   notes?: string;
+}
+
+export interface ClientCreditRequestDTO {
+  amount: number;
+  paymentMethod: GasPaymentMethod;
+}
+
+export interface WaterCreditResponseDTO {
+  orderId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  createDate: string;
+  available: boolean;
 }
 
 export interface ClientPriceResponseDTO {
