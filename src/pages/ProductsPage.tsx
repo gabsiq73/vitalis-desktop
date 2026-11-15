@@ -123,7 +123,6 @@ function ProductForm({ initial, onSubmit, onClose }: ProductFormProps) {
 
       <div className="grid grid-cols-2 gap-3">
         {type === 'FULL_BOTTLE' && <p className="col-span-2 text-sm text-slate-500">Cadastre o preço completo da venda. A água será escolhida ao montar o pedido.</p>}
-        {type === 'EXPIRED_BOTTLE' && <p className="col-span-2 text-sm text-slate-500">Vasilhame vencido, vendido sem água. A venda baixa somente os garrafões vencidos.</p>}
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Preço de Venda *</label>
           <input type="number" step="0.01" min="0.01" className={inputCls} placeholder="0,00" value={basePrice} onChange={e => setBasePrice(e.target.value)} />

@@ -356,8 +356,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       setError('Informe um preço de venda maior que zero ou deixe em branco para usar o preço padrão.');
       return;
     }
-    if (validItems.some(item => getProduct(item.productId)?.type === 'FULL_BOTTLE' && !item.waterProductId)) {
-      setError('Selecione a água de cada garrafão completo.'); return;
+    if (validItems.some(item => (getProduct(item.productId)?.type === 'FULL_BOTTLE' || (getProduct(item.productId)?.type === 'EXPIRED_BOTTLE' && item.bottleMode === 'REFILL')) && !item.waterProductId)) {
+      setError('Selecione a água de cada garrafão completo ou troca com garrafão vencido.'); return;
     }
 
     if (validItems.some((item) => getProduct(item.productId)?.type === 'GAS' && item.receivedByUs && !item.gasPaymentMethod)) {
@@ -438,6 +438,10 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
       const p = getProduct(item.productId);
       const base: OrderItemRequestBody = { productId: item.productId, quantity: item.quantity };
       if (p?.type === 'FULL_BOTTLE') base.waterProductId = item.waterProductId;
+      if (p?.type === 'EXPIRED_BOTTLE') {
+        base.bottleMode = item.bottleMode ?? 'EXPIRED';
+        if (base.bottleMode === 'REFILL') base.waterProductId = item.waterProductId;
+      }
       if (p?.type === 'WATER') base.bottleMode = item.bottleMode ?? (p.name.toUpperCase().includes('COMPLETO') ? 'FULL' : 'REFILL');
       if (item.waterUnitPrice !== undefined) {
         if (item.waterUnitPrice !== '') base.unitPrice = Number(item.waterUnitPrice);
@@ -810,12 +814,22 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                               ))}
                             </select>
                             {product?.type === 'WATER' && <select aria-label="Tipo da venda de garrafão" value={item.bottleMode ?? (getProduct(item.productId)?.name.toUpperCase().includes('COMPLETO') ? 'FULL' : 'REFILL')} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={cellInputClass + ' mt-2'}>
-                              <option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Vencido, sem água (outros usos)</option>
+                              <option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Venda de garrafão vencido</option>
                             </select>}
                             {product?.type === 'FULL_BOTTLE' && <select required aria-label={`Água do garrafão completo no item ${idx + 1}`} value={item.waterProductId ?? ''} onChange={e => updateItem(idx, 'waterProductId', e.target.value)} className={cellInputClass + ' mt-2'}>
                               <option value="">Escolha a água...</option>{products.filter(p => p.type === 'WATER').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>}
-                            {product?.type === 'EXPIRED_BOTTLE' && <p className="mt-2 text-xs text-slate-500">Vencido, sem água.</p>}
+                            {product?.type === 'EXPIRED_BOTTLE' && <>
+                              <select aria-label="Operação com garrafão vencido" value={item.bottleMode ?? 'EXPIRED'} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={cellInputClass + ' mt-2'}>
+                                <option value="EXPIRED">Venda do vasilhame</option><option value="REFILL">Troca de água</option>
+                              </select>
+                              {item.bottleMode === 'REFILL' && <>
+                                <select required aria-label={`Água da troca no item ${idx + 1}`} value={item.waterProductId ?? ''} onChange={e => updateItem(idx, 'waterProductId', e.target.value)} className={cellInputClass + ' mt-2'}>
+                                  <option value="">Escolha a água...</option>{products.filter(p => p.type === 'WATER').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                                <p className="mt-2 text-xs text-slate-500">Baixa somente a água. O garrafão permanece no estoque.</p>
+                              </>}
+                            </>}
                           </td>
                           <td className="px-3 py-2">
                             <input
