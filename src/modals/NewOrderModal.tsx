@@ -815,9 +815,6 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                                 <option key={p.id} value={p.id}>{p.name}</option>
                               ))}
                             </select>
-                            {product?.type === 'WATER' && <select aria-label="Tipo da venda de garrafão" value={item.bottleMode ?? (getProduct(item.productId)?.name.toUpperCase().includes('COMPLETO') ? 'FULL' : 'REFILL')} onChange={e => updateItem(idx, 'bottleMode', e.target.value as import('../types').BottleMode)} className={cellInputClass + ' mt-2'}>
-                              <option value="REFILL">Troca de água</option><option value="FULL">Garrafão completo</option><option value="EXPIRED">Venda de garrafão vencido</option>
-                            </select>}
                             {product?.type === 'FULL_BOTTLE' && <select required aria-label={`Água do garrafão completo no item ${idx + 1}`} value={item.waterProductId ?? ''} onChange={e => updateItem(idx, 'waterProductId', e.target.value)} className={cellInputClass + ' mt-2'}>
                               <option value="">Escolha a água...</option>{products.filter(p => p.type === 'WATER').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>}

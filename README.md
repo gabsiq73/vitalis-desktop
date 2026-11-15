@@ -153,10 +153,11 @@ o restante é mostrado como válido vazio. Os estoques anteriores ficam preserva
 até informar essa contagem. Para realocar água entre produtos, reduza uma alocação
 e aumente outra, sem exceder os garrafões válidos disponíveis.
 
-No item de água do pedido, selecione **Troca de água**, **Garrafão completo** ou
-**Venda de garrafão vencido** e informe o preço da venda. A entrega de troca baixa apenas
-a água; completo baixa água e total válido; vencido baixa apenas o total vencido.
-Cancelamento recompõe os efeitos aplicados. Vencidos não contam como água vendida.
+Produtos de água comum não mostram o seletor de operação no pedido, na edição
+ou na correção. Use os produtos **Garrafão completo** e **Garrafão vencido** para
+as opções de vasilhame. A troca baixa apenas a água; completo baixa água e total
+válido; a venda do vasilhame vencido baixa apenas o total vencido. Cancelamento
+recompõe os efeitos aplicados. A venda do vencido não conta como água vendida.
 O cadastro de empréstimos continua separado da alocação física de águas.
 
 **Pedidos → Promoção Gás + água** permite escolher água, valor de referência, custo
