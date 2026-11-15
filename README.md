@@ -401,7 +401,8 @@ pwsh -File scripts/build-desktop-runtime.ps1 -Destination <checkout-desktop>/des
 ```
 
 No desktop, rode npm ci e npm run build -- --win nsis --x64 --publish never.
-O instalador fica em release/1.0.0. Entregue tambem scripts/setup-pc.ps1.
+O instalador fica em `release/<versão>/Vitalis-Windows-<versão>-Setup.exe`.
+Entregue `scripts/setup-pc.ps1` somente para a primeira instalação do banco.
 
 No PC do usuario, abra PowerShell como administrador na mesma conta Windows
 que usara o app e execute .\setup-pc.ps1. O script usa o pacote oficial EDB
@@ -417,3 +418,18 @@ Execute o instalador do Vitalis e abra pelo menu Iniciar. Configuracao, logs
 e ate sete backups automaticos ficam em %APPDATA%\Vitalis. O PostgreSQL roda
 como servico do Windows. Confira a restauracao de um backup em um banco separado
 antes de usar o app com dados reais.
+
+### Atualizar uma instalação existente
+
+Feche o Vitalis e faça um backup completo e recente antes da atualização.
+Valide a atualização restaurando esse backup em PostgreSQL separado e comparando
+os registros antigos após as migrations. O instalador deve incluir a API atual,
+gerada pelo script acima, e usar um número de versão novo.
+
+No PC que já usa o sistema, execute o instalador novo na mesma conta Windows,
+mantendo a instalação e o PostgreSQL existentes. Não execute `setup-pc.ps1`
+novamente, não desinstale o banco e não restaure o backup sobre o banco em uso.
+O aplicativo mantém `%APPDATA%\Vitalis\config.json` e aplica as migrations na
+primeira abertura. Entre com o usuário existente e confira clientes, pedidos,
+fiados, estoque e acertos. Se houve lançamentos desde o backup validado, faça
+outro backup imediatamente antes de instalar.
