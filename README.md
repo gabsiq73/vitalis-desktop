@@ -104,7 +104,8 @@ src/
 cadastro errado, seu estoque e preços personalizados. Produtos com histórico
 vinculado recebem orientação para desativar, preservando os registros.
 
-**Fiados → cliente → fiado antigo → Editar fiado** permite corrigir valor total,
+**Fiados → cliente → Editar fiado**, nas abas Pedidos ou Pag. em Lote,
+permite corrigir valor total,
 data e observação. Mantém cliente, ID e pagamentos; se o novo total for menor
 que o já pago, a diferença vira crédito sem duplicar recebimentos no caixa.
 Requer `PUT /orders/manual-debts/{id}` com o mesmo DTO do cadastro.

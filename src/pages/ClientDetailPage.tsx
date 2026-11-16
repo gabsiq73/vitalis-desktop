@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { NewClientModal } from '../modals/NewClientModal';
+import { NewManualDebtModal } from '../modals/NewManualDebtModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { AddClientCreditModal } from '../modals/AddClientCreditModal';
 import { RedeemWaterCreditModal } from '../modals/RedeemWaterCreditModal';
@@ -66,6 +67,7 @@ export function ClientDetailPage() {
     () => (searchParams.get('filter') as OrderPayFilter) ?? 'all'
   );
   const [showEditClient, setShowEditClient] = useState(false);
+  const [editDebt, setEditDebt] = useState<OrderResponseDTO | null>(null);
   const [showAddCredit, setShowAddCredit] = useState(false);
   const [waterCredits, setWaterCredits] = useState<WaterCreditResponseDTO[]>([]);
   const [waterCreditsError, setWaterCreditsError] = useState('');
@@ -433,7 +435,7 @@ export function ClientDetailPage() {
                       <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
                       <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Entrega</th>
                       <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pagamento</th>
-                      <th className="w-8" />
+                      <th className="py-3 px-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -475,7 +477,8 @@ export function ClientDetailPage() {
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${payBadge.className}`}>{payBadge.label}</span>
                             </td>
                             <td className="px-3 py-3 text-right">
-                              <span className="material-symbols-outlined text-slate-300" style={{ fontSize: '17px' }}>chevron_right</span>
+                              {order.manualDebt && order.status !== 'CANCELLED' ? <button onClick={event => { event.stopPropagation(); setEditDebt(order); }} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5"><span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>Editar fiado</button>
+                                : <span className="material-symbols-outlined text-slate-300" style={{ fontSize: '17px' }}>chevron_right</span>}
                             </td>
                           </tr>
                         );
@@ -507,6 +510,7 @@ export function ClientDetailPage() {
                           <div>
                             <p className="font-semibold text-[13px] text-slate-700">{order.manualDebt ? 'Fiado antigo · ' : ''}{formatOrderId(order.id)}</p>
                             <p className="text-[11px] text-slate-400">{formatDateTime(order.manualDebt && order.deliveryDate ? order.deliveryDate : order.createDate)}</p>
+                            {order.manualDebt && order.status !== 'CANCELLED' && <button onClick={() => setEditDebt(order)} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/5"><span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>Editar fiado</button>}
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-[14px] text-slate-800">{formatBRL(order.totalValue)}</p>
@@ -689,6 +693,7 @@ export function ClientDetailPage() {
 
       <NewOrderModal open={showNewOrder} onClose={() => setShowNewOrder(false)}
         onSuccess={() => { fetchOrders(); fetchClient(); setCreditsRefresh(v => v + 1); }} defaultClient={client} />
+      {editDebt && <NewManualDebtModal initial={editDebt} onClose={() => setEditDebt(null)} onSuccess={() => { setEditDebt(null); fetchOrders(); fetchClient(); fetchDebt(); setBulkSuccess(false); }} />}
       {showAddCredit && <AddClientCreditModal clientId={client.id} clientName={client.name} onClose={() => setShowAddCredit(false)} onSuccess={() => { setShowAddCredit(false); fetchClient(); fetchOrders(); fetchDebt(); }} />}
       {redeemCredit && <RedeemWaterCreditModal orderId={redeemCredit.orderId} productName={redeemCredit.productName} quantity={redeemCredit.quantity} onClose={() => setRedeemCredit(null)} onSuccess={() => { setRedeemCredit(null); setCreditsRefresh(v => v + 1); fetchOrders(); fetchClient(); fetchDebt(); }} />}
       <NewClientModal open={showEditClient} onClose={() => setShowEditClient(false)}

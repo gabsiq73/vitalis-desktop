@@ -249,8 +249,16 @@ export function StockPage() {
         </div>
 
         <section aria-labelledby="bottle-inventory-title" className="p-5 bg-white border border-slate-200 rounded-xl space-y-3">
-          <button disabled={!inventory?.configured} onClick={() => setShowPurchase(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>Registrar compra de garrafões</button>
-          <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="bottle-inventory-title" className="font-bold text-slate-800">Garrafões do depósito</h2><div className="flex flex-wrap items-center gap-4"><button disabled={!inventory?.configured} onClick={() => setShowBreakage(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">remove_circle</span>Registrar quebra</button><button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button></div></div>
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <h2 id="bottle-inventory-title" className="font-bold text-slate-800">Garrafões do depósito</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button disabled={!inventory?.configured} onClick={() => setShowPurchase(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>Registrar compra de garrafões</button>
+                <button disabled={!inventory?.configured} onClick={() => setShowBreakage(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">remove_circle</span>Registrar quebra</button>
+              </div>
+              <button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button>
+            </div>
+          </div>
           {inventoryError && !showInventory && <p role="alert" className="text-sm text-red-700">{inventoryError}</p>}
           {inventory?.configured ? <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{[
             ['Total de garrafões', inventory.totalQuantity], ['Válidos (vazios + cheios)', inventory.validQuantity], ['Vencidos', inventory.expiredQuantity], ['Águas cheias', inventory.filledQuantity], ['Válidos vazios', inventory.emptyValidQuantity],
