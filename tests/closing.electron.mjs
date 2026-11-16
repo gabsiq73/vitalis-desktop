@@ -45,7 +45,7 @@ for (const [withdrawalKind, amount] of [['COMPRA', 40], ['DESPESA', 15], ['RETIR
   await request('POST', '/cash-movements', { type: 'WITHDRAWAL', withdrawalKind, amount, paymentMethod: 'PIX', note: 'Teste de fechamento', occurredAt: '2026-10-01T12:00:00' });
 }
 let report = await request('GET', '/reports/closing?year=2026&month=10');
-assert.deepEqual(report.days.map(d => [d.waterProfit, d.gasProfit, d.dailyBalance, d.accumulatedBalance]), [[100, 10, 35, 35], [250, 0, 250, 285]]);
+assert.deepEqual(report.days.map(d => [d.waterProfit, d.gasProfit, d.dailyBalance, d.accumulatedBalance]), [[100, 10, 55, 55], [250, 0, 250, 305]]);
 await request('POST', '/payments', { orderId: unpaidWater.id, amount: 20, paymentMethod: 'PIX', paymentDate: '2026-10-05 12:00:00' });
 assert.deepEqual(await request('GET', '/reports/closing?year=2026&month=10'), report, 'Receber fiado não repete nem redistribui a venda.');
 
@@ -67,10 +67,10 @@ try {
   await page.getByLabel('Mês', { exact: true }).selectOption('10');
   await page.getByRole('heading', { name: 'Fechamento do mês outubro - 2 dias', exact: true }).waitFor();
   const first = page.locator('tbody tr').filter({ hasText: '01/10/2026' });
-  for (const [index, value] of ['R$ 100,00', 'R$ 10,00', 'R$ 40,00', 'R$ 15,00', 'R$ 20,00', 'R$ 35,00', 'R$ 35,00'].entries()) {
+  for (const [index, value] of ['R$ 100,00', 'R$ 10,00', 'R$ 40,00', 'R$ 15,00', 'R$ 20,00', 'R$ 55,00', 'R$ 55,00'].entries()) {
     assert.equal((await first.locator('td').nth(index).innerText()).replace(/\s/g, ' '), value);
   }
-  assert.match(await page.locator('tbody tr').filter({ hasText: '02/10/2026' }).innerText(), /285,00/);
+  assert.match(await page.locator('tbody tr').filter({ hasText: '02/10/2026' }).innerText(), /305,00/);
   assert.equal(await page.getByText(/As vendas entram na data|Vendas água:|Saldo do dia =|Observações deste mês/).count(), 0);
   await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales.png') });
   await page.setViewportSize({ width: 1024, height: 640 });
@@ -88,8 +88,8 @@ try {
   await page.getByRole('button', { name: 'Registrar', exact: true }).click();
   assert.equal((await saved).status(), 201);
   report = await request('GET', '/reports/closing?year=2026&month=10');
-  assert.equal(report.totals.accumulatedBalance, 285);
-  console.log('PASS Electron + API real descartável: água 100, margem gás 10, compras 40, despesas 15, retirada 20, saldo 35, acumulado 285; fiado e recebimento posterior; registro de boleto PIX; layouts 1440/1024.');
+  assert.equal(report.totals.accumulatedBalance, 305);
+  console.log('PASS Electron + API real descartável: água 100, margem gás 10, compras 40, despesas 15, retirada demonstrativa 20, saldo 55, acumulado 305; fiado e recebimento posterior; registro de boleto PIX; layouts 1440/1024.');
 } catch (error) {
   await page.screenshot({ path: join(tmpdir(), 'vitalis-closing-sales-error.png') });
   throw error;

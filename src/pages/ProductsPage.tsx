@@ -190,6 +190,7 @@ export function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ProductResponseDTO | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<ProductResponseDTO | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [toggleTarget, setToggleTarget] = useState<ProductResponseDTO | null>(null);
 
   const fetchProducts = useCallback(() => {
@@ -229,10 +230,17 @@ export function ProductsPage() {
 
   async function handleDelete() {
     if (!http || !deleteTarget) return;
-    await http.delete(`/products/${deleteTarget.id}`);
-    notify(`Produto "${deleteTarget.name}" excluído.`, 'info');
-    setDeleteTarget(null);
-    fetchProducts();
+    setDeleteError('');
+    try {
+      await http.delete(`/products/${deleteTarget.id}`);
+      notify(`Produto "${deleteTarget.name}" excluído.`, 'info');
+      setDeleteTarget(null);
+      if (products.length === 1 && currentPage > 0) setCurrentPage(page => page - 1);
+      else fetchProducts();
+    } catch (err) {
+      setDeleteError(parseApiError(err));
+      return false;
+    }
   }
 
   async function handleToggleActive() {
@@ -464,13 +472,16 @@ export function ProductsPage() {
       />
 
       <ConfirmModal
+        key={deleteTarget?.id ?? 'delete-product'}
         open={deleteTarget !== null}
+        confirmationText="Excluir produto"
+        error={deleteError}
         title="Excluir Produto"
         message={`Excluir "${deleteTarget?.name}"? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         danger
         onConfirm={handleDelete}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => { setDeleteTarget(null); setDeleteError(''); }}
       />
     </div>
   );
