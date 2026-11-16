@@ -1,5 +1,22 @@
 # Publicar o Vitalis no GitHub Releases
 
+## 1.0.8 — ajustes operacionais
+
+- Exclusão de produto cadastrado por engano com confirmação digitando `Excluir produto`.
+- Edição do valor total, data e observação de fiados antigos, preservando pagamentos.
+- Compra de garrafões vazios ou cheios, escolha da água e histórico de entradas.
+- Retirada demonstrativa no fechamento, sem descontar dos saldos e da margem.
+
+Esta versão exige a API do commit `22a9448`, incluindo a migration aditiva V7.
+O runtime deve ser recompilado e incluir `BottlePurchaseService` e
+`ManualDebtCorrectionService`; não reutilize o JAR da versão 1.0.7.
+`runtime-info.json` registra versão, commit da API, hash do JAR e migrations V1–V7.
+
+O pacote local é gerado com `--publish never`. Para a atualização, feche o Vitalis,
+guarde um backup recente e execute o instalador na mesma conta Windows.
+O PostgreSQL e a configuração existentes são mantidos; não execute `setup-pc.ps1`
+novamente. A validação do pacote usa PostgreSQL e perfil Electron descartáveis.
+
 ## Fechamento / 1.0.5
 
 A branch de origem já estava na versão 1.0.5. O fechamento requer o backend
