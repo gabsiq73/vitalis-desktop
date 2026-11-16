@@ -418,6 +418,21 @@ export interface BottleInventoryResponseDTO {
 }
 
 export type BottleValidity = 'VALID' | 'EXPIRED';
+export interface BottlePurchaseRequestDTO {
+  quantity: number;
+  occurredAt?: string;
+  notes?: string;
+  waterProductId?: string;
+}
+export interface BottlePurchaseResponseDTO {
+  id: string;
+  quantity: number;
+  occurredAt: string;
+  notes: string | null;
+  waterProductId: string | null;
+  waterProductName: string | null;
+  createdBy: string | null;
+}
 export interface BottleBreakageRequestDTO {
   validity: BottleValidity;
   quantity: number;

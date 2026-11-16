@@ -7,6 +7,7 @@ import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
+import { NewManualDebtModal } from '../modals/NewManualDebtModal';
 import { EditCompletedOrderModal } from '../modals/EditCompletedOrderModal';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { parseApiError } from '../utils/parseApiError';
@@ -207,6 +208,7 @@ export function OrderDetailPage() {
 
             {/* Edit button + step tracker */}
             <div className="flex items-center gap-3 flex-shrink-0">
+              {order.manualDebt && !isCancelled && <button onClick={() => setShowEditOrder(true)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-primary">Editar fiado</button>}
               {order.waterCredit && !isCancelled && !isDelivered && <button onClick={() => setShowRedeemWater(true)} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white">Resgatar água</button>}
               {order.waterCredit && isDelivered && <button onClick={() => setShowUndoWater(true)} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Desfazer resgate</button>}
               {!order.waterCredit && <button aria-label="Apagar pedido" onClick={() => { setDeleteError(''); setShowDelete(true); }} className="flex items-center gap-1.5 px-4 py-2 border border-red-200 rounded-lg text-[13px] font-semibold text-red-600 hover:bg-red-50">
@@ -530,7 +532,8 @@ export function OrderDetailPage() {
       <ConfirmModal open={showDelete} title="Apagar pedido" danger confirmLabel="Apagar pedido" error={deleteError}
         message={`Apagar definitivamente o pedido ${formatOrderId(order.id)}? Seus itens, pagamentos, empréstimos e acertos serão removidos. O estoque será recomposto e o saldo do cliente recalculado. ${order.deferredWaterPromotion ? 'As águas em crédito e os resgates desta promoção também serão removidos.' : 'Outros pedidos são mantidos.'} A exclusão não pode ser desfeita.`}
         onConfirm={deleteOrder} onClose={() => setShowDelete(false)} />
-      {showEditOrder && (isDelivered || order.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
+      {showEditOrder && order.manualDebt && <NewManualDebtModal initial={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
+      {showEditOrder && !order.manualDebt && (isDelivered || order.items.some(i => i.promotionWaterValue != null)) && <EditCompletedOrderModal order={order} onClose={() => setShowEditOrder(false)} onSuccess={() => { setShowEditOrder(false); fetchAll(); }} />}
       {showEditOrder && !isDelivered && !order.items.some(i => i.promotionWaterValue != null) && (
         <EditOrderModal
           open={showEditOrder}

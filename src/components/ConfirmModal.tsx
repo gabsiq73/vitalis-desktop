@@ -9,6 +9,7 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   danger?: boolean;
   error?: string;
+  confirmationText?: string;
   onConfirm: () => Promise<void | boolean>;
   onClose: () => void;
 }
@@ -20,15 +21,17 @@ export function ConfirmModal({
   confirmLabel = 'Confirmar',
   danger = false,
   error,
+  confirmationText,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
   const [loading, setLoading] = useState(false);
+  const [typedConfirmation, setTypedConfirmation] = useState('');
   const confirming = useRef(false);
   const errorRef = useScrollToError<HTMLDivElement>(error);
 
   async function handleConfirm() {
-    if (confirming.current) return;
+    if (confirming.current || (confirmationText && typedConfirmation !== confirmationText)) return;
     confirming.current = true;
     setLoading(true);
     try {
@@ -44,6 +47,9 @@ export function ConfirmModal({
     <Modal open={open} onClose={() => { if (!confirming.current) onClose(); }} title={title} maxWidth="max-w-md">
       <div className="p-6">
         <p className="text-body-lg text-on-surface-variant mb-4">{message}</p>
+        {confirmationText && <label className="block mb-4 text-sm text-on-surface-variant">Digite <strong>{confirmationText}</strong> para confirmar
+          <input autoComplete="off" disabled={loading} value={typedConfirmation} onChange={e => setTypedConfirmation(e.target.value)} className="mt-2 w-full rounded-lg border border-outline-variant px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+        </label>}
         {error && (
           <div ref={errorRef} className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 font-medium">
             {error}
@@ -59,7 +65,7 @@ export function ConfirmModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || (!!confirmationText && typedConfirmation !== confirmationText)}
             className={`px-6 py-2.5 rounded-lg font-bold transition-all disabled:opacity-70 ${
               danger
                 ? 'bg-error text-on-error hover:brightness-110'

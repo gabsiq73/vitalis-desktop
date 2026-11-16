@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { Modal } from '../components/Modal';
 import { RegisterBottleBreakageModal } from '../modals/RegisterBottleBreakageModal';
+import { RegisterBottlePurchaseModal } from '../modals/RegisterBottlePurchaseModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { applySortInMemory } from '../utils/sort';
@@ -10,7 +11,7 @@ import { PageSizeSelector } from '../components/PageSizeSelector';
 import { useScrollToError } from '../hooks/useScrollToError';
 import { getStockStatus, isStockLow } from '../utils/stock';
 import type { StockResponseDTO, ProductResponseDTO, SpringPage } from '../types';
-import type { BottleInventoryResponseDTO, BottleBreakageResponseDTO } from '../types';
+import type { BottleInventoryResponseDTO, BottleBreakageResponseDTO, BottlePurchaseResponseDTO } from '../types';
 import { parseApiError } from '../utils/parseApiError';
 import { formatDateTime } from '../utils/format';
 
@@ -141,6 +142,12 @@ export function StockPage() {
   const [inventoryError, setInventoryError] = useState('');
   const [showInventory, setShowInventory] = useState(false);
   const [showBreakage, setShowBreakage] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(false);
+  const [purchases, setPurchases] = useState<SpringPage<BottlePurchaseResponseDTO> | null>(null);
+  const [purchasePage, setPurchasePage] = useState(0);
+  const [purchaseRefresh, setPurchaseRefresh] = useState(0);
+  const [purchasesLoading, setPurchasesLoading] = useState(true);
+  const [purchasesError, setPurchasesError] = useState('');
   const [breakages, setBreakages] = useState<SpringPage<BottleBreakageResponseDTO> | null>(null);
   const [breakagePage, setBreakagePage] = useState(0);
   const [breakageRefresh, setBreakageRefresh] = useState(0);
@@ -188,6 +195,17 @@ export function StockPage() {
 
   useEffect(() => {
     if (!http) return;
+    let active = true;
+    setPurchasesLoading(true); setPurchasesError('');
+    http.get<SpringPage<BottlePurchaseResponseDTO>>('/bottle-inventory/purchases', { params: { page: purchasePage, size: 10 } })
+      .then(response => { if (active) setPurchases(response.data); })
+      .catch(err => { if (active) setPurchasesError(parseApiError(err)); })
+      .finally(() => { if (active) setPurchasesLoading(false); });
+    return () => { active = false; };
+  }, [http, purchasePage, purchaseRefresh]);
+
+  useEffect(() => {
+    if (!http) return;
     const controller = new AbortController();
     setBreakagesLoading(true); setBreakagesError('');
     http.get<SpringPage<BottleBreakageResponseDTO>>('/bottle-inventory/breakages', {
@@ -231,6 +249,7 @@ export function StockPage() {
         </div>
 
         <section aria-labelledby="bottle-inventory-title" className="p-5 bg-white border border-slate-200 rounded-xl space-y-3">
+          <button disabled={!inventory?.configured} onClick={() => setShowPurchase(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">add_circle</span>Registrar compra de garrafões</button>
           <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="bottle-inventory-title" className="font-bold text-slate-800">Garrafões do depósito</h2><div className="flex flex-wrap items-center gap-4"><button disabled={!inventory?.configured} onClick={() => setShowBreakage(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><span aria-hidden="true" className="material-symbols-outlined text-lg">remove_circle</span>Registrar quebra</button><button onClick={() => { setValidCount(String(inventory?.validQuantity ?? 0)); setExpiredCount(String(inventory?.expiredQuantity ?? 0)); setShowInventory(true); }} className="text-primary font-semibold text-sm">Informar / corrigir totais</button></div></div>
           {inventoryError && !showInventory && <p role="alert" className="text-sm text-red-700">{inventoryError}</p>}
           {inventory?.configured ? <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{[
@@ -238,6 +257,17 @@ export function StockPage() {
           ].map(([label,count]) => <div key={label} className="p-3 bg-slate-50 rounded-lg"><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-bold">{count}</p></div>)}</div> : <p className="text-sm text-amber-800">Informe a contagem física de garrafões válidos e vencidos para ativar o controle total. Os estoques existentes de água serão preservados.</p>}
           <p className="text-xs text-slate-500">As águas cheias usam os garrafões válidos. Para realocar entre águas, reduza uma e aumente outra. A troca comum mantém o total; completo e vencido vendidos saem do total correspondente.</p>
           {inventory && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">Quebras registradas: <strong>{inventory.brokenValidQuantity} válido(s)</strong> · <strong>{inventory.brokenExpiredQuantity} vencido(s)</strong></p>}
+        </section>
+        <section aria-labelledby="purchases-title" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4"><h2 id="purchases-title" className="font-semibold text-slate-800">Histórico de compras de garrafões</h2><button disabled={purchasesLoading} onClick={() => { setPurchaseRefresh(v => v + 1); void fetchStock(); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">Atualizar compras</button></div>
+          {purchasesLoading ? <p role="status" className="p-6 text-center text-sm text-slate-500">Carregando compras...</p>
+            : purchasesError ? <p role="alert" className="p-5 text-sm text-red-700">{purchasesError}</p>
+            : !purchases?.content.length ? <p className="p-6 text-center text-sm text-slate-500">Nenhuma compra registrada.</p>
+            : <div role="region" aria-label="Compras de garrafões" tabIndex={0} className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-primary"><table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs text-slate-600"><tr>{['Data', 'Quantidade', 'Garrafões', 'Água', 'Observação', 'Registrado por'].map(label => <th scope="col" key={label} className="px-5 py-3 font-semibold">{label}</th>)}</tr></thead>
+              <tbody className="divide-y divide-slate-100">{purchases.content.map(p => <tr key={p.id}><td className="whitespace-nowrap px-5 py-4">{formatDateTime(p.occurredAt)}</td><td className="px-5 py-4 font-bold tabular-nums text-green-700">+{p.quantity}</td><td className="px-5 py-4">{p.waterProductId ? 'Cheios' : 'Vazios'}</td><td className="px-5 py-4">{p.waterProductName ?? '—'}</td><td className="max-w-xs break-words whitespace-pre-wrap px-5 py-4">{p.notes || '—'}</td><td className="px-5 py-4">{p.createdBy || '—'}</td></tr>)}</tbody>
+            </table></div>}
+          {!purchasesLoading && !purchasesError && purchases && purchases.totalElements > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-3 text-sm text-slate-600"><span>{purchases.totalElements} registro(s) de compra</span>{purchases.totalPages > 1 && <div className="flex items-center gap-3"><button disabled={purchasePage === 0} onClick={() => setPurchasePage(v => v - 1)} className="rounded-lg border border-slate-200 px-3 py-2 disabled:opacity-30">Anterior</button><span>Página {purchasePage + 1} de {purchases.totalPages}</span><button disabled={purchasePage >= purchases.totalPages - 1} onClick={() => setPurchasePage(v => v + 1)} className="rounded-lg border border-slate-200 px-3 py-2 disabled:opacity-30">Próxima</button></div>}</div>}
         </section>
         <section aria-labelledby="breakages-title" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4"><h2 id="breakages-title" className="font-semibold text-slate-800">Histórico de quebras</h2><button onClick={() => { setBreakageRefresh(v => v + 1); void fetchStock(); }} disabled={breakagesLoading} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-primary disabled:opacity-50">Atualizar quebras</button></div>
@@ -425,6 +455,7 @@ export function StockPage() {
         <button disabled={savingInventory} className="px-4 py-2 bg-primary text-white rounded-lg">{savingInventory ? 'Salvando...' : 'Salvar totais'}</button>
       </form></Modal>}
       {showBreakage && inventory && <RegisterBottleBreakageModal inventory={inventory} onClose={() => setShowBreakage(false)} onSuccess={() => { setShowBreakage(false); setBreakagePage(0); setBreakageRefresh(v => v + 1); void fetchStock(); }} />}
+      {showPurchase && <RegisterBottlePurchaseModal onClose={() => setShowPurchase(false)} onSuccess={() => { setShowPurchase(false); setPurchasePage(0); setPurchaseRefresh(v => v + 1); void fetchStock(); }} />}
       {adjustTarget && (
         <Modal
           open={adjustTarget !== null}

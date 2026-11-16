@@ -100,6 +100,23 @@ src/
 
 ## Integração com a API
 
+**Produtos → Excluir** exige digitar exatamente **Excluir produto**. Apaga o
+cadastro errado, seu estoque e preços personalizados. Produtos com histórico
+vinculado recebem orientação para desativar, preservando os registros.
+
+**Fiados → cliente → fiado antigo → Editar fiado** permite corrigir valor total,
+data e observação. Mantém cliente, ID e pagamentos; se o novo total for menor
+que o já pago, a diferença vira crédito sem duplicar recebimentos no caixa.
+Requer `PUT /orders/manual-debts/{id}` com o mesmo DTO do cadastro.
+
+**Estoque → Registrar compra de garrafões** permite comprar vazios ou cheios,
+selecionando a água. Aumenta o total válido e, quando cheio, também aquela água.
+Exige contagem inicial e mantém histórico com operador, data e observação.
+Não registra pagamento automaticamente. Requer migration V7 e
+`POST/GET /bottle-inventory/purchases` da API. O teste
+`node tests/operationalAdjustments.electron.mjs` usa desktop em 5173, Playwright
+e `OPERATIONAL_ADJUSTMENTS_TEST_API=http://127.0.0.1:18092` descartável.
+
 Em **Estoque → Garrafões do depósito → Registrar quebra**, informe se o
 garrafão é válido ou vencido e a quantidade. Para garrafão cheio, marque essa
 opção e escolha a água: a mesma quantidade sai da água e dos garrafões.
@@ -278,8 +295,9 @@ Conta vendas concluídas na data da entrega, inclusive fiadas, sem repetir a ven
 ao receber o pagamento. Vendas água é o preço de venda total sem descontar custo;
 Vendas gás é venda menos custo congelado do item. Compras são pagamentos de boletos
 de água classificados como Compra de água no Caixa do Dia. Despesas e retiradas
-também vêm do caixa. Saldo do dia = (água − compras) + margem do gás − despesas −
-retiradas; saldo do mês acumula os saldos diários desde o início do mês.
+também vêm do caixa. Saldo do dia = (água − compras) + margem do gás − despesas.
+Retirada soma as retiradas do Caixa do Dia e é apenas demonstrativa no fechamento;
+saldo do mês acumula os saldos diários desde o início do mês.
 Todos os cálculos vêm da API; o desktop apenas formata. A tabela separa vendas,
 saídas e resultado, mantém a data visível na rolagem horizontal e destaca saldos
 e totais. Textos explicativos e observações mensais não são exibidos na tela.
