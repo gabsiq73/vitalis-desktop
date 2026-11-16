@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
 import { maskPhone, stripPhone } from '../utils/format';
 import { useScrollToError } from '../hooks/useScrollToError';
-import type { ClientResponseDTO, ClientRequestBody, ClientType, ClientStatus } from '../types';
+import type { ClientResponseDTO, ClientRequestBody, ClientType } from '../types';
 
 interface NewClientModalProps {
   open: boolean;
@@ -13,20 +13,19 @@ interface NewClientModalProps {
   client?: ClientResponseDTO;
 }
 
-const EMPTY_FORM: ClientRequestBody = {
+const EMPTY_FORM: Omit<ClientRequestBody, 'clientStatus'> = {
   name: '',
   phone: '',
   address: '',
   notes: '',
   clientType: 'RETAIL',
-  clientStatus: 'PAID',
 };
 
 
 export function NewClientModal({ open, onClose, onSuccess, client }: NewClientModalProps) {
   const { http } = useAuth();
   const isEdit = client !== undefined;
-  const [form, setForm] = useState<ClientRequestBody>(EMPTY_FORM);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useScrollToError<HTMLDivElement>(error);
@@ -41,7 +40,6 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
           address: client.address ?? '',
           notes: client.notes ?? '',
           clientType: client.clientType,
-          clientStatus: client.clientStatus,
         });
       } else {
         setForm(EMPTY_FORM);
@@ -49,7 +47,7 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
     }
   }, [open, client]);
 
-  function set<K extends keyof ClientRequestBody>(key: K, value: ClientRequestBody[K]) {
+  function set<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -62,8 +60,8 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
       const body: Record<string, unknown> = {
         name: form.name,
         clientType: form.clientType,
-        clientStatus: form.clientStatus,
       };
+      if (!isEdit) body.clientStatus = 'PAID';
       const phoneDigits = stripPhone(form.phone);
       if (phoneDigits) body.phone = phoneDigits;
       if (form.address.trim()) body.address = form.address.trim();
@@ -165,20 +163,6 @@ export function NewClientModal({ open, onClose, onSuccess, client }: NewClientMo
             className={`${inputClass} resize-none`}
           />
         </div>
-
-        {isEdit && (
-          <div>
-            <label className={labelClass}>Status Financeiro</label>
-            <select
-              value={form.clientStatus}
-              onChange={(e) => set('clientStatus', e.target.value as ClientStatus)}
-              className={inputClass}
-            >
-              <option value="PAID">Em dia (PAID)</option>
-              <option value="OVERDUE">Inadimplente (OVERDUE)</option>
-            </select>
-          </div>
-        )}
 
         <div className="flex gap-3 justify-end pt-2 border-t border-outline-variant">
           <button

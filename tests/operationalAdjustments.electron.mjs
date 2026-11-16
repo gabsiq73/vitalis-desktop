@@ -84,6 +84,16 @@ try {
   await dialog.getByLabel('Data do fiado *', { exact: true }).fill('2020-01-01');
   const created = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith('/orders/manual-debts'));
   await dialog.getByRole('button', { name: 'Registrar fiado', exact: true }).click(); const debt = await (await created).json();
+  await page.goto(`${web}/clients/${client.id}?filter=open`);
+  await page.getByRole('button', { name: /Editar$/ }).click();
+  dialog = page.getByRole('dialog', { name: 'Editar Cliente', exact: true });
+  assert.equal(await dialog.locator('option[value="PAID"], option[value="OVERDUE"]').count(), 0);
+  const clientSaved = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().endsWith(`/clients/${client.id}`));
+  await dialog.getByRole('button', { name: 'Salvar Alterações', exact: true }).click();
+  const clientResponse = await clientSaved;
+  assert.equal(Object.hasOwn(clientResponse.request().postDataJSON(), 'clientStatus'), false);
+  assert.equal((await request('GET', `/clients/${client.id}`)).clientStatus, 'OVERDUE');
+  await dialog.waitFor({ state: 'detached' });
   await request('POST', `/payments/bulk/${client.id}?amount=40&method=PIX`);
   await page.goto(`${web}/clients/${client.id}?filter=open`);
   await page.getByRole('button', { name: 'Editar fiado', exact: true }).click(); dialog = page.getByRole('dialog');
