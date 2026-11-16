@@ -51,6 +51,13 @@ try {
   await row.waitFor({ state: 'detached' });
 
   await page.goto(`${web}/stock`);
+  const buyButton = page.getByRole('button', { name: 'Registrar compra de garrafões', exact: true });
+  const breakButton = page.getByRole('button', { name: 'Registrar quebra', exact: true });
+  for (const width of [1440, 1024]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const buyBox = await buyButton.boundingBox(), breakBox = await breakButton.boundingBox();
+    assert.ok(buyBox && breakBox && Math.abs(buyBox.y - breakBox.y) < 2, 'Compra e quebra ficam lado a lado.');
+  }
   await page.getByRole('button', { name: 'Registrar compra de garrafões', exact: true }).click();
   dialog = page.getByRole('dialog');
   await dialog.getByLabel('Quantidade comprada', { exact: true }).fill('3');
@@ -78,13 +85,19 @@ try {
   const created = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith('/orders/manual-debts'));
   await dialog.getByRole('button', { name: 'Registrar fiado', exact: true }).click(); const debt = await (await created).json();
   await request('POST', `/payments/bulk/${client.id}?amount=40&method=PIX`);
-  await page.goto(`${web}/orders/${debt.id}`);
+  await page.goto(`${web}/clients/${client.id}?filter=open`);
   await page.getByRole('button', { name: 'Editar fiado', exact: true }).click(); dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel(/^Cliente/).isDisabled(), true);
+  await dialog.getByLabel('Valor total do fiado (R$) *', { exact: true }).fill('80');
+  await dialog.getByRole('button', { name: 'Salvar fiado', exact: true }).click(); await dialog.waitFor({ state: 'detached' });
+  assert.equal((await request('GET', `/clients/${client.id}/outstanding-debt`)), 40);
+  await page.goto(`${web}/clients/${client.id}?filter=open&tab=pagamentos`);
+  await page.getByRole('button', { name: 'Editar fiado', exact: true }).click(); dialog = page.getByRole('dialog');
   await dialog.getByLabel('Valor total do fiado (R$) *', { exact: true }).fill('25');
   await dialog.getByRole('button', { name: 'Salvar fiado', exact: true }).click(); await dialog.waitFor({ state: 'detached' });
   assert.equal((await request('GET', `/clients/${client.id}`)).balance, 15);
   assert.equal((await request('GET', `/orders/${debt.id}`)).paymentStatus, 'PAID');
+  await page.goto(`${web}/orders/${debt.id}`);
   await page.getByRole('button', { name: 'Editar fiado', exact: true }).waitFor();
   await page.screenshot({ path: join(tmpdir(), 'vitalis-adjustments-debt.png') });
 
