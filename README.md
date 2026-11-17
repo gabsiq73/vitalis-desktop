@@ -491,6 +491,15 @@ Banco e instruções da API estão no repositório [vitalis](https://github.com/
 
 ## Instalador Windows 11 x64
 
+### Versão 1.1.1
+
+Remove o filtro de pagamento em Pedidos e o card Saldo Total da Carteira em
+Clientes. Inclui a API atual e as migrations V1 a V7, sem migration adicional.
+Lint, TypeScript, build e abertura do pacote Windows foram verificados; a
+configuração e os registros das 18 tabelas da cópia de teste foram preservados.
+Para publicar, envie o instalador 1.1.1, seu `.blockmap` e o `latest.yml` da
+mesma compilação. Faça um backup recente antes de atualizar uma instalação.
+
 No backend, com JDK 21 x64 e PowerShell 7, gere o JAR e o runtime em uma pasta nova.
 Na primeira compilacao, use desktop-runtime na raiz do checkout desktop.
 
