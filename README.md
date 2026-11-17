@@ -519,6 +519,18 @@ antes de usar o app com dados reais.
 
 ### Atualizar uma instalação existente
 
+A versão **1.0.9** inclui a API atual e mantém os recursos e migrations V1 a V7
+da 1.0.8. O pacote foi validado em PostgreSQL 16 separado: transição da API 1.0.8
+para o aplicativo empacotado 1.0.9, fluxos de entrega/pagamento/busca e preservação
+de configuração e registros. Uma cópia do backup local de 15/11/2026 também foi
+atualizada, preservando todas as linhas e campos existentes de 15 tabelas.
+Essa conferência não substitui um backup recente do PC que será atualizado.
+
+Para publicar a atualização, envie os três arquivos da mesma compilação:
+`Vitalis-Windows-1.0.9-Setup.exe`, o respectivo `.blockmap` e `latest.yml`.
+O hash SHA-512 do instalador deve coincidir com o manifesto. Não inclua o script
+de instalação inicial do banco como etapa de uma atualização.
+
 Feche o Vitalis e faça um backup completo e recente antes da atualização.
 Valide a atualização restaurando esse backup em PostgreSQL separado e comparando
 os registros antigos após as migrations. O instalador deve incluir a API atual,
