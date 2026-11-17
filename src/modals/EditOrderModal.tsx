@@ -1,5 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '../components/Modal';
+import { OrderPaymentCorrections } from '../components/OrderPaymentCorrections';
+import { EditPaymentMethodModal } from './EditPaymentMethodModal';
+import type { PaymentResponseDTO } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { parseApiError } from '../utils/parseApiError';
 import type { GasPaymentMethod, OrderItemRequestBody, OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
@@ -63,6 +66,7 @@ function localDatetimeOf(isoStr?: string | null): string {
 
 export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderModalProps) {
   const { http } = useAuth();
+  const [paymentToCorrect, setPaymentToCorrect] = useState<PaymentResponseDTO | null>(null);
   const revealSection = useRevealSection();
 
   const isShipped = order.status === 'SHIPPED';
@@ -175,10 +179,13 @@ export function EditOrderModal({ open, order, onClose, onSuccess }: EditOrderMod
 
   const inputCls = 'w-full border border-slate-200 rounded-lg bg-white text-[13px] py-2 px-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
 
+  if (paymentToCorrect) return <EditPaymentMethodModal payment={paymentToCorrect} onClose={() => setPaymentToCorrect(null)} onSuccess={onSuccess} fromOrderEditor />;
+
   return (
     <Modal open={open} onClose={onClose} title="Editar Pedido" maxWidth="max-w-3xl">
       <form onSubmit={handleSubmit} className="flex flex-col max-h-[80vh]">
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+          {order.status !== 'CANCELLED' && <OrderPaymentCorrections orderId={order.id} onEdit={setPaymentToCorrect} disabled={submitting} />}
 
           {error && (
             <div ref={errorRef} className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">

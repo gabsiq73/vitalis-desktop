@@ -268,13 +268,18 @@ export function CashRegisterPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3.5">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${m.bg} ${m.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
-                              {METHOD_LABEL[p.paymentMethod] ?? 'Não informado'}
-                            </span>
-                            {p.entryType !== 'CLIENT_CREDIT' && hasOrder && (p.paymentMethod === 'PIX' || p.paymentMethod === 'DINHEIRO') && <button
-                              type="button" onClick={() => setEditPayment(p)} aria-label={`Alterar forma de pagamento ${p.orderRef}`}
-                              className="block mt-1 text-xs font-semibold text-primary hover:underline">Alterar forma</button>}
+                            <div className="flex items-center gap-1">
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${m.bg} ${m.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+                                {METHOD_LABEL[p.paymentMethod] ?? 'Não informado'}
+                              </span>
+                              {p.entryType !== 'CLIENT_CREDIT' && hasOrder && (p.paymentMethod === 'PIX' || p.paymentMethod === 'DINHEIRO') && <button
+                                type="button" onClick={() => setEditPayment(p)} aria-label={`Alterar forma de pagamento ${p.orderRef}`}
+                                title="Alterar forma de pagamento"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/8 transition-all">
+                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">edit</span>
+                              </button>}
+                            </div>
                           </td>
                           <td className="px-5 py-3.5 text-right font-bold text-[14px] text-slate-800 tabular-nums whitespace-nowrap">
                             {formatBRL(p.amount)}

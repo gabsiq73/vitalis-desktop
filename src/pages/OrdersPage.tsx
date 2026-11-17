@@ -58,20 +58,20 @@ const STATUS_CHIPS = [
     dot:      'bg-green-400',
   },
   {
-    key: 'CANCELLED',
-    label: 'Cancelado',
-    icon: 'cancel',
-    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50',
-    active:   'bg-red-50 border-red-400 text-red-800',
-    dot:      'bg-red-400',
-  },
-  {
     key: 'SCHEDULED',
     label: 'Agendado',
     icon: 'event',
     inactive: 'bg-white border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50',
     active:   'bg-violet-50 border-violet-400 text-violet-800',
     dot:      'bg-violet-400',
+  },
+  {
+    key: 'CANCELLED',
+    label: 'Cancelado',
+    icon: 'cancel',
+    inactive: 'bg-white border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50',
+    active:   'bg-red-50 border-red-400 text-red-800',
+    dot:      'bg-red-400',
   },
 ];
 
@@ -304,19 +304,6 @@ export function OrdersPage() {
                 : 'Gerencie todos os pedidos do sistema.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <button onClick={() => setShowPromotion(true)} className="px-4 py-2.5 border border-primary text-primary rounded-lg font-semibold text-sm">Promoção Gás + Água</button>
-            <button
-              onClick={() => setShowNewOrder(true)}
-              className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-              Novo Pedido
-              {hasDraft && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Date filter */}
@@ -328,13 +315,6 @@ export function OrdersPage() {
             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           <span className="block mt-1 text-[11px] text-slate-500">A busca respeita os filtros abaixo. Escolha Todos para buscar em outras datas.</span>
         </label>
-        <label className="block max-w-lg text-sm font-semibold text-slate-600">Produto
-          <select aria-label="Filtrar pedidos por produto" value={productFilter} onChange={e => { setProductFilter(e.target.value); setCurrentPage(0); }} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm">
-            <option value="">Todos os produtos</option>
-            {products.map(product => <option key={product.id} value={product.id}>{product.name}{product.isActive ? '' : ' (inativo)'}</option>)}
-          </select>
-        </label>
-        {productsError && <p role="alert" className="text-sm text-red-600">{productsError} <button type="button" onClick={() => setProductsRetry(value => value + 1)} className="underline">Recarregar produtos</button></p>}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setDateMode('today'); setCurrentPage(0); }}
@@ -395,6 +375,19 @@ export function OrdersPage() {
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
             </span>
           )}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            <button onClick={() => setShowPromotion(true)} className="px-4 py-2.5 border border-primary text-primary rounded-lg font-semibold text-sm">Promoção Gás + Água</button>
+            <button
+              onClick={() => setShowNewOrder(true)}
+              className="relative flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-[13px] shadow-md shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              Novo Pedido
+              {hasDraft && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">!</span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Filter bar */}
@@ -406,7 +399,7 @@ export function OrdersPage() {
               <button
                 key={chip.key || 'all'}
                 onClick={() => handleStatusChip(chip.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
+                className={`flex h-10 items-center gap-2 px-4 rounded-xl border font-semibold text-[13px] transition-all shadow-sm ${
                   isActive ? chip.active : chip.inactive
                 }`}
               >
@@ -422,6 +415,18 @@ export function OrdersPage() {
               </button>
             );
           })}
+
+          <select
+            aria-label="Filtrar pedidos por produto"
+            value={productFilter}
+            onChange={e => { setProductFilter(e.target.value); setCurrentPage(0); }}
+            className={`h-10 max-w-48 cursor-pointer rounded-xl border px-4 text-[13px] font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+              productFilter ? 'border-primary/40 bg-primary/8 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+            }`}
+          >
+            <option value="">Todos os produtos</option>
+            {products.map(product => <option key={product.id} value={product.id}>{product.name}{product.isActive ? '' : ' (inativo)'}</option>)}
+          </select>
 
           <div className="h-6 w-px bg-slate-200" />
 
@@ -450,6 +455,8 @@ export function OrdersPage() {
             </button>
           )}
         </div>
+
+        {productsError && <p role="alert" className="text-sm text-red-600">{productsError} <button type="button" onClick={() => setProductsRetry(value => value + 1)} className="underline">Recarregar produtos</button></p>}
 
         {/* Table */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-card">

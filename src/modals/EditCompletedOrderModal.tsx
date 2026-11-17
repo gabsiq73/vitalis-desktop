@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../components/Modal';
+import { OrderPaymentCorrections } from '../components/OrderPaymentCorrections';
+import { EditPaymentMethodModal } from './EditPaymentMethodModal';
+import type { PaymentResponseDTO } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useRevealSection } from '../hooks/useRevealSection';
 import { parseApiError } from '../utils/parseApiError';
@@ -7,6 +10,7 @@ import type { BottleMode, GasPaymentMethod, OrderResponseDTO, ProductResponseDTO
 
 export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: OrderResponseDTO; onClose: () => void; onSuccess: () => void }) {
   const { http } = useAuth();
+  const [paymentToCorrect, setPaymentToCorrect] = useState<PaymentResponseDTO | null>(null);
   const revealSection = useRevealSection();
   const [items, setItems] = useState(order.items.map(i => ({ ...i })));
   const [products, setProducts] = useState<ProductResponseDTO[]>([]);
@@ -40,8 +44,11 @@ export function EditCompletedOrderModal({ order, onClose, onSuccess }: { order: 
     } catch (err) { setError(parseApiError(err)); } finally { busy.current = false; setSaving(false); }
   }
   function change(index: number, values: Partial<typeof items[number]>) { setItems(old => old.map((i, n) => n === index ? { ...i, ...values } : i)); }
+  if (paymentToCorrect) return <EditPaymentMethodModal payment={paymentToCorrect} onClose={() => setPaymentToCorrect(null)} onSuccess={onSuccess} fromOrderEditor />;
+
   return <Modal open title={order.status === 'DELIVERED' ? 'Editar pedido concluído' : 'Editar promoção'} maxWidth="max-w-2xl" onClose={() => { if (!busy.current) onClose(); }}>
     <form onSubmit={submit} className="p-6 space-y-4 overflow-y-auto">
+      {order.status !== 'CANCELLED' && <OrderPaymentCorrections orderId={order.id} onEdit={setPaymentToCorrect} disabled={saving} />}
       <p className="text-sm text-slate-600">A correção mantém o pedido e seus registros. Estoque, acertos e dívida serão atualizados. Valores pagos a mais viram crédito do cliente.</p>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <fieldset disabled={saving} className="space-y-4">

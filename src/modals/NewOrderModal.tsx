@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent, useCallback } from 'react';
 import { Modal } from '../components/Modal';
+import { OrderPaymentCorrections } from '../components/OrderPaymentCorrections';
+import { EditPaymentMethodModal } from './EditPaymentMethodModal';
+import type { PaymentResponseDTO } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
 import { parseApiError } from '../utils/parseApiError';
@@ -67,6 +70,7 @@ function nowDatetimeLocal() {
 export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrder }: NewOrderModalProps) {
   const isEditMode = !!editOrder;
   const { http } = useAuth();
+  const [paymentToCorrect, setPaymentToCorrect] = useState<PaymentResponseDTO | null>(null);
   const revealSection = useRevealSection();
   const { notify } = useNotification();
 
@@ -571,6 +575,8 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
   const isRetail = selectedClient?.clientType === 'RETAIL';
   const hasGasItem = items.some((item) => getProduct(item.productId)?.type === 'GAS');
 
+  if (paymentToCorrect) return <EditPaymentMethodModal payment={paymentToCorrect} onClose={() => setPaymentToCorrect(null)} onSuccess={onSuccess} fromOrderEditor />;
+
   return (
     <>
       <Modal open={open} onClose={isEditMode ? onClose : saveDraftAndClose} title={isEditMode ? `Editar Pedido` : 'Novo Pedido'} maxWidth="max-w-5xl">
@@ -578,6 +584,7 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
 
           {/* Scrollable body */}
           <div className="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
+            {editOrder && <OrderPaymentCorrections orderId={editOrder.id} onEdit={setPaymentToCorrect} disabled={submitting} />}
 
             {error && (
               <div ref={errorRef} className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">

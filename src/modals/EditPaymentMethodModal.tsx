@@ -11,9 +11,10 @@ interface Props {
   payment: Pick<PaymentResponseDTO, 'id' | 'amount' | 'paymentDate' | 'paymentMethod'>;
   onClose: () => void;
   onSuccess: () => void;
+  fromOrderEditor?: boolean;
 }
 
-export function EditPaymentMethodModal({ payment, onClose, onSuccess }: Props) {
+export function EditPaymentMethodModal({ payment, onClose, onSuccess, fromOrderEditor }: Props) {
   const { http } = useAuth();
   const { notify } = useNotification();
   const [method, setMethod] = useState<GasPaymentMethod>(payment.paymentMethod === 'DINHEIRO' ? 'DINHEIRO' : 'PIX');
@@ -45,6 +46,7 @@ export function EditPaymentMethodModal({ payment, onClose, onSuccess }: Props) {
           <option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option>
         </select>
       </label>
+      {fromOrderEditor && <p className="text-sm text-slate-600">Salvar a correção fecha a edição do pedido e descarta alterações pendentes no formulário.</p>}
       {error && <p ref={errorRef} role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-3">
         <button type="button" disabled={saving} onClick={onClose} className="px-4 py-2.5 border border-slate-200 rounded-lg disabled:opacity-50">Cancelar</button>
