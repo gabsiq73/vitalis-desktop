@@ -1,3 +1,4 @@
+import { normalizeSearch } from '../utils/search';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -62,9 +63,9 @@ export function DebtorsPage() {
   useEffect(() => {
     let result = debtors;
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = normalizeSearch(searchQuery);
       result = result.filter(
-        (c) => c.name.toLowerCase().includes(q) || c.phone?.includes(q),
+        (c) => normalizeSearch(c.name).includes(q) || normalizeSearch(c.phone).includes(q),
       );
     }
     result = applySortInMemory(result, sort);
@@ -85,7 +86,7 @@ export function DebtorsPage() {
         {/* Header */}
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-h1 text-slate-800">Fiados</h1>
+            <h1 className="text-h1 text-slate-800">Contas a receber</h1>
             <p className="text-body-lg text-slate-500">
               {loading ? 'Carregando...' : (
                 debtors.length > 0

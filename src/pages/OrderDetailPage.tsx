@@ -6,6 +6,7 @@ import { useNotification } from '../hooks/useNotification';
 import { TopBar } from '../components/TopBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { AddPaymentModal } from '../modals/AddPaymentModal';
+import { EditPaymentMethodModal } from '../modals/EditPaymentMethodModal';
 import { EditOrderModal } from '../modals/EditOrderModal';
 import { NewManualDebtModal } from '../modals/NewManualDebtModal';
 import { EditCompletedOrderModal } from '../modals/EditCompletedOrderModal';
@@ -47,6 +48,7 @@ export function OrderDetailPage() {
 
   const [order, setOrder] = useState<OrderResponseDTO | null>(null);
   const [payments, setPayments] = useState<PaymentResponseDTO[]>([]);
+  const [editPayment, setEditPayment] = useState<PaymentResponseDTO | null>(null);
   const [balance, setBalance] = useState<OrderBalanceDTO | null>(null);
   const [loans, setLoans] = useState<LoanedBottleResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,6 +142,7 @@ export function OrderDetailPage() {
   return (
     <>
       <TopBar />
+      {editPayment && <EditPaymentMethodModal payment={editPayment} onClose={() => setEditPayment(null)} onSuccess={() => { setEditPayment(null); fetchAll(); }} />}
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
@@ -392,6 +395,9 @@ export function OrderDetailPage() {
                           <p className="text-[13px] font-semibold text-slate-700">
                             {METHOD_LABELS[pay.paymentMethod] ?? 'Não informado'}
                           </p>
+                          {order.status !== 'CANCELLED' && (pay.paymentMethod === 'PIX' || pay.paymentMethod === 'DINHEIRO') && <button
+                            type="button" onClick={() => setEditPayment(pay)} aria-label={`Alterar forma de pagamento de ${formatBRL(pay.amount)}`}
+                            className="text-xs font-semibold text-primary hover:underline">Alterar forma de pagamento</button>}
                           <p className="text-[11px] text-slate-400">
                             {formatDateTime(pay.paymentDate)}
                             {pay.notes && <span className="ml-1 text-slate-400">· {pay.notes}</span>}

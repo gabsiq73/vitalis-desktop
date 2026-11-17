@@ -85,6 +85,7 @@ export interface ManualDebtRequestDTO {
 }
 
 export interface ConfirmDeliveryRequestDTO {
+  loanedBottleQuantity?: number;
   gasPayments: {
     orderItemId: string;
     receivedByUs: boolean;

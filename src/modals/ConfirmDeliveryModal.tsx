@@ -22,6 +22,8 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [paymentReviewed, setPaymentReviewed] = useState(false);
+  const [registerLoan, setRegisterLoan] = useState(false);
+  const [loanQuantity, setLoanQuantity] = useState('1');
   const errorRef = useScrollToError<HTMLParagraphElement>(error);
 
   useEffect(() => {
@@ -49,11 +51,16 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
       setError('Revise quem recebeu cada item de gás e informe PIX ou Dinheiro para o depósito.');
       return;
     }
-    const payload: ConfirmDeliveryRequestDTO | undefined = gasItems.length ? { gasPayments: gasItems.map(item => ({
+    const quantity = Number(loanQuantity);
+    if (registerLoan && (!Number.isInteger(quantity) || quantity < 1 || quantity > 2147483647)) {
+      setError('Informe uma quantidade inteira positiva de vasilhames.');
+      return;
+    }
+    const payload: ConfirmDeliveryRequestDTO = { loanedBottleQuantity: registerLoan ? quantity : undefined, gasPayments: gasItems.map(item => ({
       orderItemId: item.id,
       receivedByUs: selections[item.id].receiver === 'DEPOT',
       gasPaymentMethod: selections[item.id].receiver === 'DEPOT' ? selections[item.id].method as PaymentMethod : null,
-    })) } : undefined;
+    })) };
     submitting.current = true;
     setSaving(true);
     setError('');
@@ -71,9 +78,19 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
 
   const inputClass = 'mt-1 w-full border border-outline-variant rounded-lg bg-surface-container-lowest px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none';
   const unavailable = order?.status === 'DELIVERED' || order?.status === 'CANCELLED';
-  if (order && !unavailable && order.paymentStatus !== 'PAID' && !paymentReviewed) {
+  if (order && !unavailable && !paymentReviewed) {
     return <AddPaymentModal
       open orderId={orderId} forDelivery
+      deliveryLoan={<div className="p-3 border border-slate-200 rounded-lg space-y-3">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <input type="checkbox" checked={registerLoan} onChange={e => setRegisterLoan(e.target.checked)} />
+          Registrar empréstimo de vasilhame
+        </label>
+        {registerLoan && <label className="block text-sm text-slate-600">Quantidade de vasilhames
+          <input aria-label="Quantidade de vasilhames" type="number" min="1" max="2147483647" step="1" required value={loanQuantity} onChange={e => setLoanQuantity(e.target.value)} className={inputClass} />
+        </label>}
+        <p className="text-xs text-slate-500">O empréstimo será registrado para {order.clientName} ao confirmar a entrega.{!!order.loanedBottlesCount && ` Este pedido já possui ${order.loanedBottlesCount} vasilhame(s) registrado(s); informe somente o empréstimo adicional.`}</p>
+      </div>}
       onClose={onClose}
       onSuccess={() => setPaymentReviewed(true)}
       onFiado={() => setPaymentReviewed(true)}
@@ -87,6 +104,8 @@ export function ConfirmDeliveryModal({ orderId, onClose, onSuccess }: Props) {
           <p className="text-sm text-on-surface-variant">Pedido {formatOrderId(order.id)} · {order.clientName}</p>
           {unavailable ? <p role="alert" className="text-sm text-error">Este pedido já foi entregue ou cancelado. Atualize a lista.</p> : <>
             <p className="text-sm text-on-surface-variant">{gasItems.length ? 'Revise o recebimento do gás antes de confirmar. Os dados abaixo preservam a seleção do pedido.' : 'Confirma a entrega dos itens deste pedido? A baixa do estoque de água será realizada.'}</p>
+            {registerLoan && <p className="text-sm text-slate-700">Empréstimo adicional: {loanQuantity} vasilhame(s) para {order.clientName}.</p>}
+            <button type="button" disabled={saving} onClick={() => setPaymentReviewed(false)} className="text-sm font-semibold text-primary">Revisar pagamento e vasilhames</button>
             <fieldset disabled={saving} className="space-y-4">
               {gasItems.map(item => {
                 const selection = selections[item.id];

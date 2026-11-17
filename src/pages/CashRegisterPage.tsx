@@ -8,6 +8,7 @@ import { formatBRL, formatTime } from '../utils/format';
 import { dailyCashTotals } from '../utils/dailyCashTotals';
 import { parseApiError, cashMovementApiError } from '../utils/parseApiError';
 import { CashMovementModal } from '../modals/CashMovementModal';
+import { EditPaymentMethodModal } from '../modals/EditPaymentMethodModal';
 import { cashMovementDirection } from '../utils/cashMovement';
 
 const METHOD_LABEL: Record<string, string> = {
@@ -37,6 +38,7 @@ export function CashRegisterPage() {
   const loading = fetching || loadedDate !== selectedDate;
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [payments, setPayments] = useState<DailyCashPaymentDTO[]>([]);
+  const [editPayment, setEditPayment] = useState<DailyCashPaymentDTO | null>(null);
   const [operational, setOperational] = useState<DailyReportDTO | null>(null);
   const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
   const [financialError, setFinancialError] = useState<string | null>(null);
@@ -112,6 +114,7 @@ export function CashRegisterPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <TopBar title="Caixa do Dia" subtitle="Movimentações financeiras e fechamento de caixa" />
+      {editPayment && <EditPaymentMethodModal payment={editPayment} onClose={() => setEditPayment(null)} onSuccess={() => { setEditPayment(null); fetchData(); }} />}
 
       <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
 
@@ -269,6 +272,9 @@ export function CashRegisterPage() {
                               <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
                               {METHOD_LABEL[p.paymentMethod] ?? 'Não informado'}
                             </span>
+                            {p.entryType !== 'CLIENT_CREDIT' && hasOrder && (p.paymentMethod === 'PIX' || p.paymentMethod === 'DINHEIRO') && <button
+                              type="button" onClick={() => setEditPayment(p)} aria-label={`Alterar forma de pagamento ${p.orderRef}`}
+                              className="block mt-1 text-xs font-semibold text-primary hover:underline">Alterar forma</button>}
                           </td>
                           <td className="px-5 py-3.5 text-right font-bold text-[14px] text-slate-800 tabular-nums whitespace-nowrap">
                             {formatBRL(p.amount)}

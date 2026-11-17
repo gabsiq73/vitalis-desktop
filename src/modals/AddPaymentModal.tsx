@@ -20,6 +20,7 @@ interface AddPaymentModalProps {
   onClose: () => void;
   onSuccess: () => void;
   forDelivery?: boolean;
+  deliveryLoan?: React.ReactNode;
   onFiado?: () => void;
 }
 
@@ -29,7 +30,7 @@ function nowPaymentDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery = false, onFiado }: AddPaymentModalProps) {
+export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery = false, onFiado, deliveryLoan }: AddPaymentModalProps) {
   const { http } = useAuth();
   const revealSection = useRevealSection();
   const [amount, setAmount] = useState('');
@@ -210,7 +211,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
       <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-          {forDelivery && <p className="text-[13px] text-slate-600">Antes de confirmar a entrega, registre o pagamento ou escolha fiado. Fiado mantém o saldo devedor sem lançar entrada no caixa.</p>}
+          {forDelivery && <p className="text-[13px] text-slate-600">Antes de confirmar a entrega, confira o pagamento e os vasilhames. Se houver valor em aberto, registre o pagamento ou escolha fiado. Fiado mantém o saldo devedor sem lançar entrada no caixa.</p>}
           {notice && <p role="status" className="p-3 rounded-lg bg-amber-50 text-[13px] text-amber-800">{notice}</p>}
 
           {/* Order balance summary */}
@@ -238,8 +239,10 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
             </div>
           )}
 
+          {deliveryLoan}
+
           {/* Payment 1 */}
-          <fieldset data-reveal-section disabled={loading || balanceLoading || !balance || (forDelivery && balance.remainingBalance <= 0)} className="space-y-5 disabled:opacity-60">
+          {!(forDelivery && balance && balance.remainingBalance <= 0) && <fieldset data-reveal-section disabled={loading || balanceLoading || !balance} className="space-y-5 disabled:opacity-60">
           <div className="space-y-3">
             {combine && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">1º meio de pagamento</p>}
             <div>
@@ -434,7 +437,7 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-          </fieldset>
+          </fieldset>}
 
           {error && (
             <p ref={errorRef} role="alert" className="text-[13px] text-red-600 flex items-center gap-1">

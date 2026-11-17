@@ -1,3 +1,4 @@
+import { normalizeSearch } from '../utils/search';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
@@ -132,7 +133,7 @@ export function SuppliersPage() {
 
   const [sort, setSort] = useState<SortState | null>(null);
   const filtered = applySortInMemory(
-    searchQuery.trim() ? suppliers.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase())) : suppliers,
+    searchQuery.trim() ? suppliers.filter((s) => normalizeSearch(s.name).includes(normalizeSearch(searchQuery))) : suppliers,
     sort
   );
 

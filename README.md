@@ -100,6 +100,40 @@ src/
 
 ## Integração com a API
 
+Na confirmação de entrega, **Registrar Pagamento → Registrar empréstimo de
+vasilhame** permite informar a quantidade adicional emprestada ao cliente do
+pedido. A opção também aparece em pedidos pagos e no fluxo de fiado. O empréstimo
+é gravado junto com a entrega; cancelar a confirmação não registra vasilhames.
+Empréstimos já vinculados ao pedido são informados para evitar duplicação.
+
+O menu **Contas a receber** substitui o nome Fiados, preservando cadastro e
+recebimento das dívidas. Pesquisas em Pedidos e Clientes e buscas locais de
+Contas a receber, Produtos e Fornecedores ignoram acentos, caixa e espaços.
+Pedidos oferece um seletor com todos os produtos, inclusive inativos; o filtro
+vale para todas as páginas e combina com pesquisa, data e situação. Água usada
+em garrafão completo ou troca de vencido também pode ser filtrada pelo produto.
+
+No **Caixa do Dia → Alterar forma** e no **Detalhe do pedido → Pagamentos →
+Alterar forma de pagamento**, é possível corrigir PIX/Dinheiro mesmo após a
+quitação e entrega. ID, valor, data e quitação são preservados; o caixa da data
+original e o crédito excedente vinculado refletem a correção. SALDO utilizado
+continua separado dos recebimentos.
+
+Requer a API com `loanedBottleQuantity` opcional em
+`PATCH /orders/{id}/confirm-delivery`, `productId` em `GET /orders` e
+`PATCH /payments/{id}/payment-method` com `{paymentMethod: "PIX" | "DINHEIRO"}`.
+Não há alteração de schema. Atualize backend e desktop juntos.
+Teste dirigido: `node tests/deliverySearchPaymentCorrection.electron.mjs`,
+com desktop em 5173, Playwright e
+`DELIVERY_CHANGES_TEST_API=http://127.0.0.1:18093` apontando para uma API
+descartável. `node --experimental-strip-types --test tests/search.test.mjs`
+verifica a normalização das buscas locais.
+
+Validação deste fluxo: 16 testes novos de API (8 H2 + 8 PostgreSQL 16),
+regressões dirigidas de busca/fiados, 15 testes de busca/pagamento/caixa do
+desktop, lint, build Windows e Electron com API real descartável em 1440 e
+1024 pixels. Postman confirmou a busca de cliente com duas asserções.
+
 **Produtos → Excluir** exige digitar exatamente **Excluir produto**. Apaga o
 cadastro errado, seu estoque e preços personalizados. Produtos com histórico
 vinculado recebem orientação para desativar, preservando os registros.

@@ -1,3 +1,4 @@
+import { normalizeSearch } from '../utils/search';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../hooks/useNotification';
@@ -211,7 +212,7 @@ export function ProductsPage() {
 
   const filtered = products
     .filter(p => !typeFilter || p.type === typeFilter)
-    .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(p => !search || normalizeSearch(p.name).includes(normalizeSearch(search)));
 
   async function handleCreate(data: ProductRequestDTO | ProductUpdateDTO) {
     await http!.post('/products', data);

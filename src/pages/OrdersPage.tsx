@@ -13,7 +13,7 @@ import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { PageSizeSelector } from '../components/PageSizeSelector';
-import type { OrderResponseDTO, SpringPage } from '../types';
+import type { OrderResponseDTO, ProductResponseDTO, SpringPage } from '../types';
 import {
   formatBRL,
   formatOrderId,
@@ -105,6 +105,27 @@ export function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [productFilter, setProductFilter] = useState('');
+  const [products, setProducts] = useState<ProductResponseDTO[]>([]);
+  const [productsError, setProductsError] = useState('');
+  const [productsRetry, setProductsRetry] = useState(0);
+  useEffect(() => {
+    if (!http) return;
+    let active = true;
+    setProductsError('');
+    async function loadProducts() {
+      const all: ProductResponseDTO[] = [];
+      let page = 0;
+      let pages = 1;
+      while (page < pages) {
+        const res = await http!.get<SpringPage<ProductResponseDTO>>('/products', { params: { page, size: 100, sort: 'name,asc' } });
+        all.push(...res.data.content); pages = res.data.totalPages; page++;
+      }
+      if (active) setProducts(all);
+    }
+    loadProducts().catch(err => { if (active) setProductsError(parseApiError(err)); });
+    return () => { active = false; };
+  }, [http, productsRetry]);
   const [searchQuery, setSearchQuery] = useState('');
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -164,7 +185,7 @@ export function OrdersPage() {
       { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',    size: 1, ...dateParams } },
     ];
     const results = await Promise.allSettled(
-      keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: k.params }))
+      keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { ...k.params, ...(productFilter ? { productId: productFilter } : {}), ...(searchQuery ? { search: searchQuery } : {}) } }))
     );
     const next: Record<string, number> = {};
     results.forEach((r, i) => {
@@ -190,6 +211,7 @@ export function OrdersPage() {
     }
     if (paymentFilter) params.paymentStatus = paymentFilter;
     if (searchQuery) params.search = searchQuery;
+    if (productFilter) params.productId = productFilter;
     if (statusFilter === 'SCHEDULED') params.sort = 'deliveryDate,asc';
     else if (sort) params.sort = `${sort.field},${sort.dir}`;
     http.get<SpringPage<OrderResponseDTO>>('/orders', { params })
@@ -214,7 +236,7 @@ export function OrdersPage() {
     const cancel = fetchOrders();
     fetchCounts();
     return cancel;
-  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize, searchQuery, productFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
     setStatusFilter(key);
@@ -226,6 +248,7 @@ export function OrdersPage() {
     setSearchQuery('');
     setStatusFilter('');
     setPaymentFilter('');
+    setProductFilter('');
     setDateMode('today');
     setCurrentPage(0);
   }
@@ -262,7 +285,7 @@ export function OrdersPage() {
     finally { setActionLoading(null); }
   }
 
-  const hasActiveFilters = !!(search || statusFilter || paymentFilter || dateMode !== 'today');
+  const hasActiveFilters = !!(search || statusFilter || paymentFilter || productFilter || dateMode !== 'today');
   const totalActive = (counts['PENDING'] ?? 0) + (counts['SHIPPED'] ?? 0);
 
   return (
@@ -305,6 +328,13 @@ export function OrdersPage() {
             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           <span className="block mt-1 text-[11px] text-slate-500">A busca respeita os filtros abaixo. Escolha Todos para buscar em outras datas.</span>
         </label>
+        <label className="block max-w-lg text-sm font-semibold text-slate-600">Produto
+          <select aria-label="Filtrar pedidos por produto" value={productFilter} onChange={e => { setProductFilter(e.target.value); setCurrentPage(0); }} className="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm">
+            <option value="">Todos os produtos</option>
+            {products.map(product => <option key={product.id} value={product.id}>{product.name}{product.isActive ? '' : ' (inativo)'}</option>)}
+          </select>
+        </label>
+        {productsError && <p role="alert" className="text-sm text-red-600">{productsError} <button type="button" onClick={() => setProductsRetry(value => value + 1)} className="underline">Recarregar produtos</button></p>}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setDateMode('today'); setCurrentPage(0); }}
