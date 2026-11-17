@@ -134,7 +134,6 @@ export function OrdersPage() {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [search]);
-  const [paymentFilter, setPaymentFilter] = useState('');
   const [dateStart, setDateStart] = useState(todayStr());
   const [dateEnd, setDateEnd] = useState(todayStr());
   const [dateMode, setDateMode] = useState<'today' | 'custom' | 'all'>('today');
@@ -180,9 +179,6 @@ export function OrdersPage() {
       { key: 'DELIVERED',   params: { status: 'DELIVERED',      size: 1, ...dateParams } },
       { key: 'CANCELLED',   params: { status: 'CANCELLED',      size: 1, ...dateParams } },
       { key: 'SCHEDULED',   params: { status: 'PENDING', deliveryAfter: scheduledThreshold(), size: 1 } },
-      { key: 'PAY_PENDING', params: { paymentStatus: 'PENDING', size: 1, ...dateParams } },
-      { key: 'PAY_PARTIAL', params: { paymentStatus: 'PARTIAL', size: 1, ...dateParams } },
-      { key: 'PAY_PAID',    params: { paymentStatus: 'PAID',    size: 1, ...dateParams } },
     ];
     const results = await Promise.allSettled(
       keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { ...k.params, ...(productFilter ? { productId: productFilter } : {}), ...(searchQuery ? { search: searchQuery } : {}) } }))
@@ -209,7 +205,6 @@ export function OrdersPage() {
       if (dp.start) params.start = dp.start;
       if (dp.end)   params.end   = dp.end;
     }
-    if (paymentFilter) params.paymentStatus = paymentFilter;
     if (searchQuery) params.search = searchQuery;
     if (productFilter) params.productId = productFilter;
     if (statusFilter === 'SCHEDULED') params.sort = 'deliveryDate,asc';
@@ -236,7 +231,7 @@ export function OrdersPage() {
     const cancel = fetchOrders();
     fetchCounts();
     return cancel;
-  }, [http, currentPage, statusFilter, paymentFilter, dateMode, dateStart, dateEnd, sort, pageSize, searchQuery, productFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [http, currentPage, statusFilter, dateMode, dateStart, dateEnd, sort, pageSize, searchQuery, productFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChip(key: string) {
     setStatusFilter(key);
@@ -247,7 +242,6 @@ export function OrdersPage() {
     setSearch('');
     setSearchQuery('');
     setStatusFilter('');
-    setPaymentFilter('');
     setProductFilter('');
     setDateMode('today');
     setCurrentPage(0);
@@ -285,7 +279,7 @@ export function OrdersPage() {
     finally { setActionLoading(null); }
   }
 
-  const hasActiveFilters = !!(search || statusFilter || paymentFilter || productFilter || dateMode !== 'today');
+  const hasActiveFilters = !!(search || statusFilter || productFilter || dateMode !== 'today');
   const totalActive = (counts['PENDING'] ?? 0) + (counts['SHIPPED'] ?? 0);
 
   return (
@@ -426,23 +420,6 @@ export function OrdersPage() {
           >
             <option value="">Todos os produtos</option>
             {products.map(product => <option key={product.id} value={product.id}>{product.name}{product.isActive ? '' : ' (inativo)'}</option>)}
-          </select>
-
-          <div className="h-6 w-px bg-slate-200" />
-
-          <select
-            value={paymentFilter}
-            onChange={(e) => { setPaymentFilter(e.target.value); setCurrentPage(0); }}
-            className={`px-3 py-2 rounded-lg border text-[13px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer ${
-              paymentFilter
-                ? 'bg-primary/8 border-primary/40 text-primary'
-                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-            }`}
-          >
-            <option value="">Pagamento: Todos</option>
-            <option value="PENDING">Em aberto (Aguardando / Fiado)</option>
-            <option value="PARTIAL">Pagamento parcial</option>
-            <option value="PAID">Pago</option>
           </select>
 
           {hasActiveFilters && (

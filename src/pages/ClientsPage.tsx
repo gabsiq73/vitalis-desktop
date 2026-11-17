@@ -40,7 +40,6 @@ interface ClientStats {
   total: number;
   overdueCount: number;
   overduePercent: number;
-  totalBalance: number;
   adimplenceRate: number;
 }
 
@@ -103,12 +102,10 @@ export function ClientsPage() {
       const all = res.data.content;
       const total = res.data.totalElements;
       const overdueCount = all.filter((c) => c.clientStatus === 'OVERDUE').length;
-      const totalBalance = all.reduce((sum, c) => sum + c.balance, 0);
       setStats({
         total,
         overdueCount,
         overduePercent: total > 0 ? (overdueCount / total) * 100 : 0,
-        totalBalance,
         adimplenceRate: total > 0 ? ((total - overdueCount) / total) * 100 : 100,
       });
     } catch {
@@ -180,15 +177,6 @@ export function ClientsPage() {
       value: statsLoading ? '—' : `${stats?.overduePercent.toFixed(1) ?? '0.0'}%`,
       badge: statsLoading ? null : `${stats?.overdueCount ?? 0} clientes`,
       badgeColor: (stats?.overdueCount ?? 0) > 0 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50',
-    },
-    {
-      icon: 'account_balance_wallet',
-      iconBg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
-      label: 'Saldo Total da Carteira',
-      value: statsLoading ? '—' : formatBRL(stats?.totalBalance ?? 0),
-      badge: null,
-      badgeColor: '',
     },
     {
       icon: 'verified_user',
@@ -452,7 +440,7 @@ export function ClientsPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {KPI_CARDS.map((card, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 shadow-card">
               <div className="flex items-center justify-between mb-3">
