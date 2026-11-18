@@ -51,6 +51,7 @@ export function GasSettlementsPage() {
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const submitting = useRef(false);
+  const loadRequest = useRef(0);
 
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export function GasSettlementsPage() {
 
   const fetchData = useCallback(async () => {
     if (!http) return;
+    const request = ++loadRequest.current;
     setLoading(true);
     setLoadError('');
     try {
@@ -77,12 +79,13 @@ export function GasSettlementsPage() {
         }),
         http.get<SpringPage<GasSupplierResponseDTO>>('/suppliers', { params: { size: 200, page: 0 } }),
       ]);
+      if (request !== loadRequest.current) return;
       if (settlementsRes.status === 'fulfilled') setSettlements(settlementsRes.value.data ?? []);
       else { setSettlements([]); setLoadError(parseApiError(settlementsRes.reason)); }
       if (suppliersRes.status === 'fulfilled') setSuppliers(suppliersRes.value.data.content ?? []);
       else { setSuppliers([]); setLoadError(parseApiError(suppliersRes.reason)); }
     } finally {
-      setLoading(false);
+      if (request === loadRequest.current) setLoading(false);
     }
   }, [http, startDate, endDate, supplierFilter]);
 
@@ -172,7 +175,7 @@ export function GasSettlementsPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <TopBar title="Acertos de Gás" subtitle="Controle financeiro com distribuidoras" />
 
-      <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+      <main className="p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6">
         <ConfirmModal open={deleteSettlement !== null} title="Apagar acerto de gás" danger confirmLabel={deleteSettlement?.orderItemId ? 'Apagar acerto e pedido' : 'Apagar acerto'} error={deleteError}
           message={deleteSettlement?.orderItemId ? `Apagar o acerto de ${deleteSettlement.clientName ?? 'este cliente'} e o pedido vinculado inteiro? Todos os itens, pagamentos, empréstimos e acertos desse pedido serão removidos. Se houver água em crédito nesta promoção, o crédito e os resgates também serão removidos. O estoque será recomposto e o saldo do cliente recalculado. A exclusão não pode ser desfeita.` : 'Apagar este acerto definitivamente? Ele será removido do caixa e dos relatórios. A exclusão não pode ser desfeita.'}
           onConfirm={confirmDelete} onClose={() => setDeleteSettlement(null)} />
@@ -199,20 +202,7 @@ export function GasSettlementsPage() {
                 className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500">Distribuidora</label>
-              <select
-                value={supplierFilter}
-                onChange={e => setSupplierFilter(e.target.value)}
-                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-[160px]"
-              >
-                <option value="">Todas</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-1.5 items-end">
+            <div className="flex flex-wrap gap-1.5 items-end">
               {(Object.keys(STATUS_LABELS) as StatusFilter[]).map(f => (
                 <button
                   key={f}
@@ -237,7 +227,7 @@ export function GasSettlementsPage() {
           </div>
         </div>
 
-        {loading ? (
+        {loading && suppliers.length === 0 ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
@@ -341,7 +331,7 @@ export function GasSettlementsPage() {
                             {sup && (
                               <button
                                 onClick={() => openSettlement({ kind: 'bulk', id: sup.id, label: `${name}: pagar ${formatBRL(toPay)} e receber ${formatBRL(toReceive)}`, start: startDate, end: endDate })}
-                                disabled={!!isLoading}
+                                disabled={loading || !!isLoading}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-all whitespace-nowrap"
                               >
                                 {isLoading ? (
@@ -361,125 +351,125 @@ export function GasSettlementsPage() {
               </div>
             )}
 
-            {/* Settlements table */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-card">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-slate-700">Detalhamento dos Acertos</h2>
-                <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                  {filtered.length} registro(s)
-                </span>
-              </div>
-
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <span className="material-symbols-outlined text-slate-300 mb-3" style={{ fontSize: '48px' }}>propane_tank</span>
-                  <p className="text-slate-500 font-medium">Nenhum acerto no período</p>
-                  <p className="text-slate-400 text-sm mt-1">Ajuste os filtros acima</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs text-slate-500">
-                        <th className="text-left px-4 py-3 font-medium">Data</th>
-                        <th className="text-left px-4 py-3 font-medium">Distribuidora</th>
-                        <th className="text-left px-4 py-3 font-medium">Cliente</th>
-                        <th className="text-left px-4 py-3 font-medium">Produto</th>
-                        <th className="text-center px-3 py-3 font-medium">Qtd</th>
-                        <th className="text-right px-3 py-3 font-medium">Custo Unit.</th>
-                        <th className="text-right px-3 py-3 font-medium">Venda Unit.</th>
-                        <th className="text-left px-4 py-3 font-medium">Recebimento</th>
-                        <th className="text-right px-3 py-3 font-medium">A Pagar</th>
-                        <th className="text-right px-3 py-3 font-medium">A Receber</th>
-                        <th className="text-center px-4 py-3 font-medium">Status</th>
-                        <th className="text-center px-4 py-3 font-medium">Meio do acerto</th>
-                        <th className="text-center px-4 py-3 font-medium">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filtered.map(s => {
-                        const qty = s.quantity ?? 1;
-                        const totalAmount = (s.amount ?? 0) * qty;
-                        const isYouOwe = s.settlementType === 'YOU_OWE';
-                        const isThisSettling = settling === s.id;
-                        return (
-                          <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDate(s.createDate)}</td>
-                            <td className="px-4 py-3 font-medium text-slate-700">{s.supplierName}</td>
-                            <td className="px-4 py-3 text-slate-600">{s.clientName ?? '—'}</td>
-                            <td className="px-4 py-3 text-slate-600">{s.productName ?? '—'}</td>
-                            <td className="px-3 py-3 text-center font-semibold text-slate-700">{qty}</td>
-                            <td className="px-3 py-3 text-right text-slate-600">{s.costPrice != null ? formatBRL(s.costPrice) : '—'}</td>
-                            <td className="px-3 py-3 text-right text-slate-600">{s.salePrice != null ? formatBRL(s.salePrice) : '—'}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                isYouOwe
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-orange-100 text-orange-700'
-                              }`}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                                  {isYouOwe ? 'store' : 'local_shipping'}
-                                </span>
-                                {isYouOwe ? 'Recebido por nós' : 'Entregador recebeu'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-right font-semibold">
-                              {isYouOwe
-                                ? <span className="text-red-500">{formatBRL(totalAmount)}</span>
-                                : <span className="text-slate-300">—</span>
-                              }
-                            </td>
-                            <td className="px-3 py-3 text-right font-semibold">
-                              {!isYouOwe
-                                ? <span className="text-teal-600">{formatBRL(totalAmount)}</span>
-                                : <span className="text-slate-300">—</span>
-                              }
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {s.settled ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check_circle</span>
-                                  Acertado
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>schedule</span>
-                                  Pendente
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-center text-xs">{s.settled ? s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado' : '—'}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg"><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span></button>
-                              <button title="Apagar acerto de gás" onClick={() => { setDeleteError(''); setDeleteSettlement(s); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span></button>
-                              {(!s.settled || !s.paymentMethod) && (
-                                <button
-                                  onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
-                                  disabled={isThisSettling}
-                                  title={s.settled ? 'Informar meio do acerto antigo' : 'Marcar como acertado'}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 disabled:opacity-40 transition-all"
-                                >
-                                  {isThisSettling ? (
-                                    <span className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin inline-block" />
-                                  ) : (
-                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{s.settled ? 'edit' : 'task_alt'}</span>
-                                  )}
-                                </button>
-                              )}
-                              {s.settled && s.settledDate && (
-                                <span className="text-[11px] text-slate-400">{formatDate(s.settledDate)}</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
           </>
         )}
+
+        {/* Settlements table */}
+        <section aria-labelledby="gas-settlement-detail" className="rounded-xl border border-slate-200 bg-white shadow-card">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+              <h2 id="gas-settlement-detail" className="text-sm font-semibold text-slate-700">Detalhamento dos Acertos</h2>
+                  {!loading && <span className="text-xs text-slate-500">{filtered.length} registro(s)</span>}
+            </div>
+            <select
+              aria-label="Filtrar por entregador ou fornecedor"
+              value={supplierFilter}
+              onChange={e => setSupplierFilter(e.target.value)}
+              className="w-36 min-w-0 max-w-[52%] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 sm:w-52"
+            >
+              <option value="">Todos os entregadores</option>
+              {suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+            </select>
+          </div>
+
+          {loading ? (
+            <div className="flex min-h-24 items-center justify-center" role="status">
+              <span aria-hidden="true" className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span className="sr-only">Carregando acertos</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <span className="material-symbols-outlined text-slate-300 mb-3" style={{ fontSize: '48px' }}>propane_tank</span>
+              <p className="text-slate-500 font-medium">Nenhum acerto no período</p>
+              <p className="text-slate-400 text-sm mt-1">Ajuste os filtros acima</p>
+            </div>
+          ) : (
+            <table role="table" aria-labelledby="gas-settlement-detail" className="block w-full [container-type:inline-size]">
+              <tbody role="rowgroup" className="block divide-y divide-slate-100">
+                {filtered.map(s => {
+                  const qty = s.quantity ?? 1;
+                  const totalAmount = (s.amount ?? 0) * qty;
+                  const isYouOwe = s.settlementType === 'YOU_OWE';
+                  const isThisSettling = settling === s.id;
+                  const settlementAction = s.settled ? 'Informar meio do acerto antigo' : 'Marcar como acertado';
+                  return (
+                    <tr
+                      key={s.id}
+                      role="row"
+                      className="grid gap-x-4 gap-y-2 px-3 py-2.5 text-xs leading-snug [overflow-wrap:anywhere] hover:bg-slate-50
+                        [@container(min-width:320px)]:grid-cols-2 [@container(min-width:640px)]:grid-cols-[1.15fr_1.05fr_0.85fr_1fr]"
+                    >
+                      <td role="cell" className="min-w-0 space-y-0.5">
+                        <p className="font-semibold text-slate-800">{s.supplierName}</p>
+                        <p className="text-slate-600">Cliente <span className="text-slate-800">{s.clientName ?? '—'}</span></p>
+                        <p className="text-slate-600">Data <span className="tabular-nums">{formatDate(s.createDate)}</span></p>
+                      </td>
+                      <td role="cell" className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <p className="font-semibold text-slate-800">{s.productName ?? 'Produto —'}</p>
+                          <p className="text-slate-600">Qtd. <span className="font-medium tabular-nums text-slate-800">{qty}</span></p>
+                        </div>
+                        <p className="text-slate-600">Custo un. <span className="tabular-nums text-slate-800">{s.costPrice != null ? formatBRL(s.costPrice) : '—'}</span></p>
+                        <p className="text-slate-600">Venda un. <span className="tabular-nums text-slate-800">{s.salePrice != null ? formatBRL(s.salePrice) : '—'}</span></p>
+                      </td>
+                      <td role="cell" className="min-w-0 space-y-0.5">
+                        <p className={`font-medium ${isYouOwe ? 'text-blue-700' : 'text-orange-800'}`}>
+                          {isYouOwe ? 'Recebido por nós' : 'Entregador recebeu'}
+                        </p>
+                        <p className="text-slate-600">{isYouOwe ? 'A pagar' : 'A receber'}</p>
+                        <p className={`text-sm font-semibold tabular-nums ${isYouOwe ? 'text-red-700' : 'text-teal-700'}`}>
+                          {formatBRL(totalAmount)}
+                        </p>
+                      </td>
+                      <td role="cell" className="min-w-0">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className={`rounded-full px-1.5 py-0.5 font-semibold ${s.settled
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {s.settled ? 'Acertado' : 'Pendente'}
+                          </span>
+                          {s.settled && (
+                            <span className="text-slate-600">
+                              {s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado'}
+                            </span>
+                          )}
+                        </div>
+                        {s.settled && s.settledDate && (
+                          <p className="mt-0.5 text-slate-600">Acerto <span className="tabular-nums">{formatDate(s.settledDate)}</span></p>
+                        )}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <button type="button" aria-label="Editar acerto de gás" title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="inline-flex size-8 items-center justify-center rounded-md text-primary hover:bg-primary/10">
+                            <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
+                          </button>
+                          <button type="button" aria-label="Apagar acerto de gás" title="Apagar acerto de gás" onClick={() => { setDeleteError(''); setDeleteSettlement(s); }} className="inline-flex size-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50">
+                            <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                          </button>
+                          {(!s.settled || !s.paymentMethod) && (
+                            <button
+                              type="button"
+                              aria-label={settlementAction}
+                              title={settlementAction}
+                              onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
+                              disabled={isThisSettling}
+                              className="inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-green-50 hover:text-green-700 disabled:opacity-40"
+                            >
+                              {isThisSettling ? (
+                                <span aria-hidden="true" className="inline-block size-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                              ) : (
+                                <span aria-hidden="true" className="material-symbols-outlined text-lg">{s.settled ? 'edit' : 'task_alt'}</span>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </section>
       </main>
       {editSettlement && <EditGasSettlementModal settlement={editSettlement} onClose={() => setEditSettlement(null)} onSuccess={() => { setEditSettlement(null); fetchData(); }} />}
       {target && <Modal open title={target.kind === 'legacy' ? 'Informar meio do acerto' : 'Confirmar acerto de gás'} onClose={() => { if (!submitting.current) setTarget(null); }} maxWidth="max-w-lg">
