@@ -211,7 +211,6 @@ export function AddPaymentModal({ open, orderId, onClose, onSuccess, forDelivery
       <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-          {forDelivery && <p className="text-[13px] text-slate-600">Antes de confirmar a entrega, confira o pagamento e os vasilhames. Se houver valor em aberto, registre o pagamento ou escolha fiado. Fiado mantém o saldo devedor sem lançar entrada no caixa.</p>}
           {notice && <p role="status" className="p-3 rounded-lg bg-amber-50 text-[13px] text-amber-800">{notice}</p>}
 
           {/* Order balance summary */}
