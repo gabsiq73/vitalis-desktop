@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import {
@@ -19,6 +19,26 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
   pending: 'Pendentes',
   settled: 'Acertados',
 };
+
+const DETAIL_COLUMNS = [
+  { key: 'date', label: 'Data', width: 8, align: 'text-left' },
+  { key: 'supplier', label: 'Distribuidora', width: 10, align: 'text-left' },
+  { key: 'client', label: 'Cliente', width: 10, align: 'text-left' },
+  { key: 'product', label: 'Produto', width: 8, align: 'text-left' },
+  { key: 'quantity', label: 'Qtd', width: 4, align: 'text-center' },
+  { key: 'cost', label: 'Custo Unit.', width: 7, align: 'text-right' },
+  { key: 'sale', label: 'Venda Unit.', width: 7, align: 'text-right' },
+  { key: 'received', label: 'Recebimento', width: 10, align: 'text-left' },
+  { key: 'toPay', label: 'A Pagar', width: 7, align: 'text-right' },
+  { key: 'toReceive', label: 'A Receber', width: 7, align: 'text-right' },
+  { key: 'status', label: 'Status', width: 7, align: 'text-center' },
+  { key: 'method', label: 'Meio do acerto', width: 6, align: 'text-center' },
+  { key: 'actions', label: 'Ação', width: 9, align: 'text-center' },
+] as const;
+
+function formatDetailAmount(amount?: number | null): string {
+  return amount == null ? '—' : formatBRL(amount).replace('\u00a0', ' ');
+}
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '—';
@@ -384,90 +404,104 @@ export function GasSettlementsPage() {
               <p className="text-slate-400 text-sm mt-1">Ajuste os filtros acima</p>
             </div>
           ) : (
-            <table role="table" aria-labelledby="gas-settlement-detail" className="block w-full [container-type:inline-size]">
-              <tbody role="rowgroup" className="block divide-y divide-slate-100">
-                {filtered.map(s => {
-                  const qty = s.quantity ?? 1;
-                  const totalAmount = (s.amount ?? 0) * qty;
-                  const isYouOwe = s.settlementType === 'YOU_OWE';
-                  const isThisSettling = settling === s.id;
-                  const settlementAction = s.settled ? 'Informar meio do acerto antigo' : 'Marcar como acertado';
-                  return (
-                    <tr
-                      key={s.id}
-                      role="row"
-                      className="grid gap-x-4 gap-y-2 px-3 py-2.5 text-xs leading-snug [overflow-wrap:anywhere] hover:bg-slate-50
-                        [@container(min-width:320px)]:grid-cols-2 [@container(min-width:640px)]:grid-cols-[1.15fr_1.05fr_0.85fr_1fr]"
-                    >
-                      <td role="cell" className="min-w-0 space-y-0.5">
-                        <p className="font-semibold text-slate-800">{s.supplierName}</p>
-                        <p className="text-slate-600">Cliente <span className="text-slate-800">{s.clientName ?? '—'}</span></p>
-                        <p className="text-slate-600">Data <span className="tabular-nums">{formatDate(s.createDate)}</span></p>
-                      </td>
-                      <td role="cell" className="min-w-0 space-y-0.5">
-                        <div className="flex flex-wrap items-baseline gap-x-2">
-                          <p className="font-semibold text-slate-800">{s.productName ?? 'Produto —'}</p>
-                          <p className="text-slate-600">Qtd. <span className="font-medium tabular-nums text-slate-800">{qty}</span></p>
-                        </div>
-                        <p className="text-slate-600">Custo un. <span className="tabular-nums text-slate-800">{s.costPrice != null ? formatBRL(s.costPrice) : '—'}</span></p>
-                        <p className="text-slate-600">Venda un. <span className="tabular-nums text-slate-800">{s.salePrice != null ? formatBRL(s.salePrice) : '—'}</span></p>
-                      </td>
-                      <td role="cell" className="min-w-0 space-y-0.5">
-                        <p className={`font-medium ${isYouOwe ? 'text-blue-700' : 'text-orange-800'}`}>
-                          {isYouOwe ? 'Recebido por nós' : 'Entregador recebeu'}
-                        </p>
-                        <p className="text-slate-600">{isYouOwe ? 'A pagar' : 'A receber'}</p>
-                        <p className={`text-sm font-semibold tabular-nums ${isYouOwe ? 'text-red-700' : 'text-teal-700'}`}>
-                          {formatBRL(totalAmount)}
-                        </p>
-                      </td>
-                      <td role="cell" className="min-w-0">
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                          <span className={`rounded-full px-1.5 py-0.5 font-semibold ${s.settled
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {s.settled ? 'Acertado' : 'Pendente'}
+            <div className="[container-type:inline-size]">
+              <table role="table" aria-labelledby="gas-settlement-detail" className="block w-full text-xs leading-snug [overflow-wrap:anywhere] [@container(min-width:640px)]:table [@container(min-width:640px)]:table-fixed">
+                <thead role="rowgroup" className="hidden bg-slate-50 text-slate-600 [@container(min-width:640px)]:table-header-group">
+                  <tr role="row">
+                    {DETAIL_COLUMNS.map(column => (
+                      <th key={column.key} scope="col" className={`px-1 py-2 font-semibold ${column.align}`} style={{ width: `${column.width}%` }}>
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody role="rowgroup" className="block divide-y divide-slate-100 [@container(min-width:640px)]:table-row-group">
+                  {filtered.map(s => {
+                    const qty = s.quantity ?? 1;
+                    const totalAmount = (s.amount ?? 0) * qty;
+                    const isYouOwe = s.settlementType === 'YOU_OWE';
+                    const isThisSettling = settling === s.id;
+                    const settlementAction = s.settled ? 'Informar meio do acerto antigo' : 'Marcar como acertado';
+                    const cells: Record<(typeof DETAIL_COLUMNS)[number]['key'], ReactNode> = {
+                      date: <span className="text-[11px] tabular-nums [@container(min-width:850px)]:whitespace-nowrap">{formatDate(s.createDate)}</span>,
+                      supplier: <span className="font-medium text-slate-800">{s.supplierName}</span>,
+                      client: <span>{s.clientName ?? '—'}</span>,
+                      product: <span>{s.productName ?? '—'}</span>,
+                      quantity: <span className="font-semibold tabular-nums">{qty}</span>,
+                      cost: formatDetailAmount(s.costPrice),
+                      sale: formatDetailAmount(s.salePrice),
+                      received: (
+                        <span className={`inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[11px] font-semibold ${isYouOwe
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          <span aria-hidden="true" className="material-symbols-outlined size-3 shrink-0 overflow-hidden text-xs">{isYouOwe ? 'store' : 'local_shipping'}</span>
+                          <span>{isYouOwe ? 'Recebido por nós' : 'Entregador recebeu'}</span>
+                        </span>
+                      ),
+                      toPay: isYouOwe ? <span className="font-semibold text-red-700">{formatDetailAmount(totalAmount)}</span> : '—',
+                      toReceive: isYouOwe ? '—' : <span className="font-semibold text-teal-700">{formatDetailAmount(totalAmount)}</span>,
+                      status: (
+                        <span className={`inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[11px] font-semibold ${s.settled
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          <span aria-hidden="true" className="hidden shrink-0 [@container(min-width:1000px)]:inline-flex">
+                            <span className="material-symbols-outlined size-3 overflow-hidden text-xs">{s.settled ? 'check_circle' : 'schedule'}</span>
                           </span>
-                          {s.settled && (
-                            <span className="text-slate-600">
-                              {s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado'}
-                            </span>
-                          )}
-                        </div>
-                        {s.settled && s.settledDate && (
-                          <p className="mt-0.5 text-slate-600">Acerto <span className="tabular-nums">{formatDate(s.settledDate)}</span></p>
-                        )}
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                          <button type="button" aria-label="Editar acerto de gás" title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="inline-flex size-8 items-center justify-center rounded-md text-primary hover:bg-primary/10">
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
-                          </button>
-                          <button type="button" aria-label="Apagar acerto de gás" title="Apagar acerto de gás" onClick={() => { setDeleteError(''); setDeleteSettlement(s); }} className="inline-flex size-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50">
-                            <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
-                          </button>
-                          {(!s.settled || !s.paymentMethod) && (
-                            <button
-                              type="button"
-                              aria-label={settlementAction}
-                              title={settlementAction}
-                              onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
-                              disabled={isThisSettling}
-                              className="inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-green-50 hover:text-green-700 disabled:opacity-40"
-                            >
-                              {isThisSettling ? (
-                                <span aria-hidden="true" className="inline-block size-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-                              ) : (
-                                <span aria-hidden="true" className="material-symbols-outlined text-lg">{s.settled ? 'edit' : 'task_alt'}</span>
-                              )}
+                          <span>{s.settled ? 'Acertado' : 'Pendente'}</span>
+                        </span>
+                      ),
+                      method: <span>{s.settled ? s.paymentMethod === 'PIX' ? 'PIX' : s.paymentMethod === 'DINHEIRO' ? 'Dinheiro' : 'Sem meio informado' : '—'}</span>,
+                      actions: (
+                        <>
+                          <div className="flex flex-wrap items-center gap-0.5 [@container(min-width:640px)]:justify-center">
+                            <button type="button" aria-label="Editar acerto de gás" title="Editar acerto de gás" onClick={() => setEditSettlement(s)} className="inline-flex size-6 items-center justify-center rounded-md text-primary hover:bg-primary/10">
+                              <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            <button type="button" aria-label="Apagar acerto de gás" title="Apagar acerto de gás" onClick={() => { setDeleteError(''); setDeleteSettlement(s); }} className="inline-flex size-6 items-center justify-center rounded-md text-red-600 hover:bg-red-50">
+                              <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                            </button>
+                            {(!s.settled || !s.paymentMethod) && (
+                              <button
+                                type="button"
+                                aria-label={settlementAction}
+                                title={settlementAction}
+                                onClick={() => openSettlement({ kind: s.settled ? 'legacy' : 'single', id: s.id, label: `${s.supplierName}: ${isYouOwe ? 'pagar' : 'receber'} ${formatBRL(totalAmount)}` })}
+                                disabled={isThisSettling}
+                                className="inline-flex size-6 items-center justify-center rounded-md text-slate-600 hover:bg-green-50 hover:text-green-700 disabled:opacity-40"
+                              >
+                                {isThisSettling ? (
+                                  <span aria-hidden="true" className="size-3.5 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                                ) : (
+                                  <span aria-hidden="true" className="material-symbols-outlined text-base">{s.settled ? 'edit' : 'task_alt'}</span>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                          {s.settled && s.settledDate && <p className="mt-0.5 text-[11px] tabular-nums text-slate-500 [@container(min-width:850px)]:whitespace-nowrap">{formatDate(s.settledDate)}</p>}
+                        </>
+                      ),
+                    };
+                    return (
+                      <tr
+                        key={s.id}
+                        role="row"
+                        className="grid grid-cols-2 gap-x-2 px-2 py-1 text-slate-600 hover:bg-slate-50
+                          [@container(min-width:400px)]:grid-cols-3 [@container(min-width:640px)]:table-row"
+                      >
+                        {DETAIL_COLUMNS.map(column => (
+                          <td key={column.key} role="cell" className={`min-w-0 px-1 py-1.5 align-middle ${column.align}`}>
+                            <span className="block text-[11px] font-medium text-slate-500 [@container(min-width:640px)]:hidden">{column.label}</span>
+                            {cells[column.key]}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </main>
