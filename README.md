@@ -497,6 +497,9 @@ Adiciona os filtros PIX e Dinheiro ao Caixa do Dia. Os botões ficam à direita
 do título Movimentações e filtram os recebimentos e o livro-caixa. O subtotal
 de novas entradas acompanha o meio selecionado.
 
+O livro-caixa permite apagar entradas e retiradas com confirmação. O saldo
+do meio de pagamento é recalculado a partir dos lançamentos registrados.
+
 ### Versão 1.1.1
 
 Remove o filtro de pagamento em Pedidos e o card Saldo Total da Carteira em

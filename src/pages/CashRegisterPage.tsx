@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../hooks/useNotification';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { TopBar } from '../components/TopBar';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, CashMovementType, GasPaymentMethod } from '../types';
+import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, CashMovementResponseDTO, CashMovementType, GasPaymentMethod } from '../types';
 import { formatBRL, formatTime } from '../utils/format';
 import { dailyCashTotals } from '../utils/dailyCashTotals';
 import { parseApiError, cashMovementApiError } from '../utils/parseApiError';
@@ -29,6 +31,7 @@ function toLocalDateParam(date: Date): string {
 
 export function CashRegisterPage() {
   const { http } = useAuth();
+  const { notify } = useNotification();
   const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState<string>(toLocalDateParam(new Date()));
@@ -44,6 +47,8 @@ export function CashRegisterPage() {
   const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
   const [financialError, setFinancialError] = useState<string | null>(null);
   const [movementType, setMovementType] = useState<CashMovementType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ movement: CashMovementResponseDTO; label: string } | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchData = useCallback(async () => {
     if (!http) return;
@@ -79,6 +84,19 @@ export function CashRegisterPage() {
     return () => { requestId.current += 1; };
   }, [fetchData]);
 
+  async function deleteMovement() {
+    if (!http || !deleteTarget) return false;
+    setDeleteError('');
+    try {
+      await http.delete(`/cash-movements/${deleteTarget.movement.id}`);
+    } catch (err) {
+      setDeleteError(cashMovementApiError(err));
+      return false;
+    }
+    notify('Lançamento apagado.', 'success');
+    await fetchData();
+  }
+
   const isToday = selectedDate === toLocalDateParam(new Date());
 
   const totals = dailyCashTotals(payments);
@@ -104,6 +122,7 @@ export function CashRegisterPage() {
   const ledgerRows = [
     ...(financial?.cashMovements ?? []).map(movement => ({
       ...movement, direction: cashMovementDirection(movement), key: `manual-${movement.id}`,
+      deletableMovement: movement.type === 'ENTRY' || movement.type === 'WITHDRAWAL' ? movement : null,
       label: movement.type === 'WITHDRAWAL' ? { RETIRADA: 'Retirada', COMPRA: 'Compra', DESPESA: 'Despesa' }[movement.withdrawalKind ?? 'RETIRADA'] : { ENTRY: 'Entrada manual', ADJUSTMENT: 'Ajuste' }[movement.type],
       paymentMethod: movement.paymentMethod ?? 'DINHEIRO',
     })),
@@ -112,6 +131,7 @@ export function CashRegisterPage() {
       amount: settlement.amount, label: settlement.type === 'SUPPLIER_OWE' ? 'Comissão de gás' : 'Repasse de gás',
       note: `Fornecedor: ${settlement.supplierName}`,
       paymentMethod: settlement.paymentMethod,
+      deletableMovement: null,
     })),
   ].filter(row => !paymentFilter || row.paymentMethod === paymentFilter)
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
@@ -410,7 +430,7 @@ export function CashRegisterPage() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-slate-500">Saldos desta data separados por meio. Entradas, retiradas e ajustes manuais alteram apenas o dinheiro físico. Acertos de gás alteram o saldo do meio escolhido.</p>
+            <p className="text-xs text-slate-500">Entradas e ajustes alteram o saldo em dinheiro. Retiradas e acertos de gás alteram o saldo do meio escolhido.</p>
             {!loading && financial && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
               <span>Entradas manuais: {formatBRL(financial.totalEntries)}</span>
               <span>Ajustes líquidos: {formatBRL(financial.totalAdjustments)}</span>
@@ -425,7 +445,7 @@ export function CashRegisterPage() {
             : <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-slate-50 text-left text-xs text-slate-500">
-                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Meio</th><th className="px-4 py-3">Entrada / saída</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th>
+                  <th className="px-5 py-3">Horário</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Meio</th><th className="px-4 py-3">Entrada / saída</th><th className="px-4 py-3">Motivo / origem</th><th className="px-5 py-3 text-right">Valor</th><th className="px-5 py-3 text-right">Ações</th>
                 </tr></thead>
                 <tbody className="divide-y divide-slate-100">{ledgerRows.map(row => <tr key={row.key}>
                   <td className="px-5 py-3 font-mono text-xs whitespace-nowrap">{formatTime(row.occurredAt)}</td>
@@ -434,10 +454,27 @@ export function CashRegisterPage() {
                   <td className={`px-4 py-3 ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? 'Entrada' : row.direction === 'OUT' ? 'Saída' : 'Não informada'}</td>
                   <td className="px-4 py-3 text-slate-600 whitespace-pre-wrap break-words max-w-sm">{row.note || '—'}</td>
                   <td className={`px-5 py-3 text-right font-bold whitespace-nowrap ${row.direction === 'IN' ? 'text-green-700' : row.direction === 'OUT' ? 'text-orange-700' : 'text-slate-500'}`}>{row.direction === 'IN' ? '+' : row.direction === 'OUT' ? '−' : ''} {formatBRL(row.amount)}</td>
+                  <td className="px-5 py-3 text-right">
+                    {row.deletableMovement && (
+                      <button type="button" title="Apagar lançamento"
+                        aria-label={`Apagar ${row.label.toLowerCase()} de ${formatBRL(row.amount)}`}
+                        onClick={() => {
+                          if (!row.deletableMovement) return;
+                          setDeleteError('');
+                          setDeleteTarget({ movement: row.deletableMovement, label: row.label });
+                        }}
+                        className="inline-flex rounded-lg p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-700">
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    )}
+                  </td>
                 </tr>)}</tbody>
               </table>
             </div>}
         </section>
+        {deleteTarget && <ConfirmModal open title="Apagar lançamento" confirmLabel="Apagar lançamento" danger error={deleteError}
+          message={`Apagar ${deleteTarget.label.toLowerCase()} de ${formatBRL(deleteTarget.movement.amount)} (${METHOD_LABEL[deleteTarget.movement.paymentMethod ?? 'DINHEIRO']})? O valor será ${deleteTarget.movement.type === 'ENTRY' ? 'subtraído do saldo' : 'devolvido ao saldo'} do meio de pagamento.`}
+          onConfirm={deleteMovement} onClose={() => setDeleteTarget(null)} />}
         {movementType && !loading && saldoCaixa !== undefined && <CashMovementModal type={movementType} date={selectedDate} balance={saldoCaixa} onClose={() => setMovementType(null)} onSuccess={() => { setMovementType(null); fetchData(); }} />}
 
       </main>
