@@ -265,6 +265,11 @@ export interface PaymentRequestDTO {
   notes?: string;
 }
 
+export interface ClientBalanceUpdateDTO {
+  balance: number;
+  expectedBalance: number;
+}
+
 export interface ClientCreditRequestDTO {
   amount: number;
   paymentMethod: GasPaymentMethod;

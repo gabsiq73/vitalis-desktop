@@ -7,6 +7,7 @@ import { NewClientModal } from '../modals/NewClientModal';
 import { NewManualDebtModal } from '../modals/NewManualDebtModal';
 import { NewOrderModal } from '../modals/NewOrderModal';
 import { AddClientCreditModal } from '../modals/AddClientCreditModal';
+import { CorrectClientBalanceModal } from '../modals/CorrectClientBalanceModal';
 import { RedeemWaterCreditModal } from '../modals/RedeemWaterCreditModal';
 import { parseApiError } from '../utils/parseApiError';
 import { useScrollToError } from '../hooks/useScrollToError';
@@ -69,6 +70,7 @@ export function ClientDetailPage() {
   const [showEditClient, setShowEditClient] = useState(false);
   const [editDebt, setEditDebt] = useState<OrderResponseDTO | null>(null);
   const [showAddCredit, setShowAddCredit] = useState(false);
+  const [showCorrectBalance, setShowCorrectBalance] = useState(false);
   const [waterCredits, setWaterCredits] = useState<WaterCreditResponseDTO[]>([]);
   const [waterCreditsError, setWaterCreditsError] = useState('');
   const [creditsRefresh, setCreditsRefresh] = useState(0);
@@ -313,7 +315,16 @@ export function ClientDetailPage() {
             <p className={`text-[26px] font-black leading-none ${creditBalance > 0 ? 'text-green-600' : 'text-slate-400'}`}>
               {formatBRL(creditBalance)}
             </p>
-            {client.clientType !== 'AVULSO' && <button onClick={() => setShowAddCredit(true)} className="mt-4 inline-flex items-center gap-1 rounded-lg border border-primary/20 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5"><span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>Adicionar saldo</button>}
+            {client.clientType !== 'AVULSO' && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button onClick={() => setShowAddCredit(true)} className="inline-flex items-center gap-1 rounded-lg border border-primary/20 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/5">
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>Adicionar saldo
+                </button>
+                <button onClick={() => setShowCorrectBalance(true)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>Corrigir saldo
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Débito */}
@@ -695,6 +706,18 @@ export function ClientDetailPage() {
         onSuccess={() => { fetchOrders(); fetchClient(); setCreditsRefresh(v => v + 1); }} defaultClient={client} />
       {editDebt && <NewManualDebtModal initial={editDebt} onClose={() => setEditDebt(null)} onSuccess={() => { setEditDebt(null); fetchOrders(); fetchClient(); fetchDebt(); setBulkSuccess(false); }} />}
       {showAddCredit && <AddClientCreditModal clientId={client.id} clientName={client.name} onClose={() => setShowAddCredit(false)} onSuccess={() => { setShowAddCredit(false); fetchClient(); fetchOrders(); fetchDebt(); }} />}
+      {showCorrectBalance && (
+        <CorrectClientBalanceModal
+          key={client.id}
+          client={client}
+          hasDebt={pendingDebt > 0}
+          onClose={() => { setShowCorrectBalance(false); fetchClient(); fetchDebt(); }}
+          onSuccess={balance => {
+            setClient(current => current?.id === client.id ? { ...current, balance } : current);
+            setShowCorrectBalance(false);
+          }}
+        />
+      )}
       {redeemCredit && <RedeemWaterCreditModal orderId={redeemCredit.orderId} productName={redeemCredit.productName} quantity={redeemCredit.quantity} onClose={() => setRedeemCredit(null)} onSuccess={() => { setRedeemCredit(null); setCreditsRefresh(v => v + 1); fetchOrders(); fetchClient(); fetchDebt(); }} />}
       <NewClientModal open={showEditClient} onClose={() => setShowEditClient(false)}
         onSuccess={() => { setShowEditClient(false); fetchClient(); }} client={client} />
