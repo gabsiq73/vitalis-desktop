@@ -491,6 +491,12 @@ Banco e instruções da API estão no repositório [vitalis](https://github.com/
 
 ## Instalador Windows 11 x64
 
+### Versão 1.1.2
+
+Adiciona os filtros PIX e Dinheiro ao Caixa do Dia. Os botões ficam à direita
+do título Movimentações e filtram os recebimentos e o livro-caixa. O subtotal
+de novas entradas acompanha o meio selecionado.
+
 ### Versão 1.1.1
 
 Remove o filtro de pagamento em Pedidos e o card Saldo Total da Carteira em

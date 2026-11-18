@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, CashMovementType } from '../types';
+import type { DailyCashPaymentDTO, DailyReportDTO, FinancialReportDTO, CashMovementType, GasPaymentMethod } from '../types';
 import { formatBRL, formatTime } from '../utils/format';
 import { dailyCashTotals } from '../utils/dailyCashTotals';
 import { parseApiError, cashMovementApiError } from '../utils/parseApiError';
@@ -38,6 +38,7 @@ export function CashRegisterPage() {
   const loading = fetching || loadedDate !== selectedDate;
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [payments, setPayments] = useState<DailyCashPaymentDTO[]>([]);
+  const [paymentFilter, setPaymentFilter] = useState<GasPaymentMethod | ''>('');
   const [editPayment, setEditPayment] = useState<DailyCashPaymentDTO | null>(null);
   const [operational, setOperational] = useState<DailyReportDTO | null>(null);
   const [financial, setFinancial] = useState<FinancialReportDTO | null>(null);
@@ -81,6 +82,9 @@ export function CashRegisterPage() {
   const isToday = selectedDate === toLocalDateParam(new Date());
 
   const totals = dailyCashTotals(payments);
+  const visiblePayments = paymentFilter
+    ? payments.filter(payment => payment.paymentMethod === paymentFilter)
+    : payments;
   const faturado   = financial?.depotDeliveredSales;
   const recebido   = financial?.totalReceived;
   const saldoCaixa = financial?.cashBalance;
@@ -109,7 +113,8 @@ export function CashRegisterPage() {
       note: `Fornecedor: ${settlement.supplierName}`,
       paymentMethod: settlement.paymentMethod,
     })),
-  ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+  ].filter(row => !paymentFilter || row.paymentMethod === paymentFilter)
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -119,7 +124,7 @@ export function CashRegisterPage() {
       <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
 
         {/* Date picker + refresh */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
             <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '18px' }}>calendar_today</span>
             <input
@@ -204,9 +209,24 @@ export function CashRegisterPage() {
 
           {/* Transactions table */}
           <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-[15px] font-bold text-slate-800">Movimentações</h2>
-              <span className="text-[12px] text-slate-400">{loading ? '—' : paymentsError ? 'Indisponível' : `${payments.length} transações`}</span>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+                <span className="text-[12px] text-slate-400">{loading ? '—' : paymentsError ? 'Indisponível' : `${visiblePayments.length} transações`}</span>
+                <div role="group" aria-label="Filtrar por meio de pagamento" className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                  {(['', 'PIX', 'DINHEIRO'] as const).map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      aria-pressed={paymentFilter === method}
+                      onClick={() => setPaymentFilter(method)}
+                      className={`rounded-md px-3 py-1.5 text-sm font-medium ${paymentFilter === method ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      {method ? METHOD_LABEL[method] : 'Todos'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {loading ? (
@@ -217,10 +237,10 @@ export function CashRegisterPage() {
               <div role="alert" className="px-5 py-10 text-sm text-red-600">
                 Movimentações indisponíveis para a data selecionada. {paymentsError} Use Atualizar para tentar novamente.
               </div>
-            ) : payments.length === 0 ? (
+            ) : visiblePayments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <span className="material-symbols-outlined mb-2" style={{ fontSize: '40px' }}>point_of_sale</span>
-                <p className="text-sm font-medium">Nenhuma movimentação nesta data</p>
+                <p className="text-sm font-medium">{paymentFilter ? `Nenhuma movimentação em ${METHOD_LABEL[paymentFilter]} nesta data` : 'Nenhuma movimentação nesta data'}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -235,7 +255,7 @@ export function CashRegisterPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {payments.map(p => {
+                    {visiblePayments.map(p => {
                       const m = METHOD_COLORS[p.paymentMethod] ?? { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', hex: '#94a3b8' };
                       const orderId = typeof p.orderId === 'string' ? p.orderId.trim() : '';
                       const hasOrder = orderId !== '' && orderId !== 'null' && orderId !== 'undefined';
@@ -291,10 +311,10 @@ export function CashRegisterPage() {
                   <tfoot>
                     <tr className="bg-slate-50 border-t border-slate-200">
                       <td colSpan={4} className="px-5 py-3 text-[12px] font-semibold text-slate-500 uppercase tracking-wide">
-                        Novas entradas (PIX + Dinheiro)
+                        Novas entradas ({paymentFilter ? METHOD_LABEL[paymentFilter] : 'PIX + Dinheiro'})
                       </td>
                       <td className="px-5 py-3 text-right font-black text-[15px] text-teal tabular-nums">
-                        {formatBRL(totals.newReceipts)}
+                        {formatBRL(paymentFilter ? totals[paymentFilter].amount : totals.newReceipts)}
                       </td>
                     </tr>
                   </tfoot>
@@ -401,7 +421,7 @@ export function CashRegisterPage() {
           </div>
           {loading ? <p className="p-6 text-sm text-slate-500">Carregando livro-caixa…</p>
             : financialError ? <p role="alert" className="p-6 text-sm text-red-600">Livro-caixa indisponível. {financialError} Use Atualizar para tentar novamente.</p>
-            : ledgerRows.length === 0 ? <p className="p-6 text-sm text-slate-500">Nenhum movimento manual ou acerto de gás liquidado nesta data.</p>
+            : ledgerRows.length === 0 ? <p className="p-6 text-sm text-slate-500">{paymentFilter ? `Nenhum lançamento em ${METHOD_LABEL[paymentFilter]} no livro-caixa desta data.` : 'Nenhum movimento manual ou acerto de gás liquidado nesta data.'}</p>
             : <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-slate-50 text-left text-xs text-slate-500">
