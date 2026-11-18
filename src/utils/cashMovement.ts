@@ -42,6 +42,6 @@ export function buildCashMovement(input: {
   const common = { amount: Math.round(amount * 100) / 100, occurredAt, note: note || null };
   return type === 'ADJUSTMENT' ? { ...common, type, direction } : { ...common, type,
     ...(type === 'WITHDRAWAL' && input.withdrawalKind ? { withdrawalKind: input.withdrawalKind } : {}),
-    ...(type === 'WITHDRAWAL' && input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
+    ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
   };
 }

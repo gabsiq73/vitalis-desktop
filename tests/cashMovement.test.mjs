@@ -31,6 +31,13 @@ test('manual adjustments require a positive amount and retain chosen direction',
   }
 });
 
+test('manual entries send the selected method and adjustments use physical cash', () => {
+  for (const paymentMethod of ['DINHEIRO', 'PIX']) {
+    assert.equal(buildCashMovement({ ...input, paymentMethod }).paymentMethod, paymentMethod);
+  }
+  assert.equal(buildCashMovement({ ...input, type: 'ADJUSTMENT', paymentMethod: 'PIX' }).paymentMethod, undefined);
+});
+
 test('conference submits only positive difference with matching direction', () => {
   const base = { ...input, type: 'ADJUSTMENT', balance: 100, amount: NaN };
   assert.equal(buildCashMovement({ ...base, counted: 100 }), null);

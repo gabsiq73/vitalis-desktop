@@ -430,7 +430,7 @@ export function CashRegisterPage() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-slate-500">Entradas e ajustes alteram o saldo em dinheiro. Retiradas e acertos de gás alteram o saldo do meio escolhido.</p>
+            <p className="text-xs text-slate-500">Entradas, retiradas e acertos de gás movimentam o meio escolhido. Ajustes movimentam o dinheiro físico.</p>
             {!loading && financial && <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
               <span>Entradas manuais: {formatBRL(financial.totalEntries)}</span>
               <span>Ajustes líquidos: {formatBRL(financial.totalAdjustments)}</span>

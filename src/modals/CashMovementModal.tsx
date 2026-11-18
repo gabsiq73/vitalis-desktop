@@ -44,7 +44,8 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
     try {
       if (occurredAt.slice(0, 10) !== date) throw new Error('Use a data selecionada no Caixa do Dia.');
       payload = buildCashMovement({ type, amount: amount === '' ? NaN : Number(amount), direction, occurredAt, note,
-        ...(type === 'WITHDRAWAL' ? { withdrawalKind, paymentMethod } : {}),
+        ...(type === 'WITHDRAWAL' ? { withdrawalKind } : {}),
+        ...(type !== 'ADJUSTMENT' ? { paymentMethod } : {}),
         ...(isConference ? { counted: amount === '' ? NaN : Number(amount), balance: baseBalance } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Revise os dados do lançamento.');
@@ -85,19 +86,24 @@ export function CashMovementModal({ type, date, balance, onClose, onSuccess }: P
   return (
     <Modal open onClose={() => { if (!submitting.current) onClose(); }} title={TITLES[type]} maxWidth="max-w-lg">
       <form onSubmit={submit} className="overflow-y-auto p-6 space-y-4">
-        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. {type === 'WITHDRAWAL' ? 'A saída movimenta dinheiro ou PIX, conforme a forma selecionada.' : 'Este lançamento movimenta apenas dinheiro físico.'}</p>
+        <p className="text-sm text-slate-600">Data do caixa: {date.split('-').reverse().join('/')}. {type === 'ADJUSTMENT' && 'O ajuste movimenta o dinheiro físico.'}</p>
         {error && <p ref={errorRef} role="alert" className="p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</p>}
         <fieldset disabled={saving} className="space-y-4">
-          {type === 'WITHDRAWAL' && <>
+          {type === 'WITHDRAWAL' && (
             <label className="block text-sm font-medium text-slate-700">Tipo da saída
               <select aria-label="Tipo da saída" className={inputClass} value={withdrawalKind} onChange={e => setWithdrawalKind(e.target.value as WithdrawalKind)}>
                 <option value="RETIRADA">Retirada</option><option value="COMPRA">Compra de água (boleto)</option><option value="DESPESA">Despesa</option>
               </select>
             </label>
-            <label className="block text-sm font-medium text-slate-700">Forma da saída
-              <select aria-label="Forma da saída" className={inputClass} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as GasPaymentMethod)}><option value="DINHEIRO">Dinheiro</option><option value="PIX">PIX</option></select>
+          )}
+          {type !== 'ADJUSTMENT' && (
+            <label className="block text-sm font-medium text-slate-700">{type === 'ENTRY' ? 'Forma da entrada' : 'Forma da saída'}
+              <select className={inputClass} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as GasPaymentMethod)}>
+                <option value="DINHEIRO">Dinheiro</option>
+                <option value="PIX">PIX</option>
+              </select>
             </label>
-          </>}
+          )}
           {type === 'ADJUSTMENT' && <label className="block text-sm font-medium text-slate-700">Forma de ajuste
             <select className={inputClass} value={conference ? 'CONFERENCE' : 'MANUAL'} onChange={e => { setConference(e.target.value === 'CONFERENCE'); setAmount(''); }}>
               <option value="CONFERENCE">Por conferência de valor</option><option value="MANUAL">Informar entrada ou saída</option>
