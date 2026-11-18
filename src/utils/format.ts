@@ -18,6 +18,11 @@ export function formatOrderId(id: string): string {
   return `#${id.replace(/-/g, '').slice(-6).toUpperCase()}`;
 }
 
+export function toLocalDateParam(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function formatDateTime(dateString: string): string {
   try {
     return new Date(dateString).toLocaleString('pt-BR', {

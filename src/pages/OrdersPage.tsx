@@ -21,6 +21,7 @@ import {
   getInitials,
   getOrderStatusBadge,
   getPaymentStatusBadge,
+  toLocalDateParam,
 } from '../utils/format';
 
 
@@ -83,8 +84,7 @@ const STATUS_CHANGE_OPTIONS = [
 ];
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toLocalDateParam(new Date());
 }
 
 function scheduledThreshold(): string {
@@ -178,7 +178,7 @@ export function OrdersPage() {
       { key: 'SHIPPED',     params: { status: 'SHIPPED',        size: 1, ...dateParams } },
       { key: 'DELIVERED',   params: { status: 'DELIVERED',      size: 1, ...dateParams } },
       { key: 'CANCELLED',   params: { status: 'CANCELLED',      size: 1, ...dateParams } },
-      { key: 'SCHEDULED',   params: { status: 'PENDING', deliveryAfter: scheduledThreshold(), size: 1 } },
+      { key: 'SCHEDULED',   params: { status: 'PENDING', deliveryAfter: scheduledThreshold(), size: 1, ...dateParams } },
     ];
     const results = await Promise.allSettled(
       keys.map((k) => http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { ...k.params, ...(productFilter ? { productId: productFilter } : {}), ...(searchQuery ? { search: searchQuery } : {}) } }))
@@ -195,15 +195,14 @@ export function OrdersPage() {
     let active = true;
     setLoading(true);
     const params: Record<string, string | number> = { page: currentPage, size: pageSize };
+    const { start, end } = getDateParams();
+    if (start) params.start = start;
+    if (end) params.end = end;
     if (statusFilter === 'SCHEDULED') {
       params.status = 'PENDING';
       params.deliveryAfter = scheduledThreshold();
-      // Scheduled filter ignores date range (deliveryAfter is the relevant filter)
-    } else {
-      if (statusFilter) params.status = statusFilter;
-      const dp = getDateParams();
-      if (dp.start) params.start = dp.start;
-      if (dp.end)   params.end   = dp.end;
+    } else if (statusFilter) {
+      params.status = statusFilter;
     }
     if (searchQuery) params.search = searchQuery;
     if (productFilter) params.productId = productFilter;

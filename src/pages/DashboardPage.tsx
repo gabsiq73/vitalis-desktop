@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
 import { isStockLow } from '../utils/stock';
 import { ConfirmDeliveryModal } from '../modals/ConfirmDeliveryModal';
 import type { OrderResponseDTO, SpringPage, StockResponseDTO } from '../types';
-import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge, isScheduledOrder } from '../utils/format';
+import { formatBRL, formatOrderId, formatShortDateTime, getOrderStatusBadge, getPaymentStatusBadge, isScheduledOrder, toLocalDateParam } from '../utils/format';
 
 const STATUS_OPTIONS = [
   { value: 'PENDING',   label: 'Pendente',    icon: 'pending_actions', color: 'text-yellow-700 hover:bg-yellow-50' },
@@ -38,15 +38,11 @@ function formatDeliveryTime(dateStr: string): { label: string; isUrgent: boolean
   return { label: `${dd}/${mm} ${hhmm}`, isUrgent: false };
 }
 
-function isWithinPeriod(dateStr: string, period: Period): boolean {
-  if (period === 'all') return true;
-  const d = new Date(dateStr);
-  const now = new Date();
-  if (period === 'today') {
-    return d.toDateString() === now.toDateString();
-  }
-  const weekAgo = new Date(now.getTime() - 7 * 86400000);
-  return d >= weekAgo;
+function getPeriodParams(today: Date, period: Period) {
+  if (period === 'all') return {};
+  const start = new Date(today);
+  if (period === 'week') start.setDate(start.getDate() - 6);
+  return { start: toLocalDateParam(start), end: toLocalDateParam(today) };
 }
 
 export function DashboardPage() {
@@ -60,7 +56,8 @@ export function DashboardPage() {
   const [scheduledPending, setScheduledPending] = useState<OrderResponseDTO[]>([]);
   const [shippedCount, setShippedCount] = useState(0);
   const [criticalStock, setCriticalStock] = useState(0);
-  const [period, setPeriod] = useState<Period>('all');
+  const [period, setPeriod] = useState<Period>('today');
+  const [refresh, setRefresh] = useState(0);
 
   const [statusMenu, setStatusMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -73,20 +70,23 @@ export function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [statusMenu]);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
     if (!http) return;
-    try {
-      const [ordersRes, activeRes, shippedRes, stockRes, todayRes, pendingRes] = await Promise.allSettled([
-        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 20, page: 0 } }),
-        http.get<OrderResponseDTO[]>('/orders/active'),
-        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'SHIPPED', size: 1 } }),
-        http.get<SpringPage<StockResponseDTO>>('/stocks', { params: { size: 200 } }),
-        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { size: 100, page: 0 } }),
-        http.get<SpringPage<OrderResponseDTO>>('/orders', { params: { status: 'PENDING', size: 50 } }),
-      ]);
-
+    const controller = new AbortController();
+    const { signal } = controller;
+    const today = new Date();
+    setLoading(true);
+    Promise.allSettled([
+      http.get<SpringPage<OrderResponseDTO>>('/orders', { signal, params: { size: 20, ...getPeriodParams(today, period) } }),
+      http.get<OrderResponseDTO[]>('/orders/active', { signal }),
+      http.get<SpringPage<OrderResponseDTO>>('/orders', { signal, params: { status: 'SHIPPED', size: 1 } }),
+      http.get<SpringPage<StockResponseDTO>>('/stocks', { signal, params: { size: 200 } }),
+      http.get<SpringPage<OrderResponseDTO>>('/orders', { signal, params: { size: 100, ...getPeriodParams(today, 'today') } }),
+      http.get<SpringPage<OrderResponseDTO>>('/orders', { signal, params: { status: 'PENDING', size: 50 } }),
+    ]).then(([ordersRes, activeRes, shippedRes, stockRes, todayRes, pendingRes]) => {
+      if (signal.aborted) return;
       const nowMs = Date.now();
-      if (ordersRes.status === 'fulfilled') setRecentOrders(ordersRes.value.data.content);
+      setRecentOrders(ordersRes.status === 'fulfilled' ? ordersRes.value.data.content : []);
       if (activeRes.status === 'fulfilled') setActiveOrders(activeRes.value.data);
       if (shippedRes.status === 'fulfilled') setShippedCount(shippedRes.value.data.totalElements);
       if (stockRes.status === 'fulfilled') {
@@ -94,11 +94,7 @@ export function DashboardPage() {
         setCriticalStock(critical);
       }
       if (todayRes.status === 'fulfilled') {
-        const todayStr = new Date().toDateString();
-        const todayOnly = (todayRes.value.data.content ?? []).filter(
-          (o) => new Date(o.createDate).toDateString() === todayStr
-        );
-        setAllTodayOrders(todayOnly);
+        setAllTodayOrders(todayRes.value.data.content);
       }
       if (pendingRes.status === 'fulfilled') {
         const scheduled = (pendingRes.value.data.content ?? []).filter(
@@ -106,12 +102,12 @@ export function DashboardPage() {
         );
         setScheduledPending(scheduled);
       }
-    } finally {
+    }).finally(() => {
+      if (signal.aborted) return;
       setLoading(false);
-    }
-  }, [http]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+    });
+    return () => controller.abort();
+  }, [http, period, refresh]);
 
   async function changeStatus(orderId: string, status: string) {
     if (!http) return;
@@ -123,7 +119,7 @@ export function DashboardPage() {
       } else {
         await http.patch(`/orders/${orderId}/status`, null, { params: { status } });
       }
-      fetchData();
+      setRefresh(value => value + 1);
     } finally {
       setActionLoading(null);
     }
@@ -138,8 +134,6 @@ export function DashboardPage() {
     .filter((o, i, arr) => arr.findIndex((x) => x.id === o.id) === i) // deduplicate
     .sort((a, b) => new Date(a.deliveryDate!).getTime() - new Date(b.deliveryDate!).getTime())
     .slice(0, 6);
-
-  const filteredOrders = recentOrders.filter((o) => isWithinPeriod(o.createDate, period));
 
   const kpis: {
     icon: string; label: string; value: string | number; sub: string;
@@ -296,7 +290,7 @@ export function DashboardPage() {
               <div>
                 <h2 className="text-[15px] font-bold text-slate-800">Pedidos Recentes</h2>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  {filteredOrders.length} {filteredOrders.length === 1 ? 'pedido' : 'pedidos'} encontrados
+                  {recentOrders.length} {recentOrders.length === 1 ? 'pedido' : 'pedidos'} encontrados
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -328,7 +322,7 @@ export function DashboardPage() {
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <span className="text-[13px] text-slate-400">Carregando...</span>
                 </div>
-              ) : filteredOrders.length === 0 ? (
+              ) : recentOrders.length === 0 ? (
                 <div className="p-10 text-center">
                   <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>inbox</span>
                   <p className="text-[13px] text-slate-400">Nenhum pedido neste período.</p>
@@ -346,7 +340,7 @@ export function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {filteredOrders.map((order) => {
+                    {recentOrders.map((order) => {
                       const badge = getOrderStatusBadge(order.status, order.deliveryDate);
                       const payBadge = getPaymentStatusBadge(order.paymentStatus, order.status);
                       const isDelivered = order.status === 'DELIVERED';
@@ -523,7 +517,7 @@ export function DashboardPage() {
       </div>
 
       {/* Status dropdown */}
-      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => { setDeliveryTarget(null); fetchData(); }} onSuccess={() => { setDeliveryTarget(null); fetchData(); }} />}
+      {deliveryTarget && <ConfirmDeliveryModal orderId={deliveryTarget} onClose={() => { setDeliveryTarget(null); setRefresh(value => value + 1); }} onSuccess={() => { setDeliveryTarget(null); setRefresh(value => value + 1); }} />}
       {statusMenu && (() => {
         const currentOrder = recentOrders.find((o) => o.id === statusMenu.id);
         return (
