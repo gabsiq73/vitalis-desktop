@@ -8,6 +8,11 @@ export interface SpringPage<T> {
 
 export type ClientType = 'RETAIL' | 'RESELLER' | 'AVULSO';
 export type ClientStatus = 'PAID' | 'OVERDUE';
+
+export interface ClientFinancialFilters {
+  positiveBalance?: boolean;
+  status?: ClientStatus;
+}
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED';
 export type ProductType = 'WATER' | 'GAS' | 'FULL_BOTTLE' | 'EXPIRED_BOTTLE';

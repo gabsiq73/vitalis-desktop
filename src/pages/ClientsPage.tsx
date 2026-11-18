@@ -8,7 +8,7 @@ import { NewClientModal } from '../modals/NewClientModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
 import { PageSizeSelector } from '../components/PageSizeSelector';
-import type { ClientResponseDTO, SpringPage } from '../types';
+import type { ClientFinancialFilters, ClientResponseDTO, SpringPage } from '../types';
 import { formatBRL, getInitials, maskPhone } from '../utils/format';
 
 
@@ -43,6 +43,12 @@ interface ClientStats {
   adimplenceRate: number;
 }
 
+const FINANCIAL_FILTERS = {
+  all: {},
+  credit: { positiveBalance: true },
+  overdue: { status: 'OVERDUE' },
+} satisfies Record<string, ClientFinancialFilters>;
+
 export function ClientsPage() {
   const { http } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +62,9 @@ export function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [financialFilter, setFinancialFilter] = useState<keyof typeof FINANCIAL_FILTERS>('all');
+  const [refresh, setRefresh] = useState(0);
+  const hasFilters = Boolean(searchQuery || typeFilter || financialFilter !== 'all');
 
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -69,67 +78,83 @@ export function ClientsPage() {
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    if (searchQuery === debouncedSearch) return;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(0);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, debouncedSearch]);
 
-  async function fetchClients() {
+  useEffect(() => {
     if (!http) return;
+    const controller = new AbortController();
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
-    if (debouncedSearch) params.name = debouncedSearch;
-    if (typeFilter) params.type = typeFilter;
-    if (sort) params.sort = `${sort.field},${sort.dir}`;
-    try {
-      const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', { params });
-      setClients(res.data.content);
-      setTotalElements(res.data.totalElements);
-      setTotalPages(res.data.totalPages);
-    } catch {
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    const params = {
+      page: currentPage,
+      size: pageSize,
+      name: debouncedSearch || undefined,
+      type: typeFilter || undefined,
+      sort: sort ? `${sort.field},${sort.dir}` : undefined,
+      ...FINANCIAL_FILTERS[financialFilter],
+    };
+    http.get<SpringPage<ClientResponseDTO>>('/clients', { params, signal: controller.signal })
+      .then(({ data }) => {
+        if (controller.signal.aborted) return;
+        const lastPage = Math.max(0, data.totalPages - 1);
+        if (currentPage > lastPage) {
+          setCurrentPage(lastPage);
+          return;
+        }
+        setClients(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setClients([]);
+        setTotalElements(0);
+        setTotalPages(0);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [http, currentPage, debouncedSearch, typeFilter, financialFilter, sort, pageSize, refresh]);
 
-  async function fetchStats() {
+  useEffect(() => {
     if (!http) return;
+    const controller = new AbortController();
     setStatsLoading(true);
-    try {
-      const res = await http.get<SpringPage<ClientResponseDTO>>('/clients', {
-        params: { size: 1000, sort: 'name,asc' },
-      });
-      const all = res.data.content;
-      const total = res.data.totalElements;
-      const overdueCount = all.filter((c) => c.clientStatus === 'OVERDUE').length;
+    Promise.all([
+      http.get<SpringPage<ClientResponseDTO>>('/clients', { params: { size: 1 }, signal: controller.signal }),
+      http.get<SpringPage<ClientResponseDTO>>('/clients', {
+        params: { size: 1, ...FINANCIAL_FILTERS.overdue },
+        signal: controller.signal,
+      }),
+    ]).then(([all, overdue]) => {
+      if (controller.signal.aborted) return;
+      const total = all.data.totalElements;
+      const overdueCount = overdue.data.totalElements;
       setStats({
         total,
         overdueCount,
         overduePercent: total > 0 ? (overdueCount / total) * 100 : 0,
         adimplenceRate: total > 0 ? ((total - overdueCount) / total) * 100 : 100,
       });
-    } catch {
-      setStats(null);
-    } finally {
-      setStatsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchClients();
-  }, [http, currentPage, debouncedSearch, typeFilter, sort, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    fetchStats();
-  }, [http]); // eslint-disable-line react-hooks/exhaustive-deps
+    }).catch(() => { if (!controller.signal.aborted) setStats(null); })
+      .finally(() => { if (!controller.signal.aborted) setStatsLoading(false); });
+    return () => controller.abort();
+  }, [http, refresh]);
 
   function handleTypeFilter(type: string) {
     setTypeFilter(type);
     setCurrentPage(0);
   }
 
-  function handleSearchChange(value: string) {
-    setSearchQuery(value);
+  function clearFilters() {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setTypeFilter('');
+    setFinancialFilter('all');
     setCurrentPage(0);
   }
 
@@ -149,8 +174,7 @@ export function ClientsPage() {
     try {
       await http.delete(`/clients/${deleteTarget}`);
       notify('Cliente excluído com sucesso.', 'success');
-      await fetchClients();
-      await fetchStats();
+      setRefresh(value => value + 1);
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       const msg = message ?? 'Erro ao excluir cliente. Tente novamente.';
@@ -226,7 +250,7 @@ export function ClientsPage() {
               type="text"
               placeholder="Buscar por nome..."
               value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-white text-[13px] text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
             />
           </div>
@@ -247,9 +271,23 @@ export function ClientsPage() {
             </button>
           ))}
 
-          {(searchQuery || typeFilter) && (
+          <select
+            aria-label="Situação financeira"
+            value={financialFilter}
+            onChange={event => {
+              setFinancialFilter(event.target.value as keyof typeof FINANCIAL_FILTERS);
+              setCurrentPage(0);
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="all">Situação financeira</option>
+            <option value="credit">Com crédito</option>
+            <option value="overdue">Inadimplentes</option>
+          </select>
+
+          {hasFilters && (
             <button
-              onClick={() => { setSearchQuery(''); setTypeFilter(''); setCurrentPage(0); }}
+              onClick={clearFilters}
               className="flex items-center gap-1 px-3 py-2 rounded-lg text-[12px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
@@ -292,9 +330,9 @@ export function ClientsPage() {
                     <td colSpan={8} className="px-5 py-12 text-center">
                       <span className="material-symbols-outlined block mb-2 text-slate-200" style={{ fontSize: '36px' }}>person_off</span>
                       <p className="text-[13px] text-slate-400">Nenhum cliente encontrado.</p>
-                      {(searchQuery || typeFilter) && (
+                      {hasFilters && (
                         <button
-                          onClick={() => { setSearchQuery(''); setTypeFilter(''); }}
+                          onClick={clearFilters}
                           className="mt-2 text-[12px] text-primary hover:underline"
                         >
                           Limpar filtros
@@ -474,7 +512,7 @@ export function ClientsPage() {
       <NewClientModal
         open={showNewClient}
         onClose={closeClientModal}
-        onSuccess={() => { closeClientModal(); fetchClients(); fetchStats(); }}
+        onSuccess={() => { closeClientModal(); setRefresh(value => value + 1); }}
         client={editingClient}
       />
 
