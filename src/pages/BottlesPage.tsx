@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from '../components/TopBar';
+import { ClientPicker } from '../components/ClientPicker';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortState } from '../components/SortableHeader';
@@ -13,6 +14,7 @@ import { parseApiError } from '../utils/parseApiError';
 import { PageSizeSelector } from '../components/PageSizeSelector';
 import type { ClientResponseDTO, DepotBottleDebtResponseDTO, LoanedBottleResponseDTO, SpringPage } from '../types';
 import { getInitials } from '../utils/format';
+import { normalizeSearch } from '../utils/search';
 
 function daysSince(dateStr?: string): number | null {
   if (!dateStr) return null;
@@ -45,19 +47,21 @@ export function BottlesPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
   const [pageSize, setPageSize] = useState(15);
+  const [clientSearch, setClientSearch] = useState('');
+  const [loanRefresh, setLoanRefresh] = useState(0);
+  const [loanError, setLoanError] = useState('');
+  const clientName = normalizeSearch(clientSearch);
 
   const [showNewLoan, setShowNewLoan] = useState(false);
   const [editLoan, setEditLoan] = useState<LoanedBottleResponseDTO | null>(null);
   const [returnTarget, setReturnTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const { notify } = useNotification();
-  const [clients, setClients] = useState<ClientResponseDTO[]>([]);
-  const [clientsLoading, setClientsLoading] = useState(true);
-  const [clientsError, setClientsError] = useState('');
   const [debts, setDebts] = useState<SpringPage<DepotBottleDebtResponseDTO> | null>(null);
   const [debtsLoading, setDebtsLoading] = useState(true);
   const [debtsError, setDebtsError] = useState('');
-  const [debtClientId, setDebtClientId] = useState('');
+  const [debtClient, setDebtClient] = useState<Pick<ClientResponseDTO, 'id' | 'name'> | null>(null);
+  const debtClientId = debtClient?.id;
   const [debtPage, setDebtPage] = useState(0);
   const [debtPageSize, setDebtPageSize] = useState(15);
   const [debtRefresh, setDebtRefresh] = useState(0);
@@ -65,34 +69,6 @@ export function BottlesPage() {
   const [completeTarget, setCompleteTarget] = useState<DepotBottleDebtResponseDTO | null>(null);
   const [completeError, setCompleteError] = useState('');
   const completing = useRef(false);
-
-  useEffect(() => {
-    if (!http) return;
-    let active = true;
-    setClientsLoading(true);
-    setClientsError('');
-    async function loadClients() {
-      try {
-        const all: ClientResponseDTO[] = [];
-        let page = 0;
-        let total = 1;
-        while (page < total) {
-          const response = await http!.get<SpringPage<ClientResponseDTO>>('/clients', { params: { page, size: 200, sort: 'name,asc' } });
-          if (!active) return;
-          all.push(...response.data.content);
-          total = response.data.totalPages;
-          page++;
-        }
-        if (active) setClients(all);
-      } catch (err) {
-        if (active) setClientsError(parseApiError(err));
-      } finally {
-        if (active) setClientsLoading(false);
-      }
-    }
-    void loadClients();
-    return () => { active = false; };
-  }, [http, debtRefresh]);
 
   useEffect(() => {
     if (!http) return;
@@ -129,23 +105,65 @@ export function BottlesPage() {
     }
   }
 
-  function fetchBottles() {
+  useEffect(() => {
     if (!http) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const status = statusFilter ? { status: statusFilter } : {};
     setLoading(true);
-    const params: Record<string, string | number> = { page: currentPage, size: pageSize };
-    if (statusFilter) params.status = statusFilter;
-    http
-      .get<SpringPage<LoanedBottleResponseDTO>>('/bottles', { params })
-      .then((res) => {
-        setBottles(res.data.content);
-        setTotalElements(res.data.totalElements);
-        setTotalPages(res.data.totalPages);
-      })
-      .catch(() => setBottles([]))
-      .finally(() => setLoading(false));
-  }
+    setLoanError('');
 
-  useEffect(() => { fetchBottles(); }, [http, currentPage, statusFilter, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+    async function loadBottles() {
+      const { data } = await http!.get<SpringPage<LoanedBottleResponseDTO>>('/bottles', {
+        signal,
+        params: { ...status, page: clientName ? 0 : currentPage, size: clientName ? 200 : pageSize },
+      });
+      if (!clientName) return data;
+
+      // Search all loan pages before paginating the matches.
+      const matches = data.content.filter(loan => normalizeSearch(loan.clientName).includes(clientName));
+      for (let page = 1; page < data.totalPages && !signal.aborted; page++) {
+        const response = await http!.get<SpringPage<LoanedBottleResponseDTO>>('/bottles', {
+          signal,
+          params: { ...status, page, size: 200 },
+        });
+        matches.push(...response.data.content.filter(loan => normalizeSearch(loan.clientName).includes(clientName)));
+      }
+      return {
+        content: matches.slice(currentPage * pageSize, (currentPage + 1) * pageSize),
+        totalElements: matches.length,
+        totalPages: Math.ceil(matches.length / pageSize),
+      };
+    }
+
+    const timer = setTimeout(() => {
+      loadBottles().then(data => {
+        if (signal.aborted) return;
+        if (currentPage > 0 && currentPage >= data.totalPages) {
+          setCurrentPage(Math.max(0, data.totalPages - 1));
+          return;
+        }
+        setBottles(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+      }).catch(err => {
+        if (signal.aborted) return;
+        setLoanError(parseApiError(err));
+        setBottles([]);
+        setTotalElements(0);
+        setTotalPages(0);
+      }).finally(() => { if (!signal.aborted) setLoading(false); });
+    }, clientName ? 350 : 0);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [http, currentPage, statusFilter, pageSize, clientName, loanRefresh]);
+
+  function fetchBottles() {
+    setLoanRefresh(value => value + 1);
+  }
 
   function handleStatusFilter(s: string) {
     setStatusFilter(s);
@@ -241,7 +259,15 @@ export function BottlesPage() {
           </div>
         </section>
 
-        <section className="bg-surface border border-outline-variant rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <section className="bg-surface border border-outline-variant rounded-xl p-4 shadow-sm flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            aria-label="Buscar empréstimos por nome do cliente"
+            placeholder="Buscar cliente por nome..."
+            value={clientSearch}
+            onChange={e => { setClientSearch(e.target.value); setCurrentPage(0); }}
+            className="w-full sm:w-64 px-3 py-2 text-sm border border-outline-variant rounded-lg bg-surface-container-lowest"
+          />
           <div className="flex items-center bg-surface-container-low border border-outline-variant rounded-lg p-1">
             {[
               { value: '', label: 'TODOS' },
@@ -297,7 +323,7 @@ export function BottlesPage() {
                 ) : bottles.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant text-body-md">
-                      Nenhum vasilhame encontrado.
+                      {loanError || 'Nenhum vasilhame encontrado.'}
                     </td>
                   </tr>
                 ) : (
@@ -422,22 +448,17 @@ export function BottlesPage() {
               <h2 id="bottle-debts-title" className="text-h2 text-on-surface">Garrafões devidos aos clientes</h2>
               <p className="text-sm text-on-surface-variant mt-1">Pendências do depósito com os clientes. A baixa entrega toda a quantidade registrada.</p>
             </div>
-            <button disabled={clientsLoading || !!clientsError || clients.length === 0} onClick={() => setShowNewDebt(true)} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-lg font-bold text-sm disabled:opacity-50">
+            <button onClick={() => setShowNewDebt(true)} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-lg font-bold text-sm">
               <span className="material-symbols-outlined" aria-hidden="true">add</span>Registrar pendência
             </button>
           </div>
           <div className="px-6 pb-4 flex flex-wrap items-end gap-4">
-            <label className="text-sm text-on-surface-variant">Filtrar pendências por cliente
-              <select disabled={clientsLoading || !!clientsError} value={debtClientId} onChange={e => { setDebtClientId(e.target.value); setDebtPage(0); }} className="block mt-1 px-3 py-2 border border-outline-variant rounded-lg bg-surface-container-lowest max-w-full">
-                <option value="">{clientsLoading ? 'Carregando clientes...' : 'Todos os clientes'}</option>
-                {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
-              </select>
-            </label>
-            <button onClick={() => setDebtRefresh(value => value + 1)} disabled={debtsLoading || clientsLoading} className="px-3 py-2 text-sm text-primary border border-outline-variant rounded-lg disabled:opacity-50">Atualizar</button>
+            <div className="w-full sm:w-64">
+              <ClientPicker label="Filtrar pendências por cliente" value={debtClient} onChange={client => { setDebtClient(client); setDebtPage(0); }} />
+            </div>
+            <button onClick={() => setDebtRefresh(value => value + 1)} disabled={debtsLoading} className="px-3 py-2 text-sm text-primary border border-outline-variant rounded-lg disabled:opacity-50">Atualizar</button>
             <div className="ml-auto"><PageSizeSelector value={debtPageSize} onChange={size => { setDebtPageSize(size); setDebtPage(0); }} /></div>
           </div>
-          {clientsError && <p role="alert" className="px-6 pb-4 text-sm text-error">Não foi possível carregar os clientes: {clientsError} Use Atualizar para tentar novamente.</p>}
-          {!clientsLoading && !clientsError && clients.length === 0 && <p className="px-6 pb-4 text-sm text-on-surface-variant">Cadastre um cliente para registrar uma pendência.</p>}
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-surface-container-low text-label-sm text-on-surface-variant uppercase">
@@ -475,7 +496,7 @@ export function BottlesPage() {
         onSuccess={fetchBottles}
       />
 
-      {showNewDebt && <NewBottleDebtModal clients={clients} onClose={() => setShowNewDebt(false)} onSuccess={() => { setShowNewDebt(false); setDebtPage(0); setDebtRefresh(value => value + 1); }} />}
+      {showNewDebt && <NewBottleDebtModal onClose={() => setShowNewDebt(false)} onSuccess={() => { setShowNewDebt(false); setDebtPage(0); setDebtRefresh(value => value + 1); }} />}
 
       <ConfirmModal
         open={completeTarget !== null}

@@ -37,9 +37,9 @@ try {
   await page.goto(web + '/#/bottles');
   await page.getByRole('button', { name: /Registrar Empréstimo/ }).click();
   await page.getByRole('heading', { name: 'Registrar Novo Empréstimo', exact: true }).waitFor();
-  assert.equal(await modal().locator('select').count(), 1);
   assert.equal(await modal().locator('input[type=date]').count(), 0);
-  await page.getByLabel('Cliente *', { exact: true }).selectOption(client.id);
+  await page.getByLabel('Cliente *', { exact: true }).fill(client.name);
+  await modal().getByText(client.name, { exact: true }).click();
   await page.getByLabel('Quantidade *', { exact: true }).fill('2');
   const created = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith('/bottles'));
   await page.getByRole('button', { name: 'Confirmar Empréstimo', exact: true }).click();
@@ -48,6 +48,11 @@ try {
   const loan = await response.json(); assert.equal(loan.productId, null); assert.ok(loan.loanDate);
   const storedLoanDate = (await request('GET', `/bottles/${loan.id}`)).loanDate;
   const row = page.locator('tbody tr').filter({ hasText: username });
+  await row.getByText(/Garrafão$/).waitFor();
+  const search = page.getByRole('searchbox', { name: 'Buscar empréstimos por nome do cliente' });
+  await search.fill('cliente-inexistente');
+  await page.getByText('Nenhum vasilhame encontrado.', { exact: true }).waitFor();
+  await search.fill(client.name.toUpperCase());
   await row.getByText(/Garrafão$/).waitFor();
   await row.getByTitle('Editar empréstimo').click();
   await page.getByLabel('Quantidade *', { exact: true }).fill('3');

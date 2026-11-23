@@ -63,7 +63,8 @@ try {
   await page.locator('tbody tr').first().waitFor();
   await page.goto('http://localhost:5173/#/debtors');
   await page.getByRole('button', { name: 'Registrar fiado', exact: true }).click();
-  await page.getByLabel(/^Cliente \*/).selectOption(legacyClient.id);
+  await page.getByLabel(/^Cliente \*/).fill(legacyClient.name);
+  await page.getByRole('dialog').getByText(legacyClient.name, { exact: true }).click();
   await page.getByLabel('Valor em aberto (R$) *', { exact: true }).fill('75.50');
   await page.getByLabel('Data do fiado *', { exact: true }).fill('2020-01-01');
   await page.getByLabel('Observação (opcional)', { exact: true }).fill('Registro do caderno');
