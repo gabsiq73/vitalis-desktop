@@ -682,21 +682,21 @@ export function NewOrderModal({ open, onClose, onSuccess, defaultClient, editOrd
                           key={c.id}
                           type="button"
                           onClick={() => selectClient(c)}
-                          className={`w-full text-left px-4 py-2.5 transition-colors flex justify-between items-center ${
+                          className={`w-full text-left px-4 py-2.5 transition-colors flex justify-between items-center gap-3 ${
                             c.clientType === 'RESELLER'
                               ? 'hover:bg-amber-50 border-l-2 border-amber-400'
                               : 'hover:bg-slate-50'
                           }`}
                         >
-                          <div>
+                          <div className="min-w-0 break-words">
                             <p className={`font-semibold text-[13px] ${c.clientType === 'RESELLER' ? 'text-amber-800' : 'text-slate-800'}`}>
                               {c.name}
                             </p>
                             <p className={`text-[11px] font-medium ${c.clientType === 'RESELLER' ? 'text-amber-600' : 'text-slate-500'}`}>
-                              {c.clientType === 'RETAIL' ? 'Varejo' : 'Revenda'}
+                              {c.address?.trim() || 'Sem endereço cadastrado'}
                             </p>
                           </div>
-                          <span className={`text-[12px] font-bold ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <span className={`shrink-0 text-[12px] font-bold ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {formatBRL(c.balance)}
                           </span>
                         </button>
